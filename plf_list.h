@@ -1917,6 +1917,10 @@ public:
 		{
 			return end_iterator;
 		}
+		else if (number_of_elements == 1)
+		{
+			return insert(position, element);
+		}
 
 
 		if (node_pointer_allocator_pair.total_number_of_elements == 0 && last_endpoint != NULL && (static_cast<size_type>(groups.block_pointer->beyond_end - groups.block_pointer->nodes) < number_of_elements) && (static_cast<size_type>(groups.block_pointer->beyond_end - groups.block_pointer->nodes) < PLF_LIST_BLOCK_MAX))
@@ -1968,27 +1972,21 @@ public:
 			size_type remainder = number_of_elements - 1;
 			const iterator return_iterator = insert(position, element);
 
-			if (position == begin_iterator)
-			{
-				begin_iterator = return_iterator;
-			}
-
-			while ((node_allocator_pair.number_of_erased_nodes != 0) & (remainder != 0))
+			while (node_allocator_pair.number_of_erased_nodes != 0)
 			{
 				insert(position, element);
 				--node_allocator_pair.number_of_erased_nodes;
-				--remainder;
-			}
 
-			if (remainder == 0)
-			{
-				return return_iterator;
+				if (--remainder == 0)
+				{
+					return return_iterator;
+				}
 			}
 
 			node_pointer_allocator_pair.total_number_of_elements += remainder;
 
 			// then use up remainder of last_endpoint_group:
-			const group_size_type remaining_nodes_in_group = groups.last_endpoint_group->beyond_end - last_endpoint;
+			const group_size_type remaining_nodes_in_group = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - last_endpoint);
 
 			if (remaining_nodes_in_group != 0)
 			{
@@ -2009,7 +2007,7 @@ public:
 			while ((groups.last_endpoint_group != (groups.block_pointer + groups.size - 1)) & (remainder != 0))
 			{
 				last_endpoint = (++groups.last_endpoint_group)->nodes;
-				const group_size_type group_size = groups.last_endpoint_group->beyond_end - groups.last_endpoint_group->nodes;
+				const group_size_type group_size = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - groups.last_endpoint_group->nodes);
 
 				if (group_size < remainder)
 				{
@@ -2049,7 +2047,7 @@ public:
 	// Range insert
 
 	template <class iterator_type>
-	iterator insert (const iterator &it, const typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
+	iterator insert (const iterator &it, typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
 	{
 		if (first == last)
 		{
@@ -2057,11 +2055,10 @@ public:
 		}
 
 		const iterator return_iterator = insert(it, *first);
-		iterator_type current_element = first;
 
-		while(++current_element != last)
+		while(++first != last)
 		{
-			insert(it, *current_element);
+			insert(it, *first);
 		}
 
 		return return_iterator;
@@ -2523,7 +2520,7 @@ public:
 		// edge case: has been filled with elements then clear()'d - some groups may be smaller than would be desired, should be replaced
 		if (node_pointer_allocator_pair.total_number_of_elements == 0 && last_endpoint != NULL)
 		{
-			group_size_type end_group_size = ((groups.block_pointer + groups.size - 1)->beyond_end - (groups.block_pointer + groups.size - 1)->nodes);
+			group_size_type end_group_size = static_cast<group_size_type>((groups.block_pointer + groups.size - 1)->beyond_end - (groups.block_pointer + groups.size - 1)->nodes);
 
 			if (reserve_amount > end_group_size && end_group_size != PLF_LIST_BLOCK_MAX) // if last group isn't large enough, remove all groups
 			{
