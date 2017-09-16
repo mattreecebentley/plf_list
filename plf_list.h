@@ -248,7 +248,7 @@ private:
 		{}
 
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-			node_base(node_pointer_type &&n, node_pointer_type &&p):
+			node_base(node_pointer_type &&n, node_pointer_type &&p) PLF_LIST_NOEXCEPT:
 				next(std::move(n)),
 				previous(std::move(p))
 			{}
@@ -1620,18 +1620,31 @@ public:
 			end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
 			node_pointer_allocator_pair.total_number_of_elements = 1;
 
-			try
+			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+				if (std::is_nothrow_copy_constructible<node>::value)
+				{
+					#ifdef PLF_LIST_VARIADICS_SUPPORT
+						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, element);
+					#else
+						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, element));
+					#endif
+				}
+				else
+			#endif
 			{
-				#ifdef PLF_LIST_VARIADICS_SUPPORT
-					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, element);
-				#else
-					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, element));
-				#endif
-			}
-			catch (...)
-			{
-				reset();
-				throw;
+				try
+				{
+					#ifdef PLF_LIST_VARIADICS_SUPPORT
+						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, element);
+					#else
+						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, element));
+					#endif
+				}
+				catch (...)
+				{
+					reset();
+					throw;
+				}
 			}
 
 			return begin_iterator;
@@ -1733,18 +1746,31 @@ public:
 				end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
 				node_pointer_allocator_pair.total_number_of_elements = 1;
 
-				try
+				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+					if (std::is_nothrow_move_constructible<element_type>::value)
+					{
+						#ifdef PLF_LIST_VARIADICS_SUPPORT
+							PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::move(element));
+						#else
+							PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, std::move(element)));
+						#endif
+					}
+					else
+				#endif
 				{
-					#ifdef PLF_LIST_VARIADICS_SUPPORT
-						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::move(element));
-					#else
-						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, std::move(element)));
-					#endif
-				}
-				catch (...)
-				{
-					reset();
-					throw;
+					try
+					{
+						#ifdef PLF_LIST_VARIADICS_SUPPORT
+							PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::move(element));
+						#else
+							PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, std::move(element)));
+						#endif
+					}
+					catch (...)
+					{
+						reset();
+						throw;
+					}
 				}
 
 				return begin_iterator;
@@ -1839,14 +1865,23 @@ public:
 					end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
 					node_pointer_allocator_pair.total_number_of_elements = 1;
 
-					try
+					#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+						if (std::is_nothrow_constructible<element_type>::value)
+						{
+							PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
+						}
+						else
+					#endif
 					{
-						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
-					}
-					catch (...)
-					{
-						reset();
-						throw;
+						try
+						{
+							PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
+						}
+						catch (...)
+						{
+							reset();
+							throw;
+						}
 					}
 
 					return begin_iterator;
@@ -1884,18 +1919,33 @@ private:
 
 		do
 		{
-			try
+			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+				if (std::is_nothrow_copy_constructible<element_type>::value)
+				{
+					#ifdef PLF_LIST_VARIADICS_SUPPORT
+						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, last_endpoint + 1, previous, element);
+					#else
+						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(last_endpoint + 1, previous, element));
+					#endif
+				}
+				else
+			#endif
 			{
-				#ifdef PLF_LIST_VARIADICS_SUPPORT
-					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, last_endpoint + 1, previous, element);
-				#else
-					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(last_endpoint + 1, previous, element));
-				#endif
-			}
-			catch (...)
-			{
-				reset();
-				throw;
+				try
+				{
+					#ifdef PLF_LIST_VARIADICS_SUPPORT
+						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, last_endpoint + 1, previous, element);
+					#else
+						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(last_endpoint + 1, previous, element));
+					#endif
+				}
+				catch (...)
+				{
+					previous->next = position;
+					position->previous = --previous;
+					groups.last_endpoint_group->number_of_elements -= static_cast<group_size_type>(number_of_elements - (last_endpoint - position));
+					throw;
+				}
 			}
 
 			previous = last_endpoint++;
@@ -2426,43 +2476,28 @@ public:
 		node_pointer_type * const node_pointers = PLF_LIST_ALLOCATE(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointer_allocator_pair.total_number_of_elements, NULL);
 		node_pointer_type *node_pointer = node_pointers;
 
-		try
-		{
-			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
-			{
-				for (node_pointer_type current_node = current_group->nodes; current_node != current_group->beyond_end; ++current_node)
-				{
-					if (current_node->next != current_node->previous) // is not free list node
-					{
-						PLF_LIST_CONSTRUCT(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointer++, current_node);
-					}
-				}
-			}
 
-			for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+		// According to the C++ standard, construction of a pointer (of any type) may not trigger an exception - hence, no try-catch blocks are necessary for constructing the pointers:
+		for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
+		{
+			for (node_pointer_type current_node = current_group->nodes; current_node != current_group->beyond_end; ++current_node)
 			{
-				if (current_node->next != current_node->previous)
+				if (current_node->next != current_node->previous) // is not free list node
 				{
 					PLF_LIST_CONSTRUCT(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointer++, current_node);
 				}
 			}
 		}
-		catch (...)
-		{
-			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (!std::is_trivially_destructible<node_pointer_type>::value)
-			#endif
-			{
-				for(node_pointer_type *current_node_pointer = node_pointers; current_node_pointer != node_pointer; ++current_node_pointer)
-				{
-					PLF_LIST_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, current_node_pointer);
-				}
-			}
 
-			PLF_LIST_DEALLOCATE(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointers, node_pointer_allocator_pair.total_number_of_elements);
-			throw;
+		for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+		{
+			if (current_node->next != current_node->previous)
+			{
+				PLF_LIST_CONSTRUCT(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointer++, current_node);
+			}
 		}
 
+		
 		#ifdef PLF_TIMSORT_AVAILABLE
 			plf::timsort(node_pointers, node_pointers + node_pointer_allocator_pair.total_number_of_elements, sort_dereferencer<comparison_function>(compare));
 		#else
