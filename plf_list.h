@@ -181,7 +181,7 @@ template <class element_type, class element_allocator_type = std::allocator<elem
 public:
 	// Standard container typedefs:
 	typedef element_type															value_type;
-	typedef element_allocator_type													allocator_type;
+	typedef element_allocator_type											allocator_type;
 	typedef unsigned short															group_size_type;
 
 	#ifdef PLF_LIST_ALLOCATOR_TRAITS_SUPPORT // C++11
@@ -482,13 +482,70 @@ private:
 					if (!std::is_trivially_destructible<element_type>::value || !std::is_trivially_destructible<node_pointer_type>::value)
 				#endif
 				{
-					for (node_pointer_type current_node = current_group->nodes; current_node != current_group->beyond_end; ++current_node)
+					const node_pointer_type end = current_group->beyond_end;
+			
+					if ((end - current_group->nodes) != current_group->number_of_elements) // If there are erased nodes present in the group
+					{
+						for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+						{
+							#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+								if (!std::is_trivially_destructible<element_type>::value)
+							#endif
+							{
+								if (current_node->next != current_node->previous) // is not part of free list
+								{
+									PLF_LIST_DESTROY(element_allocator_type, element_allocator_pair, &(current_node->element));
+								}
+							}
+
+							#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+								if (!std::is_trivially_destructible<node_pointer_type>::value)
+							#endif
+							{
+								PLF_LIST_DESTROY(node_pointer_allocator_type, (*this), &(current_node->next));
+								PLF_LIST_DESTROY(node_pointer_allocator_type, (*this), &(current_node->previous));
+							}
+						}
+					}
+					else
+					{
+						for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+						{
+							#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+								if (!std::is_trivially_destructible<element_type>::value)
+							#endif
+							{
+								PLF_LIST_DESTROY(element_allocator_type, element_allocator_pair, &(current_node->element));
+							}
+
+							#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+								if (!std::is_trivially_destructible<node_pointer_type>::value)
+							#endif
+							{
+								PLF_LIST_DESTROY(node_pointer_allocator_type, (*this), &(current_node->next));
+								PLF_LIST_DESTROY(node_pointer_allocator_type, (*this), &(current_node->previous));
+							}
+						}
+					}
+				}
+
+				current_group->free_list_head = NULL;
+				current_group->number_of_elements = 0;
+			}
+
+			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+				if (!std::is_trivially_destructible<element_type>::value || !std::is_trivially_destructible<node_pointer_type>::value)
+			#endif
+			{
+				if ((last_endpoint_node - last_endpoint_group->nodes) != last_endpoint_group->number_of_elements) // If there are erased nodes present in the group
+				{
+					for (node_pointer_type current_node = last_endpoint_group->nodes; current_node != last_endpoint_node; ++current_node)
 					{
 						#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
 							if (!std::is_trivially_destructible<element_type>::value)
 						#endif
 						{
-							if (current_node->next != current_node->previous) // is not part of free list
+							if (current_node->next != current_node->previous) // is not part of free list ie. element has not already had it's destructor called
 							{
 								PLF_LIST_DESTROY(element_allocator_type, element_allocator_pair, &(current_node->element));
 							}
@@ -503,33 +560,24 @@ private:
 						}
 					}
 				}
-
-				current_group->free_list_head = NULL;
-				current_group->number_of_elements = 0;
-			}
-
-			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (!std::is_trivially_destructible<element_type>::value || !std::is_trivially_destructible<node_pointer_type>::value)
-			#endif
-			{
-				for (node_pointer_type current_node = last_endpoint_group->nodes; current_node != last_endpoint_node; ++current_node)
+				else
 				{
-					#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-						if (!std::is_trivially_destructible<element_type>::value)
-					#endif
+					for (node_pointer_type current_node = last_endpoint_group->nodes; current_node != last_endpoint_node; ++current_node)
 					{
-						if (current_node->next != current_node->previous) // is not part of free list ie. element has not already had it's destructor called
+						#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+							if (!std::is_trivially_destructible<element_type>::value)
+						#endif
 						{
 							PLF_LIST_DESTROY(element_allocator_type, element_allocator_pair, &(current_node->element));
 						}
-					}
 
-					#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-						if (!std::is_trivially_destructible<node_pointer_type>::value)
-					#endif
-					{
-						PLF_LIST_DESTROY(node_pointer_allocator_type, (*this), &(current_node->next));
-						PLF_LIST_DESTROY(node_pointer_allocator_type, (*this), &(current_node->previous));
+						#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+							if (!std::is_trivially_destructible<node_pointer_type>::value)
+						#endif
+						{
+							PLF_LIST_DESTROY(node_pointer_allocator_type, (*this), &(current_node->next));
+							PLF_LIST_DESTROY(node_pointer_allocator_type, (*this), &(current_node->previous));
+						}
 					}
 				}
 			}
@@ -563,7 +611,7 @@ private:
 				// In case of allocator supplying non-trivial pointers:
 				const group_pointer_type beyond_end = old_block + size;
 				group_pointer_type current_new_group = block_pointer;
-				
+
 				for (group_pointer_type current_group = old_block; current_group != beyond_end; ++current_group)
 				{
 					*(current_new_group++) = *(current_group);
@@ -743,7 +791,7 @@ private:
 								last_searched_group = right;
 								left_distance = right - left;
 							}
-							
+
 
 							// Otherwise find closest group with freelist:
 							const group_pointer_type end_group = (((right + left_distance) > beyond_end_group) ? beyond_end_group : (right + left_distance - 1));
@@ -966,7 +1014,7 @@ private:
 
 
 
-   	// Implement const/non-const iterator switching pattern:
+		// Implement const/non-const iterator switching pattern:
 	template <bool flag, class IsTrue, class IsFalse> struct choose;
 
 	template <class IsTrue, class IsFalse> struct choose<true, IsTrue, IsFalse>
@@ -1285,7 +1333,7 @@ public:
 		node_pointer_allocator_pair(0),
 		node_allocator_pair(0)
 	{
-    	reserve(source.node_pointer_allocator_pair.total_number_of_elements);
+	 	reserve(source.node_pointer_allocator_pair.total_number_of_elements);
 		insert(end_iterator, source.begin_iterator, source.end_iterator);
 	}
 
@@ -1299,7 +1347,7 @@ public:
 		node_pointer_allocator_pair(0),
 		node_allocator_pair(0)
 	{
-    	reserve(source.node_pointer_allocator_pair.total_number_of_elements);
+	 	reserve(source.node_pointer_allocator_pair.total_number_of_elements);
 		insert(end_iterator, source.begin_iterator, source.end_iterator);
 	}
 
@@ -1799,7 +1847,7 @@ public:
 			{
 				if (last_endpoint != NULL) // ie. list is not empty
 				{
-					if (node_allocator_pair.number_of_erased_nodes == 0) 
+					if (node_allocator_pair.number_of_erased_nodes == 0)
 					{
 						if (last_endpoint == groups.last_endpoint_group->beyond_end) // last_endpoint is beyond the end of a group
 						{
@@ -1811,7 +1859,7 @@ public:
 							{
 								++groups.last_endpoint_group;
 							}
-							
+
 							last_endpoint = groups.last_endpoint_group->nodes;
 						}
 
@@ -1824,7 +1872,7 @@ public:
 						{
 							begin_iterator.node_pointer = last_endpoint;
 						}
-						
+
 						it.node_pointer->previous->next = last_endpoint;
 						it.node_pointer->previous = last_endpoint;
 						
@@ -2236,7 +2284,7 @@ public:
 			{
 				groups.remove(node_group);
 			}
-			
+
 			return return_iterator;
 		}
 		else // clear back group, leave trailing
@@ -2402,7 +2450,7 @@ private:
 
 	struct less
 	{
-		bool operator() (const element_type &a, const element_type &b) const PLF_LIST_NOEXCEPT
+		inline bool operator() (const element_type &a, const element_type &b) const PLF_LIST_NOEXCEPT
 		{
 			return a < b;
 		}
@@ -2412,12 +2460,11 @@ private:
 
 	struct eq
 	{
-		bool operator() (const element_type &a, const element_type &b) const PLF_LIST_NOEXCEPT
+		inline bool operator() (const element_type &a, const element_type &b) const PLF_LIST_NOEXCEPT
 		{
 			return a == b;
 		}
 	};
-
 
 
 	// To redirect the sort function to compare by ->element, but sort the node pointers instead of the elements
@@ -2433,7 +2480,7 @@ private:
 		sort_dereferencer() PLF_LIST_NOEXCEPT
 		{}
 
-		bool operator() (const node_pointer_type first, const node_pointer_type second) const
+		inline bool operator() (const node_pointer_type first, const node_pointer_type second) const
 		{
 			return stored_instance(first->element, second->element);
 		}
@@ -2480,24 +2527,46 @@ public:
 		// According to the C++ standard, construction of a pointer (of any type) may not trigger an exception - hence, no try-catch blocks are necessary for constructing the pointers:
 		for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 		{
-			for (node_pointer_type current_node = current_group->nodes; current_node != current_group->beyond_end; ++current_node)
+			const node_pointer_type end = current_group->beyond_end;
+			
+			if ((end - current_group->nodes) != current_group->number_of_elements) // If there are erased nodes present in the group
 			{
-				if (current_node->next != current_node->previous) // is not free list node
+				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+				{
+					if (current_node->next != current_node->previous) // is not free list node
+					{
+						PLF_LIST_CONSTRUCT(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointer++, current_node);
+					}
+				}
+			}
+			else
+			{
+				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 				{
 					PLF_LIST_CONSTRUCT(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointer++, current_node);
 				}
 			}
 		}
 
-		for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+		if ((last_endpoint - groups.last_endpoint_group->nodes) != groups.last_endpoint_group->number_of_elements) // If there are erased nodes present in the group
 		{
-			if (current_node->next != current_node->previous)
+			for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+			{
+				if (current_node->next != current_node->previous)
+				{
+					PLF_LIST_CONSTRUCT(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointer++, current_node);
+				}
+			}
+		}
+		else
+		{
+			for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 			{
 				PLF_LIST_CONSTRUCT(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointer++, current_node);
 			}
 		}
 
-		
+
 		#ifdef PLF_TIMSORT_AVAILABLE
 			plf::timsort(node_pointers, node_pointers + node_pointer_allocator_pair.total_number_of_elements, sort_dereferencer<comparison_function>(compare));
 		#else
@@ -2808,9 +2877,23 @@ public:
 
 		for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 		{
-			for (node_pointer_type current_node = current_group->nodes; current_node != current_group->beyond_end; ++current_node)
+			const node_pointer_type end = current_group->beyond_end;
+			
+			if (end - current_group->nodes != current_group->number_of_elements) // If there are erased nodes present in the group
 			{
-				if (current_node->next != current_node->previous) // is not free list node
+				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+				{
+					if (current_node->next != current_node->previous) // is not free list node
+					{
+						const node_pointer_type temp = current_node->next;
+						current_node->next = current_node->previous;
+						current_node->previous = temp;
+					}
+				}
+			}
+			else
+			{
+				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 				{
 					const node_pointer_type temp = current_node->next;
 					current_node->next = current_node->previous;
@@ -2819,9 +2902,21 @@ public:
 			}
 		}
 
-		for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+		if (last_endpoint - groups.last_endpoint_group->nodes != groups.last_endpoint_group->number_of_elements) // If there are erased nodes present in the group
 		{
-			if (current_node->next != current_node->previous)
+			for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+			{
+				if (current_node->next != current_node->previous)
+				{
+					const node_pointer_type temp = current_node->next;
+					current_node->next = current_node->previous;
+					current_node->previous = temp;
+				}
+			}
+  		}
+  		else
+  		{
+			for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 			{
 				const node_pointer_type temp = current_node->next;
 				current_node->next = current_node->previous;
@@ -2871,42 +2966,35 @@ public:
 
 
 
-	void remove(const element_type &value)
+
+private:
+
+	struct eq_to
 	{
-		for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
+		const element_type value;
+
+		explicit eq_to(const element_type store_value):
+			value(store_value)
+		{}
+
+		eq_to()
+		{}
+
+		inline bool operator() (const element_type compare_value) const PLF_LIST_NOEXCEPT
 		{
-			group_size_type num_elements = current_group->number_of_elements;
-
-			for (node_pointer_type current_node = current_group->nodes; current_node != current_group->beyond_end; ++current_node)
-			{
-				if (current_node->next != current_node->previous && current_node->element == value) // is not free list node and matches supplied value
-				{
-					erase(current_node);
-
-					if (--num_elements == 0) // ie. group will be empty (and removed) now
-					{
-						--current_group; // Because this will get incremented in the loop
-						break;
-					}
-				}
-			}
+			return value == compare_value;
 		}
+	};
 
-		group_size_type num_elements = groups.last_endpoint_group->number_of_elements;
 
-		for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
-		{
-			if (current_node->next != current_node->previous && current_node->element == value)
-			{
-				erase(current_node);
 
-				if (--num_elements == 0)
-				{
-					break;
-				}
-			}
-		}
-	}
+public:
+
+
+	inline void remove(const element_type &value)
+	{
+		remove_if(eq_to(value));
+	}	
 
 
 
@@ -2916,17 +3004,37 @@ public:
 		for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 		{
 			group_size_type num_elements = current_group->number_of_elements;
-
-			for (node_pointer_type current_node = current_group->nodes; current_node != current_group->beyond_end; ++current_node)
+			const node_pointer_type end = current_group->beyond_end;
+			
+			if (end - current_group->nodes != num_elements) // If there are erased nodes present in the group
 			{
-				if (current_node->next != current_node->previous && predicate(current_node->element)) // is not free list node and validates predicate
+				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 				{
-					erase(current_node);
-
-					if (--num_elements == 0) // ie. group will be empty (and removed) now - nothing left to iterate over
+					if (current_node->next != current_node->previous && predicate(current_node->element)) // is not free list node and validates predicate
 					{
-						--current_group;
-						break;
+						erase(current_node);
+
+						if (--num_elements == 0) // ie. group will be empty (and removed) now - nothing left to iterate over
+						{
+							--current_group;
+							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+				{
+					if (predicate(current_node->element)) // is not free list node and validates predicate
+					{
+						erase(current_node);
+
+						if (--num_elements == 0) // ie. group will be empty (and removed) now - nothing left to iterate over
+						{
+							--current_group;
+							break;
+						}
 					}
 				}
 			}
@@ -2934,15 +3042,33 @@ public:
 
 		group_size_type num_elements = groups.last_endpoint_group->number_of_elements;
 
-		for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+		if (last_endpoint - groups.last_endpoint_group->nodes != num_elements) // If there are erased nodes present in the group
 		{
-			if (current_node->next != current_node->previous && predicate(current_node->element))
+			for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 			{
-				erase(current_node);
-
-				if (--num_elements == 0) // ie. group will be empty (and removed) now
+				if (current_node->next != current_node->previous && predicate(current_node->element))
 				{
-					break;
+					erase(current_node);
+
+					if (--num_elements == 0) // ie. group will be empty (and removed) now
+					{
+						break;
+					}
+				}
+			}
+		}
+		else
+		{
+			for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+			{
+				if (predicate(current_node->element))
+				{
+					erase(current_node);
+
+					if (--num_elements == 0) // ie. group will be empty (and removed) now
+					{
+						break;
+					}
 				}
 			}
 		}
@@ -3013,8 +3139,8 @@ public:
 
 
 
-    inline allocator_type get_allocator() const PLF_LIST_NOEXCEPT
-    {
+	 inline allocator_type get_allocator() const PLF_LIST_NOEXCEPT
+	 {
 		return element_allocator_type();
 	}
 
