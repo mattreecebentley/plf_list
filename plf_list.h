@@ -1590,133 +1590,9 @@ private:
 
 public:
 
-	iterator insert(const iterator it, const element_type &element)
-	{
-		if (last_endpoint != NULL) // ie. list is not empty
-		{
-			if (node_allocator_pair.number_of_erased_nodes == 0)
-			{
-				if (last_endpoint == groups.last_endpoint_group->beyond_end) // last_endpoint is beyond the end of a group
-				{
-					if (static_cast<size_type>(groups.last_endpoint_group - groups.block_pointer) == groups.size - 1)
-					{
-						groups.add_new(static_cast<group_size_type>((node_pointer_allocator_pair.total_number_of_elements < PLF_LIST_BLOCK_MAX) ? node_pointer_allocator_pair.total_number_of_elements : PLF_LIST_BLOCK_MAX));
-					}
-					else
-					{
-						++groups.last_endpoint_group;
-					}
-
-					last_endpoint = groups.last_endpoint_group->nodes;
-				}
-
-				#ifdef PLF_LIST_VARIADICS_SUPPORT
-					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, it.node_pointer, it.node_pointer->previous, element);
-				#else
-					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(it.node_pointer, it.node_pointer->previous, element));
-				#endif
-
-				++(groups.last_endpoint_group->number_of_elements);
-				++node_pointer_allocator_pair.total_number_of_elements;
-
-				if (it.node_pointer == begin_iterator.node_pointer)
-				{
-					begin_iterator.node_pointer = last_endpoint;
-				}
-
-				it.node_pointer->previous->next = last_endpoint;
-				it.node_pointer->previous = last_endpoint;
-
-				return iterator(last_endpoint++);
-			}
-			else
-			{
-				group_pointer_type const node_group = groups.get_nearest_freelist_group((it.node_pointer != end_iterator.node_pointer) ? it.node_pointer : end_node.previous);
-				node_pointer_type const selected_node = node_group->free_list_head;
-				const node_pointer_type previous = node_group->free_list_head->previous;
-
-				#ifdef PLF_LIST_VARIADICS_SUPPORT
-					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, selected_node, it.node_pointer, it.node_pointer->previous, element);
-				#else
-					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, selected_node, node(it.node_pointer, it.node_pointer->previous, element));
-				#endif
-
-				node_group->free_list_head = previous;
-				++(node_group->number_of_elements);
-				++node_pointer_allocator_pair.total_number_of_elements;
-				--node_allocator_pair.number_of_erased_nodes;
-
-				it.node_pointer->previous->next = selected_node;
-				it.node_pointer->previous = selected_node;
-
-				if (it.node_pointer == begin_iterator.node_pointer)
-				{
-					begin_iterator.node_pointer = selected_node;
-				}
-
-				return iterator(selected_node);
-			}
-		}
-		else // ie. list is empty
-		{
-			if (groups.block_pointer == NULL) // In case of reserve/clear
-			{
-				groups.add_new(PLF_LIST_BLOCK_MIN);
-			}
-
-			groups.last_endpoint_group->number_of_elements = 1;
-			end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-			node_pointer_allocator_pair.total_number_of_elements = 1;
-
-			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (std::is_nothrow_copy_constructible<node>::value)
-				{
-					#ifdef PLF_LIST_VARIADICS_SUPPORT
-						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, element);
-					#else
-						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, element));
-					#endif
-				}
-				else
-			#endif
-			{
-				try
-				{
-					#ifdef PLF_LIST_VARIADICS_SUPPORT
-						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, element);
-					#else
-						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, element));
-					#endif
-				}
-				catch (...)
-				{
-					reset();
-					throw;
-				}
-			}
-
-			return begin_iterator;
-		}
-	}
-
-
-
-	inline PLF_LIST_FORCE_INLINE void push_back(const element_type &element)
-	{
-		insert(end_iterator, element);
-	}
-
-
-
-	inline PLF_LIST_FORCE_INLINE void push_front(const element_type &element)
-	{
-		insert(begin_iterator, element);
-	}
-
-
-
-	#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-		iterator insert(const iterator it, const element_type &&element)
+	#ifdef PLF_LIST_VARIADICS_SUPPORT
+		template<typename... arguments>
+		iterator emplace(const iterator it, arguments &&... parameters)
 		{
 			if (last_endpoint != NULL) // ie. list is not empty
 			{
@@ -1736,11 +1612,7 @@ public:
 						last_endpoint = groups.last_endpoint_group->nodes;
 					}
 
-					#ifdef PLF_LIST_VARIADICS_SUPPORT
-						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, it.node_pointer, it.node_pointer->previous, std::move(element));
-					#else
-						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(it.node_pointer, it.node_pointer->previous, std::move(element)));
-					#endif
+					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, it.node_pointer, it.node_pointer->previous, std::forward<arguments>(parameters)...);
 
 					++(groups.last_endpoint_group->number_of_elements);
 					++node_pointer_allocator_pair.total_number_of_elements;
@@ -1752,7 +1624,7 @@ public:
 
 					it.node_pointer->previous->next = last_endpoint;
 					it.node_pointer->previous = last_endpoint;
-
+					
 					return iterator(last_endpoint++);
 				}
 				else
@@ -1761,12 +1633,8 @@ public:
 					node_pointer_type const selected_node = node_group->free_list_head;
 					const node_pointer_type previous = node_group->free_list_head->previous;
 
-					#ifdef PLF_LIST_VARIADICS_SUPPORT
-						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, selected_node, it.node_pointer, it.node_pointer->previous, std::move(element));
-					#else
-						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, selected_node, node(it.node_pointer, it.node_pointer->previous, std::move(element)));
-					#endif
-
+					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, selected_node, it.node_pointer, it.node_pointer->previous, std::forward<arguments>(parameters)...);
+					
 					node_group->free_list_head = previous;
 					++(node_group->number_of_elements);
 					++node_pointer_allocator_pair.total_number_of_elements;
@@ -1795,24 +1663,16 @@ public:
 				node_pointer_allocator_pair.total_number_of_elements = 1;
 
 				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-					if (std::is_nothrow_move_constructible<element_type>::value)
+					if ((!std::is_copy_constructible<element_type>::value || std::is_nothrow_copy_constructible<element_type>::value) && (!std::is_move_constructible<element_type>::value || std::is_nothrow_move_constructible<element_type>::value) && std::is_nothrow_constructible<element_type>::value)
 					{
-						#ifdef PLF_LIST_VARIADICS_SUPPORT
-							PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::move(element));
-						#else
-							PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, std::move(element)));
-						#endif
+						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
 					}
 					else
 				#endif
 				{
 					try
 					{
-						#ifdef PLF_LIST_VARIADICS_SUPPORT
-							PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::move(element));
-						#else
-							PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, std::move(element)));
-						#endif
+						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
 					}
 					catch (...)
 					{
@@ -1827,23 +1687,178 @@ public:
 
 
 
-		inline PLF_LIST_FORCE_INLINE void push_back(const element_type &&element)
+		inline iterator insert(const iterator it, const element_type &element)
 		{
-			insert(end_iterator, std::move(element));
+			return emplace(it, element);
 		}
 
 
 
-		inline PLF_LIST_FORCE_INLINE void push_front(const element_type &&element) 
+		inline void push_back(const element_type &element)
 		{
-			insert(begin_iterator, std::move(element));
+			emplace(end_iterator, element);
+		}
+	
+	
+	
+		inline void push_front(const element_type &element)
+		{
+			emplace(begin_iterator, element);
+		}
+	
+	
+	
+		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
+			inline iterator insert(const iterator it, element_type &&element)
+			{
+				return emplace(it, std::move(element));
+			}
+
+
+
+			inline void push_back(element_type &&element)
+			{
+				emplace(end_iterator, std::move(element));
+			}
+	
+	
+	
+			inline void push_front(element_type &&element) 
+			{
+				emplace(begin_iterator, std::move(element));
+			}
+		#endif
+		
+
+
+		template<typename... arguments>
+		inline PLF_LIST_FORCE_INLINE void emplace_back(arguments &&... parameters)
+		{
+			emplace(end_iterator, std::forward<arguments>(parameters)...);
 		}
 
 
 
-		#ifdef PLF_LIST_VARIADICS_SUPPORT
-			template<typename... arguments>
-			iterator emplace(const iterator it, arguments&&... parameters)
+		template<typename... arguments>
+		inline PLF_LIST_FORCE_INLINE void emplace_front(arguments &&... parameters)
+		{
+			emplace(begin_iterator, std::forward<arguments>(parameters)...);
+		}
+
+
+
+	#else // #ifndef PLF_LIST_VARIADICS_SUPPORT
+		iterator insert(const iterator it, const element_type &element)
+		{
+			if (last_endpoint != NULL) // ie. list is not empty
+			{
+				if (node_allocator_pair.number_of_erased_nodes == 0)
+				{
+					if (last_endpoint == groups.last_endpoint_group->beyond_end) // last_endpoint is beyond the end of a group
+					{
+						if (static_cast<size_type>(groups.last_endpoint_group - groups.block_pointer) == groups.size - 1)
+						{
+							groups.add_new((node_pointer_allocator_pair.total_number_of_elements < PLF_LIST_BLOCK_MAX) ? static_cast<group_size_type>(node_pointer_allocator_pair.total_number_of_elements) : PLF_LIST_BLOCK_MAX);
+						}
+						else
+						{
+							++groups.last_endpoint_group;
+						}
+	
+						last_endpoint = groups.last_endpoint_group->nodes;
+					}
+	
+					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(it.node_pointer, it.node_pointer->previous, element));
+	
+					++(groups.last_endpoint_group->number_of_elements);
+					++node_pointer_allocator_pair.total_number_of_elements;
+	
+					if (it.node_pointer == begin_iterator.node_pointer)
+					{
+						begin_iterator.node_pointer = last_endpoint;
+					}
+	
+					it.node_pointer->previous->next = last_endpoint;
+					it.node_pointer->previous = last_endpoint;
+	
+					return iterator(last_endpoint++);
+				}
+				else
+				{
+					group_pointer_type const node_group = groups.get_nearest_freelist_group((it.node_pointer != end_iterator.node_pointer) ? it.node_pointer : end_node.previous);
+					node_pointer_type const selected_node = node_group->free_list_head;
+					const node_pointer_type previous = node_group->free_list_head->previous;
+	
+					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, selected_node, node(it.node_pointer, it.node_pointer->previous, element));
+	
+					node_group->free_list_head = previous;
+					++(node_group->number_of_elements);
+					++node_pointer_allocator_pair.total_number_of_elements;
+					--node_allocator_pair.number_of_erased_nodes;
+	
+					it.node_pointer->previous->next = selected_node;
+					it.node_pointer->previous = selected_node;
+	
+					if (it.node_pointer == begin_iterator.node_pointer)
+					{
+						begin_iterator.node_pointer = selected_node;
+					}
+	
+					return iterator(selected_node);
+				}
+			}
+			else // ie. list is empty
+			{
+				if (groups.block_pointer == NULL) // In case of reserve/clear
+				{
+					groups.add_new(PLF_LIST_BLOCK_MIN);
+				}
+	
+				groups.last_endpoint_group->number_of_elements = 1;
+				end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
+				node_pointer_allocator_pair.total_number_of_elements = 1;
+	
+				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+					if (std::is_nothrow_copy_constructible<node>::value)
+					{
+						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, element));
+					}
+					else
+				#endif
+				{
+					try
+					{
+						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, element));
+					}
+					catch (...)
+					{
+						reset();
+						throw;
+					}
+				}
+	
+				return begin_iterator;
+			}
+		}
+	
+	
+	
+		inline PLF_LIST_FORCE_INLINE void push_back(const element_type &element)
+		{
+			insert(end_iterator, element);
+		}
+	
+	
+	
+		inline PLF_LIST_FORCE_INLINE void push_front(const element_type &element)
+		{
+			insert(begin_iterator, element);
+		}
+	
+	
+	
+		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
+			iterator insert(const iterator it, const element_type &&element)
 			{
 				if (last_endpoint != NULL) // ie. list is not empty
 				{
@@ -1853,29 +1868,29 @@ public:
 						{
 							if (static_cast<size_type>(groups.last_endpoint_group - groups.block_pointer) == groups.size - 1)
 							{
-								groups.add_new(static_cast<group_size_type>((node_pointer_allocator_pair.total_number_of_elements < PLF_LIST_BLOCK_MAX) ? node_pointer_allocator_pair.total_number_of_elements : PLF_LIST_BLOCK_MAX));
+								groups.add_new((node_pointer_allocator_pair.total_number_of_elements < PLF_LIST_BLOCK_MAX) ? static_cast<group_size_type>(node_pointer_allocator_pair.total_number_of_elements) : PLF_LIST_BLOCK_MAX);
 							}
 							else
 							{
 								++groups.last_endpoint_group;
 							}
-
+	
 							last_endpoint = groups.last_endpoint_group->nodes;
 						}
-
-						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, it.node_pointer, it.node_pointer->previous, std::forward<arguments>(parameters)...);
-
+	
+						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(it.node_pointer, it.node_pointer->previous, std::move(element)));
+	
 						++(groups.last_endpoint_group->number_of_elements);
 						++node_pointer_allocator_pair.total_number_of_elements;
-
+	
 						if (it.node_pointer == begin_iterator.node_pointer)
 						{
 							begin_iterator.node_pointer = last_endpoint;
 						}
-
+	
 						it.node_pointer->previous->next = last_endpoint;
 						it.node_pointer->previous = last_endpoint;
-						
+	
 						return iterator(last_endpoint++);
 					}
 					else
@@ -1883,22 +1898,22 @@ public:
 						group_pointer_type const node_group = groups.get_nearest_freelist_group((it.node_pointer != end_iterator.node_pointer) ? it.node_pointer : end_node.previous);
 						node_pointer_type const selected_node = node_group->free_list_head;
 						const node_pointer_type previous = node_group->free_list_head->previous;
-
-						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, it.node_pointer, it.node_pointer->previous, std::forward<arguments>(parameters)...);
-						
+	
+						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, selected_node, node(it.node_pointer, it.node_pointer->previous, std::move(element)));
+	
 						node_group->free_list_head = previous;
 						++(node_group->number_of_elements);
 						++node_pointer_allocator_pair.total_number_of_elements;
 						--node_allocator_pair.number_of_erased_nodes;
-
+	
 						it.node_pointer->previous->next = selected_node;
 						it.node_pointer->previous = selected_node;
-
+	
 						if (it.node_pointer == begin_iterator.node_pointer)
 						{
 							begin_iterator.node_pointer = selected_node;
 						}
-
+	
 						return iterator(selected_node);
 					}
 				}
@@ -1908,22 +1923,22 @@ public:
 					{
 						groups.add_new(PLF_LIST_BLOCK_MIN);
 					}
-
+	
 					groups.last_endpoint_group->number_of_elements = 1;
 					end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
 					node_pointer_allocator_pair.total_number_of_elements = 1;
-
+	
 					#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-						if (std::is_nothrow_constructible<element_type>::value)
+						if (std::is_nothrow_move_constructible<element_type>::value)
 						{
-							PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
+							PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, std::move(element)));
 						}
 						else
 					#endif
 					{
 						try
 						{
-							PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
+							PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, std::move(element)));
 						}
 						catch (...)
 						{
@@ -1931,27 +1946,24 @@ public:
 							throw;
 						}
 					}
-
+	
 					return begin_iterator;
 				}
 			}
-
-
-
-			template<typename... arguments>
-			inline PLF_LIST_FORCE_INLINE void emplace_back(arguments&&... parameters)
+	
+	
+	
+			inline PLF_LIST_FORCE_INLINE void push_back(const element_type &&element)
 			{
-				emplace(end_iterator, std::forward<arguments>(parameters)...);
+				insert(end_iterator, std::move(element));
 			}
-
-
-
-			template<typename... arguments>
-			inline PLF_LIST_FORCE_INLINE void emplace_front(arguments&&... parameters)
+	
+	
+	
+			inline PLF_LIST_FORCE_INLINE void push_front(const element_type &&element) 
 			{
-				emplace(begin_iterator, std::forward<arguments>(parameters)...);
+				insert(begin_iterator, std::move(element));
 			}
-
 		#endif
 	#endif
 
