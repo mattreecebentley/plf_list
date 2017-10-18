@@ -895,6 +895,133 @@ int main(int argc, char **argv)
 
 
 		{
+			title2("Reorder tests");
+			
+			plf::list<int> list1;
+			
+
+			for (int counter = 0; counter != 255; ++counter)
+			{
+				list1.push_back(counter);
+			}
+
+
+			unsigned int original_total = 0;
+
+			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
+			{
+				original_total += *it;
+			}
+
+			plf::list<int>::iterator it1 = list1.begin(), it2 = list1.begin(), it3 = list1.begin();
+			
+			std::advance(it1, 25);
+			std::advance(it2, 5);
+			
+			list1.reorder(it2, it1);
+			
+			it1 = list1.begin();
+			std::advance(it1, 5);
+			
+			failpass("Single reorder", *it1 == 25);
+			
+			
+			it1 = list1.begin();
+			std::advance(it1, 152);
+			
+			list1.reorder(list1.begin(), it1);
+
+			failpass("Single reorder to begin", *(list1.begin()) == 152);
+			
+			list1.reorder(list1.end(), it2);
+			
+			it1 = --(list1.end());
+			
+			failpass("Single reorder to end", *it1 == 5);
+			
+			it2 = it1 = list1.begin();
+			
+			std::advance(it1, 50);
+			std::advance(it2, 60);
+			std::advance(it3, 70);
+			
+			list1.reorder(it3, it1, it2);
+			
+			bool pass = true;
+			
+			it3 = list1.begin();
+			std::advance(it3, 60);
+			
+			for (int test = 50; test != 60; ++test)
+			{
+				if (*it3 != test)
+				{
+					pass = false;
+				}
+				++it3;
+			}
+			
+			failpass("Range reorder", pass == true);
+			
+
+			it2 = it1 = list1.begin();
+			
+			std::advance(it1, 80);
+			std::advance(it2, 120);
+
+
+			list1.reorder(list1.end(), it1, it2);
+			
+			pass = true;
+			
+			it3 = list1.end();
+			std::advance(it3, -41);
+			
+			for (int test = 80; test != 120; ++test)
+			{
+				if (*it3 != test)
+				{
+					pass = false;
+				}
+				++it3;
+			}
+			
+			failpass("Range reorder to end", pass == true);
+
+
+
+			it2 = it1 = list1.begin();
+			
+			std::advance(it1, 40);
+			std::advance(it2, 45);
+
+			list1.reorder(list1.begin(), it1, it2);
+			
+			pass = true;
+			
+			it3 = list1.begin();
+			
+			for (int test = 40; test != 45; ++test)
+			{
+				if (*it3 != test)
+				{
+					pass = false;
+				}
+				++it3;
+			}
+			
+			failpass("Range reorder to begin", pass == true);
+			
+			unsigned int total = 0;
+			for (it1 = list1.begin(); it1 != list1.end(); ++it1)
+			{
+				total += *it1;
+			}
+			
+			failpass("Post-reordering data consistency", total == original_total);
+		}
+		
+		{
 			title1("List");
 			title2("Test Basics");
 			

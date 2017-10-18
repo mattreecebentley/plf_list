@@ -674,6 +674,7 @@ private:
 			#endif
 			{
 				group_pointer_type const back = block_pointer + --size;
+				
 				for (group_pointer_type current_group = group_to_erase; current_group != back; ++current_group)
 				{
 					*current_group = *(current_group + 1);
@@ -1014,7 +1015,7 @@ private:
 
 
 
-		// Implement const/non-const iterator switching pattern:
+	// Implement const/non-const iterator switching pattern:
 	template <bool flag, class IsTrue, class IsFalse> struct choose;
 
 	template <class IsTrue, class IsFalse> struct choose<true, IsTrue, IsFalse>
@@ -2470,15 +2471,6 @@ private:
 
 
 
-	struct eq
-	{
-		inline bool operator() (const element_type &a, const element_type &b) const PLF_LIST_NOEXCEPT
-		{
-			return a == b;
-		}
-	};
-
-
 	// To redirect the sort function to compare by ->element, but sort the node pointers instead of the elements
 	template <class comparison_function>
 	struct sort_dereferencer
@@ -2500,28 +2492,7 @@ private:
 
 
 
-	inline PLF_LIST_FORCE_INLINE void consolidate() // get all elements in contigous order in memory and shrink to fit, remove erased locations and free lists
-	{
-		list temp(*this);
-		groups.destroy_all_data(last_endpoint);
-
-		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-			*this = std::move(temp);
-		#else
-			swap(temp);
-		#endif
-	}
-
-
-
 public:
-
-
-	inline void sort()
-	{
-		sort(less());
-	}
-
 
 
 	template <class comparison_function>
@@ -2618,6 +2589,39 @@ public:
 
 		PLF_LIST_DEALLOCATE(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointers, node_pointer_allocator_pair.total_number_of_elements);
 	}
+
+
+
+	inline void sort()
+	{
+		sort(less());
+	}
+
+
+
+	void reorder(iterator const position, iterator const first, iterator const last)
+	{
+		last.node_pointer->next->previous = first.node_pointer->previous;
+		first.node_pointer->previous->next = last.node_pointer->next;
+		
+		last.node_pointer->next = position.node_pointer;
+		first.node_pointer->previous = position.node_pointer->previous;
+		
+		position.node_pointer->previous->next = first.node_pointer;
+		position.node_pointer->previous = last.node_pointer;
+
+		if (begin_iterator == position)
+		{
+			begin_iterator = first;
+		}
+	}	
+
+
+
+	inline void reorder(iterator const position, iterator const location)
+	{
+		reorder(position, location, location);
+	}	
 
 
 
@@ -2745,7 +2749,14 @@ public:
 			return;
 		}
 
-		consolidate();
+		list temp(*this);
+
+		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
+			*this = std::move(temp);
+		#else
+			groups.destroy_all_data(last_endpoint);
+			swap(temp);
+		#endif
 	}
 
 
@@ -2903,7 +2914,7 @@ public:
 					}
 				}
 			}
-			else
+			else // avoid needless per-node if-checks
 			{
 				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 				{
@@ -2946,12 +2957,40 @@ public:
 
 
 
-	inline void unique()
+private:
+
+	// Used by unique()
+	struct eq
 	{
-		unique(eq());
-	}
+		inline bool operator() (const element_type &a, const element_type &b) const PLF_LIST_NOEXCEPT
+		{
+			return a == b;
+		}
+	};
 
 
+
+	// Used by remove()
+	struct eq_to
+	{
+		const element_type value;
+
+		explicit eq_to(const element_type store_value):
+			value(store_value)
+		{}
+
+		eq_to()
+		{}
+
+		inline bool operator() (const element_type compare_value) const PLF_LIST_NOEXCEPT
+		{
+			return value == compare_value;
+		}
+	};
+
+
+
+public:
 
 	template <class comparison_function>
 	void unique(comparison_function compare)
@@ -2978,35 +3017,10 @@ public:
 
 
 
-
-private:
-
-	struct eq_to
+	inline void unique()
 	{
-		const element_type value;
-
-		explicit eq_to(const element_type store_value):
-			value(store_value)
-		{}
-
-		eq_to()
-		{}
-
-		inline bool operator() (const element_type compare_value) const PLF_LIST_NOEXCEPT
-		{
-			return value == compare_value;
-		}
-	};
-
-
-
-public:
-
-
-	inline void remove(const element_type &value)
-	{
-		remove_if(eq_to(value));
-	}	
+		unique(eq());
+	}
 
 
 
@@ -3088,6 +3102,13 @@ public:
 
 
 
+	inline void remove(const element_type &value)
+	{
+		remove_if(eq_to(value));
+	}	
+
+
+
 	void resize(const size_type number_of_elements, const element_type &value = element_type())
 	{
 		if (node_pointer_allocator_pair.total_number_of_elements == number_of_elements)
@@ -3151,8 +3172,8 @@ public:
 
 
 
-	 inline allocator_type get_allocator() const PLF_LIST_NOEXCEPT
-	 {
+	inline allocator_type get_allocator() const PLF_LIST_NOEXCEPT
+	{
 		return element_allocator_type();
 	}
 
