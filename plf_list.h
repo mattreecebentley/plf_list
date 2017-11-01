@@ -1664,7 +1664,7 @@ public:
 				node_pointer_allocator_pair.total_number_of_elements = 1;
 
 				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-					if ((!std::is_copy_constructible<element_type>::value || std::is_nothrow_copy_constructible<element_type>::value) && (!std::is_move_constructible<element_type>::value || std::is_nothrow_move_constructible<element_type>::value) && std::is_nothrow_constructible<element_type>::value)
+					if (std::is_nothrow_constructible<element_type, arguments ...>::value)
 					{
 						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
 					}
@@ -1688,21 +1688,21 @@ public:
 
 
 
-		inline iterator insert(const iterator it, const element_type &element)
+		iterator insert(const iterator it, const element_type &element)
 		{
 			return emplace(it, element);
 		}
 
 
 
-		inline void push_back(const element_type &element)
+		void push_back(const element_type &element)
 		{
 			emplace(end_iterator, element);
 		}
 	
 	
 	
-		inline void push_front(const element_type &element)
+		void push_front(const element_type &element)
 		{
 			emplace(begin_iterator, element);
 		}
@@ -1710,21 +1710,21 @@ public:
 	
 	
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-			inline iterator insert(const iterator it, element_type &&element)
+			iterator insert(const iterator it, element_type &&element)
 			{
 				return emplace(it, std::move(element));
 			}
 
 
 
-			inline void push_back(element_type &&element)
+			void push_back(element_type &&element)
 			{
 				emplace(end_iterator, std::move(element));
 			}
 	
 	
 	
-			inline void push_front(element_type &&element) 
+			void push_front(element_type &&element) 
 			{
 				emplace(begin_iterator, std::move(element));
 			}
@@ -2979,7 +2979,7 @@ private:
 			value(store_value)
 		{}
 
-		eq_to()
+		eq_to() PLF_LIST_NOEXCEPT
 		{}
 
 		inline bool operator() (const element_type compare_value) const PLF_LIST_NOEXCEPT
@@ -3004,7 +3004,7 @@ public:
 
 		for (iterator current = ++iterator(begin_iterator); current != end_iterator;)
 		{
-			if (current.node_pointer != begin_iterator.node_pointer && compare(*current, *previous))
+			if (compare(*current, *previous))
 			{
 				current = erase(current);
 			}
