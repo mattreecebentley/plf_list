@@ -483,7 +483,7 @@ private:
 				#endif
 				{
 					const node_pointer_type end = current_group->beyond_end;
-			
+
 					if ((end - current_group->nodes) != current_group->number_of_elements) // If there are erased nodes present in the group
 					{
 						for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
@@ -629,7 +629,7 @@ private:
 
 
 
-		inline void add_new(const group_size_type group_size)
+		void add_new(const group_size_type group_size)
 		{
 			if (group_allocator_pair.capacity == size)
 			{
@@ -674,7 +674,7 @@ private:
 			#endif
 			{
 				group_pointer_type const back = block_pointer + --size;
-				
+
 				for (group_pointer_type current_group = group_to_erase; current_group != back; ++current_group)
 				{
 					*current_group = *(current_group + 1);
@@ -918,7 +918,7 @@ private:
 					left_not_beyond_front = (--left >= block_pointer);
 				}
 			}
-			
+
 			// Will never reach here on functioning implementations
 		}
 
@@ -1047,14 +1047,14 @@ public:
 
 
 
-		inline PLF_LIST_FORCE_INLINE bool operator == (const list_iterator &rh) const PLF_LIST_NOEXCEPT
+		inline PLF_LIST_FORCE_INLINE bool operator == (const list_iterator rh) const PLF_LIST_NOEXCEPT
 		{
 			return (node_pointer == rh.node_pointer);
 		}
 
 
 
-		inline PLF_LIST_FORCE_INLINE bool operator != (const list_iterator &rh) const PLF_LIST_NOEXCEPT
+		inline PLF_LIST_FORCE_INLINE bool operator != (const list_iterator rh) const PLF_LIST_NOEXCEPT
 		{
 			return (node_pointer != rh.node_pointer);
 		}
@@ -1075,7 +1075,7 @@ public:
 
 
 
-		inline PLF_LIST_FORCE_INLINE list_iterator & operator ++ () PLF_LIST_NOEXCEPT
+		inline PLF_LIST_FORCE_INLINE list_iterator operator ++ () PLF_LIST_NOEXCEPT
 		{
 			assert(node_pointer != NULL); // covers uninitialised list_iterator
 			node_pointer = node_pointer->next;
@@ -1093,7 +1093,7 @@ public:
 
 
 
-		inline PLF_LIST_FORCE_INLINE list_iterator & operator -- () PLF_LIST_NOEXCEPT
+		inline PLF_LIST_FORCE_INLINE list_iterator operator -- () PLF_LIST_NOEXCEPT
 		{
 			assert(node_pointer != NULL); // covers uninitialised list_iterator
 			node_pointer = node_pointer->previous;
@@ -1111,7 +1111,7 @@ public:
 
 
 
-		inline list_iterator & operator = (const list_iterator &rh) PLF_LIST_NOEXCEPT
+		inline list_iterator operator = (const list_iterator &rh) PLF_LIST_NOEXCEPT
 		{
 			node_pointer = rh.node_pointer;
 			return *this;
@@ -1120,7 +1120,7 @@ public:
 
 
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-			inline list_iterator & operator = (const list_iterator &&rh) PLF_LIST_NOEXCEPT
+			inline list_iterator operator = (const list_iterator &&rh) PLF_LIST_NOEXCEPT
 			{
 				node_pointer = std::move(rh.node_pointer);
 				return *this;
@@ -1164,14 +1164,14 @@ public:
 		friend class list;
 
 
-		inline PLF_LIST_FORCE_INLINE bool operator == (const list_reverse_iterator &rh) const PLF_LIST_NOEXCEPT
+		inline PLF_LIST_FORCE_INLINE bool operator == (const list_reverse_iterator rh) const PLF_LIST_NOEXCEPT
 		{
 			return (node_pointer == rh.node_pointer);
 		}
 
 
 
-		inline PLF_LIST_FORCE_INLINE bool operator != (const list_reverse_iterator &rh) const PLF_LIST_NOEXCEPT
+		inline PLF_LIST_FORCE_INLINE bool operator != (const list_reverse_iterator rh) const PLF_LIST_NOEXCEPT
 		{
 			return (node_pointer != rh.node_pointer);
 		}
@@ -1192,7 +1192,7 @@ public:
 
 
 
-		inline PLF_LIST_FORCE_INLINE list_reverse_iterator & operator ++ () PLF_LIST_NOEXCEPT
+		inline PLF_LIST_FORCE_INLINE list_reverse_iterator operator ++ () PLF_LIST_NOEXCEPT
 		{
 			assert(node_pointer != NULL); // covers uninitialised list_reverse_iterator
 			node_pointer = node_pointer->previous;
@@ -1210,7 +1210,7 @@ public:
 
 
 
-		inline PLF_LIST_FORCE_INLINE list_reverse_iterator & operator -- () PLF_LIST_NOEXCEPT
+		inline PLF_LIST_FORCE_INLINE list_reverse_iterator operator -- () PLF_LIST_NOEXCEPT
 		{
 			assert(node_pointer != NULL); // covers uninitialised list_reverse_iterator
 			node_pointer = node_pointer->next;
@@ -1228,7 +1228,7 @@ public:
 
 
 
-		inline list_reverse_iterator & operator = (const list_reverse_iterator &rh) PLF_LIST_NOEXCEPT
+		inline list_reverse_iterator operator = (const list_reverse_iterator &rh) PLF_LIST_NOEXCEPT
 		{
 			node_pointer = rh.node_pointer;
 			return *this;
@@ -1237,7 +1237,7 @@ public:
 
 
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-			inline list_reverse_iterator & operator = (const list_reverse_iterator &&rh) PLF_LIST_NOEXCEPT
+			inline list_reverse_iterator operator = (const list_reverse_iterator &&rh) PLF_LIST_NOEXCEPT
 			{
 				node_pointer = std::move(rh.node_pointer);
 				return *this;
@@ -1699,16 +1699,16 @@ public:
 		{
 			emplace(end_iterator, element);
 		}
-	
-	
-	
+
+
+
 		void push_front(const element_type &element)
 		{
 			emplace(begin_iterator, element);
 		}
-	
-	
-	
+
+
+
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 			iterator insert(const iterator it, element_type &&element)
 			{
@@ -1721,15 +1721,15 @@ public:
 			{
 				emplace(end_iterator, std::move(element));
 			}
-	
-	
-	
-			void push_front(element_type &&element) 
+
+
+
+			void push_front(element_type &&element)
 			{
 				emplace(begin_iterator, std::move(element));
 			}
 		#endif
-		
+
 
 
 		template<typename... arguments>
@@ -1778,10 +1778,10 @@ public:
 					{
 						begin_iterator.node_pointer = last_endpoint;
 					}
-	
+
 					it.node_pointer->previous->next = last_endpoint;
 					it.node_pointer->previous = last_endpoint;
-	
+
 					return iterator(last_endpoint++);
 				}
 				else
@@ -1789,7 +1789,7 @@ public:
 					group_pointer_type const node_group = groups.get_nearest_freelist_group((it.node_pointer != end_iterator.node_pointer) ? it.node_pointer : end_node.previous);
 					node_pointer_type const selected_node = node_group->free_list_head;
 					const node_pointer_type previous = node_group->free_list_head->previous;
-	
+
 					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, selected_node, node(it.node_pointer, it.node_pointer->previous, element));
 	
 					node_group->free_list_head = previous;
@@ -1841,23 +1841,23 @@ public:
 				return begin_iterator;
 			}
 		}
-	
+
 	
 	
 		inline PLF_LIST_FORCE_INLINE void push_back(const element_type &element)
 		{
 			insert(end_iterator, element);
 		}
-	
-	
-	
+
+
+
 		inline PLF_LIST_FORCE_INLINE void push_front(const element_type &element)
 		{
 			insert(begin_iterator, element);
 		}
-	
-	
-	
+
+
+
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 			iterator insert(const iterator it, const element_type &&element)
 			{
@@ -1875,12 +1875,12 @@ public:
 							{
 								++groups.last_endpoint_group;
 							}
-	
+
 							last_endpoint = groups.last_endpoint_group->nodes;
 						}
-	
+
 						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(it.node_pointer, it.node_pointer->previous, std::move(element)));
-	
+
 						++(groups.last_endpoint_group->number_of_elements);
 						++node_pointer_allocator_pair.total_number_of_elements;
 	
@@ -1906,7 +1906,7 @@ public:
 						++(node_group->number_of_elements);
 						++node_pointer_allocator_pair.total_number_of_elements;
 						--node_allocator_pair.number_of_erased_nodes;
-	
+
 						it.node_pointer->previous->next = selected_node;
 						it.node_pointer->previous = selected_node;
 	
@@ -1958,10 +1958,10 @@ public:
 			{
 				insert(end_iterator, std::move(element));
 			}
-	
-	
-	
-			inline PLF_LIST_FORCE_INLINE void push_front(const element_type &&element) 
+
+
+
+			inline PLF_LIST_FORCE_INLINE void push_front(const element_type &&element)
 			{
 				insert(begin_iterator, std::move(element));
 			}
@@ -2158,7 +2158,7 @@ public:
 	// Range insert
 
 	template <class iterator_type>
-	iterator insert (const iterator &it, typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
+	iterator insert (const iterator it, typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
 	{
 		if (first == last)
 		{
@@ -2180,7 +2180,7 @@ public:
 	// Initializer-list insert
 
 	#ifdef PLF_LIST_INITIALIZER_LIST_SUPPORT
-		inline iterator insert (const iterator &it, const std::initializer_list<element_type> &element_list)
+		inline iterator insert (const iterator it, const std::initializer_list<element_type> &element_list)
 		{ // use range insert:
 			return insert(it, element_list.begin(), element_list.end());
 		}
@@ -2192,18 +2192,11 @@ private:
 
 	inline PLF_LIST_FORCE_INLINE void destroy_all_node_pointers(group_pointer_type const group_to_process, const node_pointer_type end_node) PLF_LIST_NOEXCEPT
 	{
-		#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-			if (!(std::is_trivially_destructible<node_pointer_type>::value))
-		#endif
+		for (node_pointer_type current_node = group_to_process->nodes; current_node != end_node; ++current_node)
 		{
-			for (node_pointer_type current_node = group_to_process->nodes; current_node != end_node; ++current_node)
-			{
-				PLF_LIST_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->next)); // Destruct element
-				PLF_LIST_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->previous)); // Destruct element
-			}
+			PLF_LIST_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->next)); // Destruct element
+			PLF_LIST_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->previous)); // Destruct element
 		}
-
-		group_to_process->free_list_head = NULL;
 	}
 
 
@@ -2211,7 +2204,7 @@ private:
 public:
 
 
-	iterator erase(const const_iterator &it)
+	iterator erase(const const_iterator it)
 	{
 		assert(node_pointer_allocator_pair.total_number_of_elements != 0);
 		assert(it.node_pointer != NULL);
@@ -2287,7 +2280,15 @@ public:
 		{
 			const group_size_type group_size = static_cast<group_size_type>(node_group->beyond_end - node_group->nodes);
 			node_allocator_pair.number_of_erased_nodes -= group_size;
-			destroy_all_node_pointers(node_group, node_group->beyond_end);
+
+			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+				if (!(std::is_trivially_destructible<node_pointer_type>::value))
+			#endif
+			{
+				destroy_all_node_pointers(node_group, node_group->beyond_end);
+			}
+
+			node_group->free_list_head = NULL;
 
 			if ((group_size == PLF_LIST_BLOCK_MAX) | (node_group >= groups.last_endpoint_group - 1)) // Preserve only last (active) group or second/third-to-last group - seems to be best for performance under high-modification benchmarks
 			{
@@ -2303,7 +2304,15 @@ public:
 		else // clear back group, leave trailing
 		{
 			node_allocator_pair.number_of_erased_nodes -= static_cast<group_size_type>(last_endpoint - node_group->nodes);
-			destroy_all_node_pointers(node_group, last_endpoint);
+
+			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+				if (!(std::is_trivially_destructible<node_pointer_type>::value))
+			#endif
+			{
+				destroy_all_node_pointers(node_group, last_endpoint);
+			}
+
+			node_group->free_list_head = NULL;
 			last_endpoint = groups.last_endpoint_group->beyond_end;
 
 			if (node_pointer_allocator_pair.total_number_of_elements == 0)
@@ -2511,7 +2520,7 @@ public:
 		for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 		{
 			const node_pointer_type end = current_group->beyond_end;
-			
+
 			if ((end - current_group->nodes) != current_group->number_of_elements) // If there are erased nodes present in the group
 			{
 				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
@@ -2599,14 +2608,14 @@ public:
 
 
 
-	void reorder(iterator const position, iterator const first, iterator const last)
+	void reorder(const iterator position, const iterator first, const iterator last)
 	{
 		last.node_pointer->next->previous = first.node_pointer->previous;
 		first.node_pointer->previous->next = last.node_pointer->next;
-		
+
 		last.node_pointer->next = position.node_pointer;
 		first.node_pointer->previous = position.node_pointer->previous;
-		
+
 		position.node_pointer->previous->next = first.node_pointer;
 		position.node_pointer->previous = last.node_pointer;
 
@@ -2614,14 +2623,14 @@ public:
 		{
 			begin_iterator = first;
 		}
-	}	
+	}
 
 
 
-	inline void reorder(iterator const position, iterator const location)
+	inline void reorder(const iterator position, const iterator location)
 	{
 		reorder(position, location, location);
-	}	
+	}
 
 
 
@@ -2636,7 +2645,7 @@ public:
 			reserve_amount = max_size();
 		}
 
-
+		
 		// edge case: has been filled with elements then clear()'d - some groups may be smaller than would be desired, should be replaced
 		if (node_pointer_allocator_pair.total_number_of_elements == 0 && last_endpoint != NULL)
 		{
@@ -2824,6 +2833,16 @@ public:
 
 
 
+	template <class comparison_function>
+	void merge(list &source, comparison_function compare)
+	{
+		assert(&source != this);
+		splice((source.node_pointer_allocator_pair.total_number_of_elements >= node_pointer_allocator_pair.total_number_of_elements) ? end_iterator : begin_iterator, source);
+		sort(compare);
+	}
+
+
+
 	void merge(list &source)
 	{
 		assert(&source != this);
@@ -2881,16 +2900,6 @@ public:
 
 
 
-	template <class comparison_function>
-	void merge(list &source, comparison_function compare)
-	{
-		assert(&source != this);
-		splice((source.node_pointer_allocator_pair.total_number_of_elements >= node_pointer_allocator_pair.total_number_of_elements) ? end_iterator : begin_iterator, source);
-		sort(compare);
-	}
-
-
-
 	void reverse() PLF_LIST_NOEXCEPT
 	{
 		if (node_pointer_allocator_pair.total_number_of_elements < 2)
@@ -2901,7 +2910,7 @@ public:
 		for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 		{
 			const node_pointer_type end = current_group->beyond_end;
-			
+
 			if (end - current_group->nodes != current_group->number_of_elements) // If there are erased nodes present in the group
 			{
 				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
@@ -3031,7 +3040,7 @@ public:
 		{
 			group_size_type num_elements = current_group->number_of_elements;
 			const node_pointer_type end = current_group->beyond_end;
-			
+
 			if (end - current_group->nodes != num_elements) // If there are erased nodes present in the group
 			{
 				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
@@ -3105,7 +3114,7 @@ public:
 	inline void remove(const element_type &value)
 	{
 		remove_if(eq_to(value));
-	}	
+	}
 
 
 
@@ -3212,7 +3221,7 @@ public:
 
 
 template <class swap_element_type, class swap_element_allocator_type>
-inline void swap (list<swap_element_type, swap_element_allocator_type> &a, list<swap_element_type, swap_element_allocator_type> &b) PLF_LIST_NOEXCEPT_SWAP(swap_element_allocator_type)
+inline void swap(list<swap_element_type, swap_element_allocator_type> &a, list<swap_element_type, swap_element_allocator_type> &b) PLF_LIST_NOEXCEPT_SWAP(swap_element_allocator_type)
 {
 	a.swap(b);
 }
