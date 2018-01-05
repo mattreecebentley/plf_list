@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
+// Copyright (c) 2018, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
 
 // This software is provided 'as-is', without any express or implied
 // warranty. In no event will the authors be held liable for any damages
@@ -448,7 +448,7 @@ private:
 
 
 
-		void destroy_all_data(const node_pointer_type last_endpoint_node)
+		void destroy_all_data(const node_pointer_type last_endpoint_node, const node_pointer_type begin_iterator_node)
 		{
 			if (block_pointer == NULL)
 			{
@@ -459,7 +459,7 @@ private:
 				if (!std::is_trivially_destructible<element_type>::value || !std::is_trivially_destructible<node_pointer_type>::value)
 			#endif
 			{
-				clear(last_endpoint_node); // If clear has already been called, last_endpoint_node will already be == block_pointer->nodes, so no work will occur
+				clear(last_endpoint_node, begin_iterator_node); // If clear has already been called, last_endpoint_node will already be == block_pointer->nodes, so no work will occur
 			}
 
 			const group_pointer_type end_group = block_pointer + size;
@@ -474,8 +474,34 @@ private:
 
 
 
-		void clear(const node_pointer_type last_endpoint_node)
+		void clear(const node_pointer_type last_endpoint_node, const node_pointer_type begin_iterator_node)
 		{
+			last_searched_group = block_pointer;
+			
+			// Destroy begin_iterator node if it's the only element in the list (will be detected as free list node in code below this otherwise)
+			if (block_pointer == last_endpoint_group && block_pointer->number_of_elements == 1) // edge case
+			{
+				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+					if (!std::is_trivially_destructible<element_type>::value)
+				#endif
+				{
+					PLF_LIST_DESTROY(element_allocator_type, element_allocator_pair, &(begin_iterator_node->element));
+				}
+
+				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+					if (!std::is_trivially_destructible<node_pointer_type>::value)
+				#endif
+				{
+					PLF_LIST_DESTROY(node_pointer_allocator_type, (*this), &(begin_iterator_node->next));
+					PLF_LIST_DESTROY(node_pointer_allocator_type, (*this), &(begin_iterator_node->previous));
+				}
+				
+				block_pointer->free_list_head = NULL;
+				block_pointer->number_of_elements = 0;
+				return;
+			}
+			
+
 			for (group_pointer_type current_group = block_pointer; current_group != last_endpoint_group; ++current_group)
 			{
 				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
@@ -584,7 +610,7 @@ private:
 
 			last_endpoint_group->free_list_head = NULL;
 			last_endpoint_group->number_of_elements = 0;
-			last_searched_group = last_endpoint_group = block_pointer;
+			last_endpoint_group = block_pointer;
 		}
 
 
@@ -1444,7 +1470,7 @@ public:
 
 	~list()
 	{
-		groups.destroy_all_data(last_endpoint);
+		groups.destroy_all_data(last_endpoint, begin_iterator.node_pointer);
 	}
 
 
@@ -1560,7 +1586,7 @@ public:
 
 		if (node_pointer_allocator_pair.total_number_of_elements != 0)
 		{
-			groups.clear(last_endpoint);
+			groups.clear(last_endpoint, begin_iterator.node_pointer);
 		}
 
 		last_endpoint = groups.block_pointer->nodes;
@@ -1578,7 +1604,7 @@ private:
 
 	void reset()
 	{
-		groups.destroy_all_data(last_endpoint);
+		groups.destroy_all_data(last_endpoint, begin_iterator.node_pointer);
 		last_endpoint = NULL;
 		end_node.next = reinterpret_cast<node_pointer_type>(&end_node);
 		end_node.previous = reinterpret_cast<node_pointer_type>(&end_node);
@@ -2358,7 +2384,7 @@ public:
 	{
 		assert (&source != this);
 
-		groups.destroy_all_data(last_endpoint);
+		groups.destroy_all_data(last_endpoint, begin_iterator.node_pointer);
 		list temp(source);
 
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
@@ -2379,7 +2405,7 @@ public:
 			assert (&source != this);
 
 			// Move source values across:
-			groups.destroy_all_data(last_endpoint);
+			groups.destroy_all_data(last_endpoint, begin_iterator.node_pointer);
 
 			end_node.next = source.begin_iterator.node_pointer;
 			end_node.previous = source.end_node.previous;
@@ -2763,7 +2789,7 @@ public:
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 			*this = std::move(temp);
 		#else
-			groups.destroy_all_data(last_endpoint);
+			groups.destroy_all_data(last_endpoint, begin_iterator.node_pointer);
 			swap(temp);
 		#endif
 	}
@@ -3075,8 +3101,20 @@ public:
 			}
 		}
 
-		group_size_type num_elements = groups.last_endpoint_group->number_of_elements;
 
+		if (node_pointer_allocator_pair.total_number_of_elements == 1)
+		{
+			if (predicate(begin_iterator.node_pointer->element))
+			{
+				erase(begin_iterator.node_pointer);
+			}
+			
+			return;
+		}
+
+		
+		group_size_type num_elements = groups.last_endpoint_group->number_of_elements;
+		
 		if (last_endpoint - groups.last_endpoint_group->nodes != num_elements) // If there are erased nodes present in the group
 		{
 			for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
@@ -3084,10 +3122,20 @@ public:
 				if (current_node->next != current_node->previous && predicate(current_node->element))
 				{
 					erase(current_node);
+					
+					if (node_pointer_allocator_pair.total_number_of_elements == 1)
+					{
+						if (predicate(begin_iterator.node_pointer->element))
+						{
+							erase(begin_iterator.node_pointer);
+						}
+						
+						return;
+					}
 
 					if (--num_elements == 0) // ie. group will be empty (and removed) now
 					{
-						break;
+						return;
 					}
 				}
 			}
@@ -3102,7 +3150,7 @@ public:
 
 					if (--num_elements == 0) // ie. group will be empty (and removed) now
 					{
-						break;
+						return;
 					}
 				}
 			}

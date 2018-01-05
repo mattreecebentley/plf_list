@@ -534,9 +534,12 @@ int main(int argc, char **argv)
 				}
 			}
 			
-			failpass("remove ( == 5)", passed);
+			failpass("remove ( == 5) test", passed);
 
 
+			list1.remove(4);
+			failpass("Remove to create empty list test", list1.empty());
+			
 		
 			title2("Reserve tests");
 
