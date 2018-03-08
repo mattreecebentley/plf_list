@@ -267,7 +267,7 @@ int main(int argc, char **argv)
 	unsigned int loop_counter = 0;
 
 	#ifndef PLF_INITIALIZER_LIST_SUPPORT
-		std::cout << "Initializer_list support (C++11 or higher) is required for most tests. Most tests will skipped without it. Press a key to continue." << std::endl;
+		std::cout << "Initializer_list support (C++11 or higher) is required for most tests. Most tests will skipped without it. Press ENTER to continue." << std::endl;
 		std::cin.get();
 	#endif
 
@@ -1074,8 +1074,15 @@ int main(int argc, char **argv)
 			failpass("Iterator + distance test", std::distance(p_list.begin(), plus_twenty) == 20);
 			failpass("Iterator + distance test 2", std::distance(p_list.begin(), plus_two_hundred) == 200);
 			
-			list<int *>::iterator next_iterator = std::next(p_list.begin(), 5);
-			list<int *>::const_iterator prev_iterator = std::prev(p_list.cend(), 300);
+			#ifdef PLF_INITIALIZER_LIST_SUPPORT
+				list<int *>::iterator next_iterator = std::next(p_list.begin(), 5);
+				list<int *>::const_iterator prev_iterator = std::prev(p_list.cend(), 300);
+			#else
+				list<int *>::iterator next_iterator = p_list.begin();
+				list<int *>::const_iterator prev_iterator = p_list.cend();
+				std::advance(next_iterator, 5);
+				std::advance(prev_iterator, -300);
+			#endif
 			
 			failpass("Iterator next test", std::distance(p_list.begin(), next_iterator) == 5);
 			failpass("Const iterator prev test", std::distance(prev_iterator, p_list.cend()) == 300);
@@ -1123,7 +1130,12 @@ int main(int argc, char **argv)
 			
 			failpass("Reverse iterator advance and distance test", std::distance(p_list.rbegin(), r_iterator) == 50);
 
-			list<int *>::reverse_iterator r_iterator2 = std::next(r_iterator, 2);
+			#ifdef PLF_INITIALIZER_LIST_SUPPORT
+				list<int *>::reverse_iterator r_iterator2 = std::next(r_iterator, 2);
+			#else
+				list<int *>::reverse_iterator r_iterator2 = r_iterator;
+				std::advance(r_iterator2, 2);
+			#endif
 
 			failpass("Reverse iterator next and distance test", std::distance(p_list.rbegin(), r_iterator2) == 52);
 
@@ -1189,9 +1201,9 @@ int main(int argc, char **argv)
 
 			for(list<int *>::reverse_iterator the_iterator = p_list.rbegin(); the_iterator != p_list.rend();)
 			{
-				list<int *>::iterator it = the_iterator.base();
 				++the_iterator;
-				p_list.erase(--it);
+				list<int *>::iterator it = the_iterator.base(); // grabs the_iterator--, essentially
+				p_list.erase(it);
 				++total;
 			}
 
