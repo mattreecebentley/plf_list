@@ -298,7 +298,7 @@ private:
 			number_of_elements(0)
 		{}
 
-		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
+		#if defined(PLF_LIST_MOVE_SEMANTICS_SUPPORT) || defined(PLF_LIST_VARIADICS_SUPPORT)
 			group(const group_size_type group_size, node_pointer_type const previous = NULL):
 				nodes(PLF_LIST_ALLOCATE_INITIALIZATION(node_allocator_type, group_size, previous)),
 				free_list_head(NULL),
