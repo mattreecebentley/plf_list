@@ -7,5 +7,7 @@ A drop-in replacement for std::list with (on average):
 492% faster reversal,
 100% faster remove/remove_if,
 62% faster unique,
-1122550% faster clear,
+826% faster clear (1122550% for trivially-destructible types),
 and 618% faster destruction.
+
+* Benchmarks performed on a haswell-based CPU under GCC 7.1.
