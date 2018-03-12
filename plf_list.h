@@ -1625,7 +1625,7 @@ public:
 
 					it.node_pointer->previous->next = last_endpoint;
 					it.node_pointer->previous = last_endpoint;
-					
+
 					return iterator(last_endpoint++);
 				}
 				else
@@ -1770,7 +1770,7 @@ public:
 					}
 	
 					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(it.node_pointer, it.node_pointer->previous, element));
-	
+
 					++(groups.last_endpoint_group->number_of_elements);
 					++node_pointer_allocator_pair.total_number_of_elements;
 	
@@ -2903,53 +2903,65 @@ public:
 		{
 			return;
 		}
-
-		for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
+		else if (node_pointer_allocator_pair.total_number_of_elements < 200) // Optimization - for reasons assumably attributable to cache, for under 200 elements reverse performs faster using the standard algorithm, across both haswell and core2
 		{
-			const node_pointer_type end = current_group->beyond_end;
-
-			if (end - current_group->nodes != current_group->number_of_elements) // If there are erased nodes present in the group
+			for (iterator current = begin_iterator; current != end_iterator;)
 			{
-				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+				const node_pointer_type current_node = current.node_pointer, temp = current.node_pointer->next;
+				++current;
+				current_node->next = current_node->previous;
+				current_node->previous = temp;
+			}
+		}
+		else
+		{
+			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
+			{
+				const node_pointer_type end = current_group->beyond_end;
+
+				if (end - current_group->nodes != current_group->number_of_elements) // If there are erased nodes present in the group
 				{
-					if (current_node->next != NULL) // is not free list node
-					{ // swap the pointers:
+					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+					{
+						if (current_node->next != NULL) // is not free list node
+						{ // swap the pointers:
+							const node_pointer_type temp = current_node->next;
+							current_node->next = current_node->previous;
+							current_node->previous = temp;
+						}
+					}
+				}
+				else // avoid needless per-node if-checks
+				{
+					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+					{
 						const node_pointer_type temp = current_node->next;
 						current_node->next = current_node->previous;
 						current_node->previous = temp;
 					}
 				}
 			}
-			else // avoid needless per-node if-checks
-			{
-				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
-				{
-					const node_pointer_type temp = current_node->next;
-					current_node->next = current_node->previous;
-					current_node->previous = temp;
-				}
-			}
-		}
 
-		if (last_endpoint - groups.last_endpoint_group->nodes != groups.last_endpoint_group->number_of_elements) // If there are erased nodes present in the group
-		{
-			for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+			if (last_endpoint - groups.last_endpoint_group->nodes != groups.last_endpoint_group->number_of_elements) // If there are erased nodes present in the group
 			{
-				if (current_node->next != NULL)
+				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+				{
+					if (current_node->next != NULL)
+					{
+						const node_pointer_type temp = current_node->next;
+						current_node->next = current_node->previous;
+						current_node->previous = temp;
+					}
+				}
+			}
+			else
+			{
+				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
 					const node_pointer_type temp = current_node->next;
 					current_node->next = current_node->previous;
 					current_node->previous = temp;
 				}
-			}
-  		}
-  		else
-  		{
-			for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
-			{
-				const node_pointer_type temp = current_node->next;
-				current_node->next = current_node->previous;
-				current_node->previous = temp;
 			}
 		}
 
