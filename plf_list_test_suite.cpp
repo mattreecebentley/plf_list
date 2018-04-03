@@ -8,22 +8,26 @@
 	#endif
 #elif defined(__cplusplus) && __cplusplus >= 201103L
 	#if defined(__GNUC__) && defined(__GNUC_MINOR__) && !defined(__clang__) // If compiler is GCC/G++
+		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 3) || __GNUC__ > 4 // 4.3 and below do not support initializer lists
+			#define PLF_COLONY_VARIADICS_SUPPORT // Variadics, in this context, means both variadic templates and variadic macros are supported
+		#endif
 		#if __GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4) // 4.3 and below do not support initializer lists
 			#define PLF_INITIALIZER_LIST_SUPPORT
 		#endif
 	#elif defined(__GLIBCXX__) // Using another compiler type with libstdc++ - we are assuming full c++11 compliance for compiler - which may not be true
+		#if __GLIBCXX__ >= 20080606 	// libstdc++ 4.2 and below do not support variadic templates
+			#define PLF_COLONY_VARIADICS_SUPPORT
+		#endif
 		#if __GLIBCXX__ >= 20090421 	// libstdc++ 4.3 and below do not support initializer lists
 			#define PLF_INITIALIZER_LIST_SUPPORT
 		#endif
-	#else // Assume initializer support for non-GCC compilers and standard libraries - may not be accurate
+	#else // Assume initializer/variadics support for non-GCC compilers and standard libraries - may not be accurate
+		#define PLF_VARIADICS_SUPPORT
 		#define PLF_INITIALIZER_LIST_SUPPORT
 	#endif
 
-	#define PLF_VARIADICS_SUPPORT
 	#define PLF_MOVE_SEMANTICS_SUPPORT
 #endif
-
-
 
 
 #include <functional> // std::greater
@@ -263,9 +267,12 @@ int main(int argc, char **argv)
 
 	using namespace plf;
 
-	bool passed = true;
 	unsigned int loop_counter = 0;
-
+	
+	#if defined(PLF_INITIALIZER_LIST_SUPPORT) || defined(PLF_MOVE_SEMANTICS_SUPPORT)
+		bool passed = true;
+	#endif
+	
 	#ifndef PLF_INITIALIZER_LIST_SUPPORT
 		std::cout << "Initializer_list support (C++11 or higher) is required for most tests. Most tests will skipped without it. Press ENTER to continue." << std::endl;
 		std::cin.get();
@@ -1086,6 +1093,7 @@ int main(int argc, char **argv)
 			
 			failpass("Iterator next test", std::distance(p_list.begin(), next_iterator) == 5);
 			failpass("Const iterator prev test", std::distance(prev_iterator, p_list.cend()) == 300);
+			
 			#if defined(__cplusplus) && __cplusplus >= 201402L
 				list<int *>::iterator prev_iterator2 = std::prev(p_list.end(), 300);
 				failpass("Iterator/Const iterator equality operator test", prev_iterator == prev_iterator2);
