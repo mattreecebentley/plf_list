@@ -1485,13 +1485,6 @@ public:
 
 
 
-	inline const iterator & begin() const PLF_LIST_NOEXCEPT
-	{
-		return begin_iterator;
-	}
-
-
-
 	inline iterator begin() PLF_LIST_NOEXCEPT
 	{
 		return begin_iterator;
@@ -1499,14 +1492,21 @@ public:
 
 
 
-	inline const iterator & end() const PLF_LIST_NOEXCEPT
+	inline const_iterator begin() const PLF_LIST_NOEXCEPT
+	{
+		return begin_iterator;
+	}
+
+
+
+	inline iterator end() PLF_LIST_NOEXCEPT
 	{
 		return end_iterator;
 	}
 
 
 
-	inline iterator end() PLF_LIST_NOEXCEPT
+	inline const_iterator end() const PLF_LIST_NOEXCEPT
 	{
 		return end_iterator;
 	}
