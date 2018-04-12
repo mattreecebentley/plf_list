@@ -106,7 +106,7 @@
 		#if __GLIBCXX__ >= 20160111
 			#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
 			#define PLF_LIST_NOEXCEPT noexcept
-			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal:value)
+			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
 			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value)
 		#elif __GLIBCXX__ >= 20120322
 			#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
@@ -126,7 +126,7 @@
 		#define PLF_LIST_VARIADICS_SUPPORT // Variadics, in this context, means both variadic templates and variadic macros are supported
 		#define PLF_LIST_INITIALIZER_LIST_SUPPORT
 		#define PLF_LIST_NOEXCEPT noexcept
-		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal:value)
+		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
 		#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept
 	#else // Assume type traits and initializer support for non-GCC compilers and standard libraries
 		#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
@@ -134,7 +134,7 @@
 		#define PLF_LIST_INITIALIZER_LIST_SUPPORT
 		#define PLF_LIST_TYPE_TRAITS_SUPPORT
 		#define PLF_LIST_NOEXCEPT noexcept
-		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal:value)
+		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
 		#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept
 	#endif
 
