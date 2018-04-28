@@ -10,4 +10,4 @@ A drop-in replacement for std::list with (on average):
 * 826% faster clear (1122550% for trivially-destructible types)
 * 1238% faster destruction (6187% for trivially-destructible types)
 
-(Benchmarks performed on a haswell-based CPU under GCC 7.1: http://www.plflib.org/benchmarks_haswell_gcc.htm)
+(Benchmarks performed on a haswell-based CPU under GCC 7.3: http://www.plflib.org/benchmarks_haswell_gcc.htm)
