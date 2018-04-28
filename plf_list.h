@@ -50,10 +50,10 @@
 	#elif _MSC_VER == 1800
 		#define PLF_LIST_TYPE_TRAITS_SUPPORT
 		#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
-		#define PLF_LIST_VARIADICS_SUPPORT
+		#define PLF_LIST_VARIADICS_SUPPORT // Variadics, in this context, means both variadic templates and variadic macros are supported
 		#define PLF_LIST_MOVE_SEMANTICS_SUPPORT
 		#define PLF_LIST_NOEXCEPT throw()
-		#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) 
+		#define PLF_LIST_NOEXCEPT_SWAP(the_allocator)
 		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) throw()
 		#define PLF_LIST_INITIALIZER_LIST_SUPPORT
 	#elif _MSC_VER >= 1900
@@ -70,8 +70,8 @@
 	#define PLF_LIST_FORCE_INLINE // note: GCC creates faster code without forcing inline
 
 	#if defined(__GNUC__) && defined(__GNUC_MINOR__) && !defined(__clang__) // If compiler is GCC/G++
-		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 3) || __GNUC__ > 4 // 4.3 and below do not support initializer lists
-			#define PLF_LIST_VARIADICS_SUPPORT // Variadics, in this context, means both variadic templates and variadic macros are supported
+		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 3) || __GNUC__ > 4 // 4.2 and below do not support variadic templates
+			#define PLF_LIST_VARIADICS_SUPPORT
 		#endif
 		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 4) || __GNUC__ > 4 // 4.3 and below do not support initializer lists
 			#define PLF_LIST_INITIALIZER_LIST_SUPPORT
@@ -106,7 +106,7 @@
 		#if __GLIBCXX__ >= 20160111
 			#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
 			#define PLF_LIST_NOEXCEPT noexcept
-			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
+			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal:value)
 			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value)
 		#elif __GLIBCXX__ >= 20120322
 			#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
@@ -123,18 +123,18 @@
 		#endif
 	#elif defined(_LIBCPP_VERSION) // No type trait support in libc++ to date
 		#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
-		#define PLF_LIST_VARIADICS_SUPPORT // Variadics, in this context, means both variadic templates and variadic macros are supported
+		#define PLF_LIST_VARIADICS_SUPPORT
 		#define PLF_LIST_INITIALIZER_LIST_SUPPORT
 		#define PLF_LIST_NOEXCEPT noexcept
-		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
+		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal:value)
 		#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept
 	#else // Assume type traits and initializer support for non-GCC compilers and standard libraries
 		#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
-		#define PLF_LIST_VARIADICS_SUPPORT // Variadics, in this context, means both variadic templates and variadic macros are supported
+		#define PLF_LIST_VARIADICS_SUPPORT
 		#define PLF_LIST_INITIALIZER_LIST_SUPPORT
 		#define PLF_LIST_TYPE_TRAITS_SUPPORT
 		#define PLF_LIST_NOEXCEPT noexcept
-		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
+		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal:value)
 		#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept
 	#endif
 
@@ -521,7 +521,7 @@ private:
 								if (!std::is_trivially_destructible<element_type>::value)
 							#endif
 							{
-								if (current_node->next != NULL) // is not part of free list
+								if (current_node->next != NULL) // ie. is not part of free list
 								{
 									PLF_LIST_DESTROY(element_allocator_type, element_allocator_pair, &(current_node->element));
 								}
@@ -711,7 +711,7 @@ private:
 
 				back->nodes = NULL;
 				back->beyond_end = NULL;
-				PLF_LIST_DESTROY(group_allocator_type, group_allocator_pair, back); // in case pointers are non-trivial
+				PLF_LIST_DESTROY(group_allocator_type, group_allocator_pair, back);
 			}
 		}
 
@@ -1008,7 +1008,7 @@ private:
 
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
 				if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
-				{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
+				{ // &* in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
 					std::memcpy(&*block_pointer + size, &*source.block_pointer, sizeof(group) * source.size);
 				}
 				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
@@ -1317,16 +1317,16 @@ private:
 	node_pointer_type last_endpoint;
 	iterator end_iterator, begin_iterator; // end_iterator is always the last entry point in last group in list (or one past the end of group)
 
-	struct ebco_pair1 : node_pointer_allocator_type // Packaging the group allocator with least-used member variable, for empty-base-class optimisation
+	struct ebco_pair1 : node_pointer_allocator_type // Packaging the group allocator with least-used member variables, for empty-base-class optimisation
 	{
 		size_type total_number_of_elements;
-		explicit ebco_pair1(const size_type total_num_elements) PLF_LIST_NOEXCEPT: total_number_of_elements(total_num_elements) {};
+		explicit ebco_pair1(const size_type total_num_elements) PLF_LIST_NOEXCEPT: total_number_of_elements(total_num_elements) {}
 	}		node_pointer_allocator_pair;
 
-	struct ebco_pair2 : node_allocator_type // Packaging the group allocator with least-used member variable, for empty-base-class optimisation
+	struct ebco_pair2 : node_allocator_type
 	{
 		size_type number_of_erased_nodes;
-		explicit ebco_pair2(const size_type num_erased_nodes) PLF_LIST_NOEXCEPT: number_of_erased_nodes(num_erased_nodes) {};
+		explicit ebco_pair2(const size_type num_erased_nodes) PLF_LIST_NOEXCEPT: number_of_erased_nodes(num_erased_nodes) {}
 	}		node_allocator_pair;
 
 
@@ -2009,7 +2009,7 @@ private:
 		do
 		{
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (std::is_nothrow_copy_constructible<element_type>::value)
+				if (std::is_nothrow_copy_constructible<element_type>::value) // should be resolved at compile-time
 				{
 					#ifdef PLF_LIST_VARIADICS_SUPPORT
 						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, last_endpoint + 1, previous, element);
@@ -2068,7 +2068,7 @@ public:
 		}
 
 
-		if (last_endpoint == NULL) // Uninitialized list
+		if (last_endpoint == NULL) // ie. Uninitialized list
 		{
 			if (number_of_elements > PLF_LIST_BLOCK_MAX)
 			{
@@ -2232,6 +2232,8 @@ private:
 public:
 
 
+	// Single erase:
+
 	iterator erase(const const_iterator it) // if uninitialized/invalid iterator supplied, function could generate an exception
 	{
 		assert(node_pointer_allocator_pair.total_number_of_elements != 0);
@@ -2300,8 +2302,8 @@ public:
 
 		if (--(node_group->number_of_elements) != 0) // ie. group is not empty yet, add node to free list
 		{
-			it.node_pointer->next = NULL;
-			it.node_pointer->previous = node_group->free_list_head; // next == previous so that destructor can detect the free list item as opposed to non-free-list item
+			it.node_pointer->next = NULL; // next == NULL so that destructor can detect the free list item as opposed to non-free-list item
+			it.node_pointer->previous = node_group->free_list_head;
 			node_group->free_list_head = it.node_pointer;
 			return return_iterator;
 		}
@@ -2357,10 +2359,10 @@ public:
 
 
 
+	// Range-erase:
+
 	inline void erase(const const_iterator iterator1, const const_iterator iterator2)  // if uninitialized/invalid iterator supplied, function could generate an exception
 	{
-		assert(iterator1 != iterator2);
-
 		for (const_iterator current = iterator1; current != iterator2;)
 		{
 			current = erase(current);
@@ -2501,7 +2503,7 @@ private:
 
 
 
-	// To redirect the sort function to compare by ->element, but sort the node pointers instead of the elements
+	// Function-object to redirect the sort function to sort pointers by the elements they point to, not the pointer value
 	template <class comparison_function>
 	struct sort_dereferencer
 	{
