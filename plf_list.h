@@ -106,7 +106,7 @@
 		#if __GLIBCXX__ >= 20160111
 			#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
 			#define PLF_LIST_NOEXCEPT noexcept
-			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal:value)
+			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
 			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value)
 		#elif __GLIBCXX__ >= 20120322
 			#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
@@ -1185,7 +1185,7 @@ public:
 
 	public:
 		typedef std::bidirectional_iterator_tag 	iterator_category;
-		typedef typename list::value_type 			value_type;
+		typedef typename list::value_type 		value_type;
 		typedef typename list::difference_type 		difference_type;
 		typedef typename choose<is_const, typename list::const_pointer, typename list::pointer>::type		pointer;
 		typedef typename choose<is_const, typename list::const_reference, typename list::reference>::type	reference;
