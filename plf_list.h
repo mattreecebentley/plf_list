@@ -695,22 +695,14 @@ private:
 				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 					else if (std::is_move_constructible<node_pointer_type>::value)
 					{
-						const group_pointer_type back = block_pointer + --size;
-						for (group_pointer_type current_group = group_to_erase; current_group != back; ++current_group)
-						{
-							*current_group = std::move(*(current_group + 1));
-						}
+						std::move(group_to_erase + 1, block_pointer + size--, group_to_erase);
 					}
 				#endif
 				else
 			#endif
 			{
 				group_pointer_type const back = block_pointer + --size;
-
-				for (group_pointer_type current_group = group_to_erase; current_group != back; ++current_group)
-				{
-					*current_group = *(current_group + 1);
-				}
+				std::copy(group_to_erase + 1, back + 1, group_to_erase);
 
 				back->nodes = NULL;
 				back->beyond_end = NULL;
@@ -731,23 +723,17 @@ private:
 
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
 				if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
-				{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
+				{
 					std::memcpy(&*temp_group, &*group_to_erase, sizeof(group));
-					std::memmove(&*group_to_erase, &*group_to_erase + 1, sizeof(group) * ((size - 1) - (&*group_to_erase - &*block_pointer))); // TODO: try last endpoint group here
+					std::memmove(&*group_to_erase, &*group_to_erase + 1, sizeof(group) * ((size - 1) - (&*group_to_erase - &*block_pointer)));
 					std::memcpy(&*(block_pointer + size - 1), &*temp_group, sizeof(group));
 				}
 				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 					else if (std::is_move_constructible<node_pointer_type>::value)
 					{
 						PLF_LIST_CONSTRUCT(group_allocator_type, group_allocator_pair, temp_group, std::move(*group_to_erase));
-
-						group_pointer_type const back = block_pointer + size - 1;
-						for (group_pointer_type current_group = group_to_erase; current_group != back; ++current_group)
-						{
-							*current_group = std::move(*(current_group + 1));
-						}
-
-						*back = std::move(*temp_group);
+						std::move(group_to_erase + 1, block_pointer + size, group_to_erase);
+						*(block_pointer + size - 1) = std::move(*temp_group);
 
 						if (!std::is_trivially_destructible<node_pointer_type>::value)
 						{
@@ -759,15 +745,11 @@ private:
 			#endif
 			{
 				PLF_LIST_CONSTRUCT(group_allocator_type, group_allocator_pair, temp_group, group());
+
 				*temp_group = *group_to_erase;
+				std::copy(group_to_erase + 1, block_pointer + size--, group_to_erase);
+				*(block_pointer + size) = *temp_group;
 
-				group_pointer_type const back = block_pointer + size - 1;
-				for (group_pointer_type current_group = group_to_erase; current_group != back; ++current_group)
-				{
-					*current_group = *(current_group + 1);
-				}
-
-				*back = *temp_group;
 				temp_group->nodes = NULL;
 				PLF_LIST_DESTROY(group_allocator_type, group_allocator_pair, temp_group);
 			}
