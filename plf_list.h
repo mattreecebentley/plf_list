@@ -175,11 +175,11 @@
 
 
 
-#include <cstring>	// memset, memcpy
+#include <cstring>	// memmove, memcpy
 #include <cassert>	// assert
-#include <limits>  // std::numeric_limits
+#include <limits>  	// std::numeric_limits
 #include <memory>	// std::uninitialized_copy, std::allocator
-#include <iterator> // std::bidirectional_iterator_tag
+#include <iterator> 	// std::bidirectional_iterator_tag
 
 
 #ifndef PLF_TIMSORT_AVAILABLE
@@ -379,7 +379,6 @@ private:
 
 			group & operator = (group &&source) PLF_LIST_NOEXCEPT
 			{
-				PLF_LIST_DEALLOCATE(node_allocator_type, (*this), nodes, beyond_end - nodes);
 				nodes = std::move(source.nodes);
 				free_list_head = std::move(source.free_list_head);
 				beyond_end = std::move(source.beyond_end);
@@ -403,7 +402,7 @@ private:
 	class group_vector : private node_pointer_allocator_type
 	{
 	public:
-		group_pointer_type last_endpoint_group, block_pointer, last_searched_group;
+		group_pointer_type last_endpoint_group, block_pointer, last_searched_group; // last_endpoint_group is the last -active- group in the block. Other -inactive- (previously used, now empty of elements) groups may be stored after this group for future usage (to reduce deallocation/reallocation of nodes). block_pointer + size - 1 == the last group in the block, regardless of whether or not the group is active.
 		size_type size;
 
 		struct ebco_pair2 : allocator_type // empty-base-class optimisation
@@ -691,12 +690,16 @@ private:
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
 				if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
-					std::memcpy(&*group_to_erase, &*group_to_erase + 1, sizeof(group) * (--size - (&*group_to_erase - &*block_pointer)));
+					std::memmove(&*group_to_erase, &*group_to_erase + 1, sizeof(group) * (--size - (&*group_to_erase - &*block_pointer)));
 				}
 				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 					else if (std::is_move_constructible<node_pointer_type>::value)
 					{
-						std::uninitialized_copy(std::make_move_iterator(group_to_erase + 1), std::make_move_iterator(block_pointer + --size), group_to_erase);
+						const group_pointer_type back = block_pointer + --size;
+						for (group_pointer_type current_group = group_to_erase; current_group != back; ++current_group)
+						{
+							*current_group = std::move(*(current_group + 1));
+						}
 					}
 				#endif
 				else
@@ -730,15 +733,21 @@ private:
 				if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
 					std::memcpy(&*temp_group, &*group_to_erase, sizeof(group));
-					std::memcpy(&*group_to_erase, &*group_to_erase + 1, sizeof(group) * ((size - 1) - (&*group_to_erase - &*block_pointer)));
+					std::memmove(&*group_to_erase, &*group_to_erase + 1, sizeof(group) * ((size - 1) - (&*group_to_erase - &*block_pointer))); // TODO: try last endpoint group here
 					std::memcpy(&*(block_pointer + size - 1), &*temp_group, sizeof(group));
 				}
 				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 					else if (std::is_move_constructible<node_pointer_type>::value)
 					{
 						PLF_LIST_CONSTRUCT(group_allocator_type, group_allocator_pair, temp_group, std::move(*group_to_erase));
-						std::uninitialized_copy(std::make_move_iterator(group_to_erase + 1), std::make_move_iterator(block_pointer + (size - 1)), group_to_erase);
-						*(block_pointer + (size - 1)) = std::move(*temp_group);
+
+						group_pointer_type const back = block_pointer + size - 1;
+						for (group_pointer_type current_group = group_to_erase; current_group != back; ++current_group)
+						{
+							*current_group = std::move(*(current_group + 1));
+						}
+
+						*back = std::move(*temp_group);
 
 						if (!std::is_trivially_destructible<node_pointer_type>::value)
 						{
@@ -903,7 +912,7 @@ private:
 							{
 								return freelist_group;
 							}
-							
+
 							left_not_beyond_front = (left >= block_pointer);
 							break;
 						}
@@ -1771,27 +1780,27 @@ public:
 						{
 							++groups.last_endpoint_group;
 						}
-	
+
 						last_endpoint = groups.last_endpoint_group->nodes;
 					}
-	
+
 					#ifdef PLF_LIST_VARIADICS_SUPPORT
 						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, it.node_pointer, it.node_pointer->previous, std::move(element));
 					#else
 						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(it.node_pointer, it.node_pointer->previous, std::move(element)));
 					#endif
-	
+
 					++(groups.last_endpoint_group->number_of_elements);
 					++node_pointer_allocator_pair.total_number_of_elements;
-	
+
 					if (it.node_pointer == begin_iterator.node_pointer)
 					{
 						begin_iterator.node_pointer = last_endpoint;
 					}
-	
+
 					it.node_pointer->previous->next = last_endpoint;
 					it.node_pointer->previous = last_endpoint;
-	
+
 					return iterator(last_endpoint++);
 				}
 				else
@@ -1799,26 +1808,26 @@ public:
 					group_pointer_type const node_group = groups.get_nearest_freelist_group((it.node_pointer != end_iterator.node_pointer) ? it.node_pointer : end_node.previous);
 					node_pointer_type const selected_node = node_group->free_list_head;
 					const node_pointer_type previous = node_group->free_list_head->previous;
-	
+
 					#ifdef PLF_LIST_VARIADICS_SUPPORT
 						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, selected_node, it.node_pointer, it.node_pointer->previous, std::move(element));
 					#else
 						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, selected_node, node(it.node_pointer, it.node_pointer->previous, std::move(element)));
 					#endif
-	
+
 					node_group->free_list_head = previous;
 					++(node_group->number_of_elements);
 					++node_pointer_allocator_pair.total_number_of_elements;
 					--node_allocator_pair.number_of_erased_nodes;
-	
+
 					it.node_pointer->previous->next = selected_node;
 					it.node_pointer->previous = selected_node;
-	
+
 					if (it.node_pointer == begin_iterator.node_pointer)
 					{
 						begin_iterator.node_pointer = selected_node;
 					}
-	
+
 					return iterator(selected_node);
 				}
 			}
@@ -1828,11 +1837,11 @@ public:
 				{
 					groups.add_new(PLF_LIST_BLOCK_MIN);
 				}
-	
+
 				groups.last_endpoint_group->number_of_elements = 1;
 				end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
 				node_pointer_allocator_pair.total_number_of_elements = 1;
-	
+
 				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
 					if (std::is_nothrow_copy_constructible<node>::value)
 					{
@@ -1859,7 +1868,7 @@ public:
 						throw;
 					}
 				}
-	
+
 				return begin_iterator;
 			}
 		}
@@ -1916,7 +1925,7 @@ public:
 
 					it.node_pointer->previous->next = last_endpoint;
 					it.node_pointer->previous = last_endpoint;
-					
+
 					return iterator(last_endpoint++);
 				}
 				else
@@ -1926,7 +1935,7 @@ public:
 					const node_pointer_type previous = node_group->free_list_head->previous;
 
 					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, selected_node, it.node_pointer, it.node_pointer->previous, std::forward<arguments>(parameters)...);
-					
+
 					node_group->free_list_head = previous;
 					++(node_group->number_of_elements);
 					++node_pointer_allocator_pair.total_number_of_elements;
@@ -2194,7 +2203,7 @@ public:
 		}
 
 		const iterator return_iterator = insert(it, *first);
-		
+
 		while(++first != last)
 		{
 			insert(it, *first);
@@ -2668,7 +2677,7 @@ public:
 			reserve_amount = max_size();
 		}
 
-		
+
 		// edge case: has been filled with elements then clear()'d - some groups may be smaller than would be desired, should be replaced
 		if (node_pointer_allocator_pair.total_number_of_elements == 0 && last_endpoint != NULL)
 		{
@@ -2958,7 +2967,7 @@ public:
 						}
 					}
 				}
-				else // avoid needless per-node if-checks
+				else // avoid needless per-node if-checks when no erased nodes are present:
 				{
 					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 					{
@@ -3093,15 +3102,15 @@ public:
 					}
 				}
 			}
-			else
+			else // No erased nodes in group
 			{
 				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 				{
-					if (predicate(current_node->element)) // is not free list node and validates predicate
+					if (predicate(current_node->element))
 					{
 						erase(current_node);
 
-						if (--num_elements == 0) // ie. group will be empty (and removed) now - nothing left to iterate over
+						if (--num_elements == 0)
 						{
 							--current_group;
 							break;
@@ -3121,7 +3130,7 @@ public:
 				{
 					erase(current_node);
 
-					if (--num_elements == 0) // ie. group will be empty (and removed) now
+					if (--num_elements == 0)
 					{
 						return;
 					}
@@ -3136,7 +3145,7 @@ public:
 				{
 					erase(current_node);
 
-					if (--num_elements == 0) // ie. group will be empty (and removed) now
+					if (--num_elements == 0)
 					{
 						return;
 					}
@@ -3169,7 +3178,7 @@ public:
 		{
 			insert(end_iterator, number_of_elements - node_pointer_allocator_pair.total_number_of_elements, value);
 		}
-		else // node_pointer_allocator_pair.total_number_of_elements > number_of_elements
+		else // ie. node_pointer_allocator_pair.total_number_of_elements > number_of_elements
 		{
 			iterator current(end_node.previous);
 
