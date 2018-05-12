@@ -354,7 +354,7 @@ private:
 		#endif
 
 
-		group & operator = (const group &source) PLF_LIST_NOEXCEPT // actually a move operator, used by c++03 in add_new and remove() in group_vector
+		group & operator = (const group &source) PLF_LIST_NOEXCEPT // actually a move operator, used by c++03 in remove, expand_capacity and append in group_vector
 		{
 			nodes = source.nodes;
 			free_list_head = source.free_list_head;
@@ -622,36 +622,39 @@ private:
 			group_pointer_type const old_block = block_pointer;
 			block_pointer = PLF_LIST_ALLOCATE(group_allocator_type, group_allocator_pair, new_capacity, 0);
 
-			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
-				{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
-					std::memcpy(&*block_pointer, &*old_block, sizeof(group) * size);
-				}
-				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-					else if (std::is_move_constructible<node_pointer_type>::value)
-					{
-						std::uninitialized_copy(std::make_move_iterator(old_block), std::make_move_iterator(old_block + size), block_pointer);
-					}
-				#endif
-				else
-			#endif
+			if (size != 0)
 			{
-				// In case of allocator supplying non-trivial pointers:
-				const group_pointer_type beyond_end = old_block + size;
-				group_pointer_type current_new_group = block_pointer;
-
-				for (group_pointer_type current_group = old_block; current_group != beyond_end; ++current_group)
+				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+					if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
+					{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
+						std::memcpy(&*block_pointer, &*old_block, sizeof(group) * size);
+					}
+					#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
+						else if (std::is_move_constructible<node_pointer_type>::value)
+						{
+							std::uninitialized_copy(std::make_move_iterator(old_block), std::make_move_iterator(old_block + size), block_pointer);
+						}
+					#endif
+					else
+				#endif
 				{
-					*(current_new_group++) = *(current_group);
+					// If allocator supplies non-trivial pointers it becomes necessary to destroy the group. uninitialized_copy will not work in this context as the copy constructor for "group" is overriden in C++03/98. The = operator for "group" has been overriden to make the following work:
+					const group_pointer_type beyond_end = old_block + size;
+					group_pointer_type current_new_group = block_pointer;
 
-					current_group->nodes = NULL;
-					current_group->beyond_end = NULL;
-					PLF_LIST_DESTROY(group_allocator_type, group_allocator_pair, current_group);
+					for (group_pointer_type current_group = old_block; current_group != beyond_end; ++current_group)
+					{
+						*(current_new_group++) = *(current_group);
+
+						current_group->nodes = NULL;
+						current_group->beyond_end = NULL;
+						PLF_LIST_DESTROY(group_allocator_type, group_allocator_pair, current_group);
+					}
 				}
 			}
 
-			last_searched_group = block_pointer + (last_searched_group - old_block);
-			PLF_LIST_DEALLOCATE(group_allocator_type, group_allocator_pair, old_block, group_allocator_pair.capacity);
+			last_searched_group = block_pointer + (last_searched_group - old_block); // In the case of an empty list without previous insertions/erasures, both last_searched_group and old_block will be NULL, so this works.
+			PLF_LIST_DEALLOCATE(group_allocator_type, group_allocator_pair, old_block, group_allocator_pair.capacity); // As with the above, deallocating a NULL source is legal
 			group_allocator_pair.capacity = new_capacity;
 		}
 
@@ -701,8 +704,8 @@ private:
 				else
 			#endif
 			{
-				group_pointer_type const back = block_pointer + --size;
-				std::copy(group_to_erase + 1, back + 1, group_to_erase);
+				group_pointer_type back = block_pointer + size;
+				std::copy(group_to_erase + 1, back--, group_to_erase);
 
 				back->nodes = NULL;
 				back->beyond_end = NULL;
@@ -747,8 +750,8 @@ private:
 				PLF_LIST_CONSTRUCT(group_allocator_type, group_allocator_pair, temp_group, group());
 
 				*temp_group = *group_to_erase;
-				std::copy(group_to_erase + 1, block_pointer + size--, group_to_erase);
-				*(block_pointer + size) = *temp_group;
+				std::copy(group_to_erase + 1, block_pointer + size, group_to_erase);
+				*(block_pointer + --size) = *temp_group;
 
 				temp_group->nodes = NULL;
 				PLF_LIST_DESTROY(group_allocator_type, group_allocator_pair, temp_group);
@@ -1011,7 +1014,6 @@ private:
 				else
 			#endif
 			{
-				// In case of allocator supplying non-trivial pointers:
 				group_pointer_type current_new_group = block_pointer + size;
 				const group_pointer_type beyond_end_source = source.block_pointer + source.size;
 
@@ -2325,8 +2327,6 @@ public:
 		}
 		else // clear back group, leave trailing
 		{
-			node_allocator_pair.number_of_erased_nodes -= static_cast<group_size_type>(last_endpoint - node_group->nodes);
-
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
 				if (!(std::is_trivially_destructible<node_pointer_type>::value))
 			#endif
@@ -2335,14 +2335,18 @@ public:
 			}
 
 			node_group->free_list_head = NULL;
-			last_endpoint = groups.last_endpoint_group->beyond_end;
 
-			if (node_pointer_allocator_pair.total_number_of_elements == 0)
+			if (node_pointer_allocator_pair.total_number_of_elements != 0)
 			{
-				groups.last_endpoint_group = groups.block_pointer; // To avoid problem caused by last_endpoint_group already being decremented above (else if)
-				last_endpoint = groups.block_pointer->nodes;
+				node_allocator_pair.number_of_erased_nodes -= static_cast<group_size_type>(last_endpoint - node_group->nodes);
+	  			last_endpoint = groups.last_endpoint_group->beyond_end;
+			}
+			else
+			{
+				groups.last_endpoint_group = groups.block_pointer; // If number of elements is zero, it indicates that this was the first group in the vector. In which case the last_endpoint_group would be invalid at this point due to the decrement in the above else-if statement. So it needs to be reset.
 				clear();
 			}
+
 
 			return return_iterator;
 		}
