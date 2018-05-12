@@ -622,7 +622,7 @@ private:
 			group_pointer_type const old_block = block_pointer;
 			block_pointer = PLF_LIST_ALLOCATE(group_allocator_type, group_allocator_pair, new_capacity, 0);
 
-			if (size != 0)
+			if (size != 0) // Introduced this test due to memcpy not begin guaranteed to succeed by the standard if source is NULL and copy size is 0.
 			{
 				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
 					if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
@@ -704,7 +704,7 @@ private:
 				else
 			#endif
 			{
-				group_pointer_type back = block_pointer + size;
+				group_pointer_type back = block_pointer + size--;
 				std::copy(group_to_erase + 1, back--, group_to_erase);
 
 				back->nodes = NULL;
