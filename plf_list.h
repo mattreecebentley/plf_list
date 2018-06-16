@@ -1970,8 +1970,23 @@ public:
 			}
 		}
 
+		#if __cplusplus >= 201703L
+		template<typename... arguments>
+		inline PLF_LIST_FORCE_INLINE reference emplace_back(arguments &&... parameters)
+		{
+			emplace(end_iterator, std::forward<arguments>(parameters)...);
+			return back();
+		}
 
 
+
+		template<typename... arguments>
+		inline PLF_LIST_FORCE_INLINE reference emplace_front(arguments &&... parameters)
+		{
+			emplace(begin_iterator, std::forward<arguments>(parameters)...);
+			return front();
+		}
+		#else
 		template<typename... arguments>
 		inline PLF_LIST_FORCE_INLINE void emplace_back(arguments &&... parameters)
 		{
@@ -1985,7 +2000,7 @@ public:
 		{
 			emplace(begin_iterator, std::forward<arguments>(parameters)...);
 		}
-
+		#endif
 
 	#endif
 
