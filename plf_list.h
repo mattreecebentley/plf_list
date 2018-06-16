@@ -235,7 +235,7 @@ public:
 	template <bool is_const> class list_iterator;
 	typedef list_iterator<false>		iterator;
 	typedef list_iterator<true>			const_iterator;
-	friend class list_iterator<false>; // Using typedef name here would be illegal under C++03 (according to clang)
+	friend class list_iterator<false>; // Using 'iterator' typedef name here would be illegal under C++03 (according to clang)
 	friend class list_iterator<true>;
 
 	template <bool is_const> class list_reverse_iterator;
@@ -276,6 +276,7 @@ private:
 			next(n),
 			previous(p)
 		{}
+           
 
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 			node_base(node_pointer_type &&n, node_pointer_type &&p) PLF_LIST_NOEXCEPT:
@@ -295,6 +296,7 @@ private:
 			node_base(next, previous),
 			element(source)
 		{}
+           
 
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 			node(node_pointer_type &&next, node_pointer_type &&previous, element_type &&source) PLF_LIST_NOEXCEPT:
@@ -302,6 +304,7 @@ private:
 				element(std::move(source))
 			{}
 		#endif
+             
 
 		#ifdef PLF_LIST_VARIADICS_SUPPORT
 			template<typename... arguments>
@@ -311,6 +314,7 @@ private:
 			{}
 		#endif
 	};
+	
 
 
 	struct group : public node_allocator_type
@@ -319,14 +323,16 @@ private:
 		node_pointer_type free_list_head;
 		node_pointer_type beyond_end;
 		group_size_type number_of_elements;
-
+                 
+                 
 		group() PLF_LIST_NOEXCEPT:
 			nodes(NULL),
 			free_list_head(NULL),
 			beyond_end(NULL),
 			number_of_elements(0)
 		{}
-
+               
+               
 		#if defined(PLF_LIST_MOVE_SEMANTICS_SUPPORT) || defined(PLF_LIST_VARIADICS_SUPPORT)
 			group(const group_size_type group_size, node_pointer_type const previous = NULL):
 				nodes(PLF_LIST_ALLOCATE_INITIALIZATION(node_allocator_type, group_size, previous)),
@@ -404,6 +410,7 @@ private:
 	public:
 		group_pointer_type last_endpoint_group, block_pointer, last_searched_group; // last_endpoint_group is the last -active- group in the block. Other -inactive- (previously used, now empty of elements) groups may be stored after this group for future usage (to reduce deallocation/reallocation of nodes). block_pointer + size - 1 == the last group in the block, regardless of whether or not the group is active.
 		size_type size;
+               
 
 		struct ebco_pair2 : allocator_type // empty-base-class optimisation
 		{
@@ -759,7 +766,6 @@ private:
 
 			PLF_LIST_DEALLOCATE(group_allocator_type, group_allocator_pair, temp_group, 1);
 		}
-
 
 
 
@@ -1973,17 +1979,17 @@ public:
 
 
 		template<typename... arguments>
-		inline PLF_LIST_FORCE_INLINE void emplace_back(arguments &&... parameters)
+		inline PLF_LIST_FORCE_INLINE reference emplace_back(arguments &&... parameters)
 		{
-			emplace(end_iterator, std::forward<arguments>(parameters)...);
+			return &*(emplace(end_iterator, std::forward<arguments>(parameters)...));
 		}
 
 
 
 		template<typename... arguments>
-		inline PLF_LIST_FORCE_INLINE void emplace_front(arguments &&... parameters)
+		inline PLF_LIST_FORCE_INLINE reference emplace_front(arguments &&... parameters)
 		{
-			emplace(begin_iterator, std::forward<arguments>(parameters)...);
+			return &*(emplace(begin_iterator, std::forward<arguments>(parameters)...));
 		}
 
 
@@ -2227,7 +2233,7 @@ public:
 
 	// Single erase:
 
-	iterator erase(const const_iterator it) // if uninitialized/invalid iterator supplied, function could generate an exception
+	iterator erase(const const_iterator it) // if uninitialized/invalid iterator supplied, function could generate an exception, hence no noexcept
 	{
 		assert(node_pointer_allocator_pair.total_number_of_elements != 0);
 		assert(it.node_pointer != NULL);
@@ -2246,7 +2252,7 @@ public:
 
 		group_pointer_type node_group = groups.last_searched_group;
 
-		// find group:
+		// find nearest group with reusable (erased element) memory location:
 		if ((it.node_pointer < node_group->nodes) || (it.node_pointer >= node_group->beyond_end))
 		{
 			// Search left and right:
@@ -2343,7 +2349,7 @@ public:
 			}
 			else
 			{
-				groups.last_endpoint_group = groups.block_pointer; // If number of elements is zero, it indicates that this was the first group in the vector. In which case the last_endpoint_group would be invalid at this point due to the decrement in the above else-if statement. So it needs to be reset.
+				groups.last_endpoint_group = groups.block_pointer; // If number of elements is zero, it indicates that this was the first group in the vector. In which case the last_endpoint_group would be invalid at this point due to the decrement in the above else-if statement. So it needs to be reset, as it will not be reset in the function call below.
 				clear();
 			}
 
