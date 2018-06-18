@@ -683,9 +683,9 @@ int main(int argc, char **argv)
 				s_list1.emplace_back(counter);
 			}
 			
-			int temp = s_list1.emplace_back(254);
+			small_struct temp = s_list1.emplace_back(254);
 			
-			failpass("Emplace_back return value test", temp == 254);
+			failpass("Emplace_back return value test", temp.number == 254);
 			
 
 			test_counter = 0;
@@ -721,7 +721,7 @@ int main(int argc, char **argv)
 			
 			temp = s_list1.emplace_front(-255);
 			
-			failpass("Emplace_front return value test", temp == -255);
+			failpass("Emplace_front return value test", temp.number == -255);
 			
 
 			test_counter = -255;
