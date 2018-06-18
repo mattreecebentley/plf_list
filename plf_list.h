@@ -1981,7 +1981,7 @@ public:
 		template<typename... arguments>
 		inline PLF_LIST_FORCE_INLINE reference emplace_back(arguments &&... parameters)
 		{
-			return &*(emplace(end_iterator, std::forward<arguments>(parameters)...));
+			return (emplace(end_iterator, std::forward<arguments>(parameters)...))->element;
 		}
 
 
@@ -1989,7 +1989,7 @@ public:
 		template<typename... arguments>
 		inline PLF_LIST_FORCE_INLINE reference emplace_front(arguments &&... parameters)
 		{
-			return &*(emplace(begin_iterator, std::forward<arguments>(parameters)...));
+			return (emplace(begin_iterator, std::forward<arguments>(parameters)...))->element;
 		}
 
 

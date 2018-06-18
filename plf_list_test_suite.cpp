@@ -86,17 +86,6 @@ void failpass(const char *test_type, bool condition)
 
 
 
-inline void output_to_csv_file(char *filename)
-{
-	freopen("errors.log","w", stderr);
-	char logfile[512];
-	sprintf(logfile, "%s.txt", filename);
-	std::cout << "Outputting results to logfile " << logfile << "." << std::endl << "Please wait while program completes. This may take a while. Program will close once complete." << std::endl;
-	freopen(logfile,"w", stdout);
-}
-
-
-
 // Fast xorshift+128 random number generator function (original: https://codingforspeed.com/using-faster-psudo-random-generator-xorshift/)
 unsigned int xor_rand()
 {
@@ -111,48 +100,9 @@ unsigned int xor_rand()
 	x = y;
 	y = z;
 	z = w;
-   
+
 	return w = w ^ (w >> 19) ^ (t ^ (t >> 8));
 }
-
-
-
-class xor_rand_class
-{
-private:
-	unsigned int x, y, z, w;
-
-public:
-
-	xor_rand_class():
-		x(123456789),
-		y(362436069),
-		z(521288629),
-		w(88675123)
-	{}
-	
-	
-	unsigned int rand()
-	{
-		const unsigned int t = x ^ (x << 11); 
-
-		// Rotate the static values (w rotation in return statement):
-		x = y;
-		y = z;
-		z = w;
-	   
-		return w = w ^ (w >> 19) ^ (t ^ (t >> 8));
-	}
-	
-	
-	void reset()
-	{
-		x = 123456789;
-		y = 362436069;
-		z = 521288629;
-		w = 88675123;
-	}
-};
 
 
 
@@ -191,40 +141,6 @@ struct small_struct
 
 
 
-struct large_struct
-{
-	int numbers[100];
-	char a_string[50];
-	double unused_number;
-	double number;
-	double *empty_field_1;
-	double *empty_field_2;
-	unsigned int empty_field3;
-	unsigned int empty_field4;
-
-	// This function is required for testing std::multiset:
-	inline bool operator < (const large_struct &rh) const
-	{
-		return number < rh.number;
-	}
-	
-	inline bool operator > (const large_struct &rh) const
-	{
-		return number > rh.number;
-	}
-	
-	inline bool operator == (const large_struct &rh) const
-	{
-		return number == rh.number;
-	}
-	
-	inline bool operator != (const large_struct &rh) const
-	{
-		return number != rh.number;
-	}
-	
-	large_struct(const unsigned int num): number(num) {};
-};
 
 
 // For remove_if testing:
@@ -762,10 +678,14 @@ int main(int argc, char **argv)
 			plf::list<small_struct> s_list1;
 			
 
-			for (unsigned int counter = 0; counter != 255; ++counter)
+			for (unsigned int counter = 0; counter != 254; ++counter)
 			{
 				s_list1.emplace_back(counter);
 			}
+			
+			int temp = s_list1.emplace_back(254);
+			
+			failpass("Emplace_back return value test", temp == 254);
 			
 
 			test_counter = 0;
@@ -794,10 +714,14 @@ int main(int argc, char **argv)
 			failpass("Reverse iteration test", passed);	
 
 
-			for (int counter = -1; counter != -256; --counter)
+			for (int counter = -1; counter != -255; --counter)
 			{
 				s_list1.emplace_front(counter);
 			}
+			
+			temp = s_list1.emplace_front(-255);
+			
+			failpass("Emplace_front return value test", temp == -255);
 			
 
 			test_counter = -255;
@@ -1862,8 +1786,8 @@ int main(int argc, char **argv)
 	}
 
 
-	title1("All tests passed!");
+	title1("All tests passed! Press Enter to Exit.");
 	std::cin.get();
-	
+
 	return 0;
 }
