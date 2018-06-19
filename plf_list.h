@@ -235,7 +235,7 @@ public:
 	template <bool is_const> class list_iterator;
 	typedef list_iterator<false>		iterator;
 	typedef list_iterator<true>			const_iterator;
-	friend class list_iterator<false>; // Using 'iterator' typedef name here would be illegal under C++03 (according to clang)
+	friend class list_iterator<false>; // Using 'iterator' typedef name here would be illegal under C++03
 	friend class list_iterator<true>;
 
 	template <bool is_const> class list_reverse_iterator;
