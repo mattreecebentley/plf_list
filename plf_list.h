@@ -1103,7 +1103,7 @@ public:
 
 
 
-		inline PLF_LIST_FORCE_INLINE list_iterator operator ++ () PLF_LIST_NOEXCEPT
+		inline PLF_LIST_FORCE_INLINE list_iterator & operator ++ () PLF_LIST_NOEXCEPT
 		{
 			assert(node_pointer != NULL); // covers uninitialised list_iterator
 			node_pointer = node_pointer->next;
@@ -1121,7 +1121,7 @@ public:
 
 
 
-		inline PLF_LIST_FORCE_INLINE list_iterator operator -- () PLF_LIST_NOEXCEPT
+		inline PLF_LIST_FORCE_INLINE list_iterator & operator -- () PLF_LIST_NOEXCEPT
 		{
 			assert(node_pointer != NULL); // covers uninitialised list_iterator
 			node_pointer = node_pointer->previous;
@@ -1139,7 +1139,7 @@ public:
 
 
 
-		inline list_iterator operator = (const list_iterator &rh) PLF_LIST_NOEXCEPT
+		inline list_iterator & operator = (const list_iterator &rh) PLF_LIST_NOEXCEPT
 		{
 			node_pointer = rh.node_pointer;
 			return *this;
@@ -1148,7 +1148,7 @@ public:
 
 
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-			inline list_iterator operator = (const list_iterator &&rh) PLF_LIST_NOEXCEPT
+			inline list_iterator & operator = (const list_iterator &&rh) PLF_LIST_NOEXCEPT
 			{
 				node_pointer = std::move(rh.node_pointer);
 				return *this;
@@ -1220,7 +1220,7 @@ public:
 
 
 
-		inline PLF_LIST_FORCE_INLINE list_reverse_iterator operator ++ () PLF_LIST_NOEXCEPT
+		inline PLF_LIST_FORCE_INLINE list_reverse_iterator & operator ++ () PLF_LIST_NOEXCEPT
 		{
 			assert(node_pointer != NULL); // covers uninitialised list_reverse_iterator
 			node_pointer = node_pointer->previous;
@@ -1238,7 +1238,7 @@ public:
 
 
 
-		inline PLF_LIST_FORCE_INLINE list_reverse_iterator operator -- () PLF_LIST_NOEXCEPT
+		inline PLF_LIST_FORCE_INLINE list_reverse_iterator & operator -- () PLF_LIST_NOEXCEPT
 		{
 			assert(node_pointer != NULL); // covers uninitialised list_reverse_iterator
 			node_pointer = node_pointer->next;
@@ -1256,7 +1256,7 @@ public:
 
 
 
-		inline list_reverse_iterator operator = (const list_reverse_iterator &rh) PLF_LIST_NOEXCEPT
+		inline list_reverse_iterator & operator = (const list_reverse_iterator &rh) PLF_LIST_NOEXCEPT
 		{
 			node_pointer = rh.node_pointer;
 			return *this;
@@ -1265,7 +1265,7 @@ public:
 
 
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-			inline list_reverse_iterator operator = (const list_reverse_iterator &&rh) PLF_LIST_NOEXCEPT
+			inline list_reverse_iterator & operator = (const list_reverse_iterator &&rh) PLF_LIST_NOEXCEPT
 			{
 				node_pointer = std::move(rh.node_pointer);
 				return *this;
@@ -2217,9 +2217,9 @@ public:
 
 private:
 
-	inline PLF_LIST_FORCE_INLINE void destroy_all_node_pointers(group_pointer_type const group_to_process, const node_pointer_type end_node) PLF_LIST_NOEXCEPT
+	inline PLF_LIST_FORCE_INLINE void destroy_all_node_pointers(group_pointer_type const group_to_process, const node_pointer_type beyond_end_node) PLF_LIST_NOEXCEPT
 	{
-		for (node_pointer_type current_node = group_to_process->nodes; current_node != end_node; ++current_node)
+		for (node_pointer_type current_node = group_to_process->nodes; current_node != beyond_end_node; ++current_node)
 		{
 			PLF_LIST_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->next)); // Destruct element
 			PLF_LIST_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->previous)); // Destruct element
@@ -2517,7 +2517,7 @@ private:
 		sort_dereferencer() PLF_LIST_NOEXCEPT
 		{}
 
-		inline bool operator() (const node_pointer_type first, const node_pointer_type second) const
+		inline bool operator() (const node_pointer_type first, const node_pointer_type second)
 		{
 			return stored_instance(first->element, second->element);
 		}

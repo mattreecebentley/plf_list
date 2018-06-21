@@ -117,6 +117,7 @@
 #endif
 
 
+
 #include <functional> // std::greater
 #include <vector> // range-insert testing
 #include <iostream>
@@ -201,28 +202,7 @@ struct small_struct
 	double *empty_field_3;
 	double number;
 	unsigned int empty_field4;
-	
-	// This function is required for testing std::multiset:
-	inline bool operator < (const small_struct &rh) const
-	{
-		return number < rh.number;
-	}
-	
-	inline bool operator > (const small_struct &rh) const
-	{
-		return number > rh.number;
-	}
-	
-	inline bool operator == (const small_struct &rh) const
-	{
-		return number == rh.number;
-	}
-	
-	inline bool operator != (const small_struct &rh) const
-	{
-		return number != rh.number;
-	}
-	
+
 	small_struct(const int num): number(num) {};
 };
 
@@ -271,11 +251,11 @@ int main(int argc, char **argv)
 	using namespace plf;
 
 	unsigned int loop_counter = 0;
-	
+
 	#if defined(PLF_INITIALIZER_LIST_SUPPORT) || defined(PLF_MOVE_SEMANTICS_SUPPORT)
 		bool passed = true;
 	#endif
-	
+
 	#ifndef PLF_INITIALIZER_LIST_SUPPORT
 		std::cout << "Initializer_list support (C++11 or higher) is required for most tests. Most tests will skipped without it. Press ENTER to continue." << std::endl;
 		std::cin.get();
@@ -284,7 +264,7 @@ int main(int argc, char **argv)
 	while (++loop_counter != 50)
 	{
 		int test_counter = 1;
-		
+
 		#ifdef PLF_INITIALIZER_LIST_SUPPORT
 		{
 			title2("Merge tests");	
@@ -433,12 +413,12 @@ int main(int argc, char **argv)
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
 				std::cout << *it << ",  ";
-				
+
 				if(*it < test_counter)
 				{
 					passed = false;
 				}
-				
+
 				test_counter = *it;
 			}
 			
@@ -501,7 +481,7 @@ int main(int argc, char **argv)
 				
 				test_counter = *it;
 			}
-			
+
 			failpass("Unique test", passed);
 
 			
@@ -673,7 +653,7 @@ int main(int argc, char **argv)
 					passed = false;
 				}
 			}
-				
+
 			failpass("Initializer-list assign test", list1.size() == 10 && test_counter == 1 && passed);
 			
 			
@@ -758,25 +738,26 @@ int main(int argc, char **argv)
 		}
 		#endif
 
+
 		#if defined(PLF_MOVE_SEMANTICS_SUPPORT) && defined(PLF_VARIADICS_SUPPORT)
 		{
 			title2("Emplace, move and Reverse iterate tests");
-			
+
 			plf::list<small_struct> s_list1;
-			
+
 
 			for (unsigned int counter = 0; counter != 254; ++counter)
 			{
 				s_list1.emplace_back(counter);
 			}
-			
+
 			small_struct temp = s_list1.emplace_back(254);
-			
+
 			failpass("Emplace_back return value test", temp.number == 254);
-			
+
 
 			test_counter = 0;
-			
+
 			for (plf::list<small_struct>::iterator it = s_list1.begin(); it != s_list1.end(); ++it)
 			{
 				if (test_counter++ != it->number)
@@ -785,8 +766,8 @@ int main(int argc, char **argv)
 					break;
 				}
 			}
-			
-			failpass("Emplace_back test", passed);	
+
+			failpass("Emplace_back test", passed);
 
 
 			for (plf::list<small_struct>::reverse_iterator rit = s_list1.rbegin(); rit != s_list1.rend(); ++rit)
@@ -961,7 +942,7 @@ int main(int argc, char **argv)
 			failpass("Single reorder to end", *it1 == 5);
 			
 			it2 = it1 = list1.begin();
-			
+
 			std::advance(it1, 50);
 			std::advance(it2, 60);
 			std::advance(it3, 70);
@@ -1047,7 +1028,7 @@ int main(int argc, char **argv)
 			title2("Test Basics");
 			
 			list<int *> p_list;
-			
+
 			failpass("List empty", p_list.empty());
 			
 			int ten = 10;
@@ -1133,7 +1114,7 @@ int main(int argc, char **argv)
 
 			numtotal = 0;
 			total = 0;
-			
+
 			for (list<int *>::reverse_iterator the_iterator = p_list.rbegin(); the_iterator != p_list.rend(); ++the_iterator)
 			{
 				++total;
@@ -1260,16 +1241,16 @@ int main(int argc, char **argv)
 
 				list<int *> p_list5(p_list2);
 				list<int *> p_list6(std::move(p_list5), p_list2.get_allocator());
-				
+
 				failpass("Allocator-extended move construct test", p_list6.size() == 400);
 			#else
 				p_list2 = p_list;
 			#endif
 
 			p_list3 = p_list2;
-			
+
 			failpass("Copy test 2", p_list3.size() == 400);
-			
+
 			p_list2.push_back(&ten);
 
 			p_list2.swap(p_list3);
@@ -1281,13 +1262,13 @@ int main(int argc, char **argv)
 			failpass("Swap test 2", p_list3.size() == p_list2.size() - 1);
 
 			failpass("max_size() test", p_list2.max_size() > p_list2.size());
-			
+
 		}
 
-		
+
 		{
 			title2("Insert and Erase tests");
-			
+
 			list<int> i_list;
 
 			for (unsigned int temp = 0; temp != 500000; ++temp)
@@ -1505,7 +1486,7 @@ int main(int argc, char **argv)
 			}
 			
 			failpass("Total erase test", i_list.empty());
-			
+
 			
 			i_list.clear();
 			i_list.shrink_to_fit();
@@ -1663,7 +1644,7 @@ int main(int argc, char **argv)
 			}
 			
 			it2 = it1 = i_list.begin();
-			
+
 			std::advance(it1, 4);
 			std::advance(it2, 600);
 			i_list.erase(it1, it2);
@@ -1706,7 +1687,7 @@ int main(int argc, char **argv)
 
 			it1 = i_list.begin();
 			it2 = i_list.end();
-			
+
 			std::advance(it1, 400);
 			i_list.erase(it1, it2);
 
@@ -1731,7 +1712,7 @@ int main(int argc, char **argv)
 				{
 					i_list.push_back(counter);
 				}
-				
+
 				internal_loop_counter = 0;
 
 				while (!i_list.empty())
