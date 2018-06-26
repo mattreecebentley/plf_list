@@ -1082,7 +1082,21 @@ public:
 
 
 
+		inline PLF_LIST_FORCE_INLINE bool operator == (const list_iterator<!is_const> rh) const PLF_LIST_NOEXCEPT
+		{
+			return (node_pointer == rh.node_pointer);
+		}
+
+
+
 		inline PLF_LIST_FORCE_INLINE bool operator != (const list_iterator rh) const PLF_LIST_NOEXCEPT
+		{
+			return (node_pointer != rh.node_pointer);
+		}
+
+
+
+		inline PLF_LIST_FORCE_INLINE bool operator != (const list_iterator<!is_const> rh) const PLF_LIST_NOEXCEPT
 		{
 			return (node_pointer != rh.node_pointer);
 		}
@@ -1147,8 +1161,23 @@ public:
 
 
 
+		inline list_iterator & operator = (const list_iterator<!is_const> &rh) PLF_LIST_NOEXCEPT
+		{
+			node_pointer = rh.node_pointer;
+			return *this;
+		}
+
+
+
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 			inline list_iterator & operator = (const list_iterator &&rh) PLF_LIST_NOEXCEPT
+			{
+				node_pointer = std::move(rh.node_pointer);
+				return *this;
+			}
+
+
+			inline list_iterator & operator = (const list_iterator<!is_const> &&rh) PLF_LIST_NOEXCEPT
 			{
 				node_pointer = std::move(rh.node_pointer);
 				return *this;
@@ -1199,7 +1228,21 @@ public:
 
 
 
+		inline PLF_LIST_FORCE_INLINE bool operator == (const list_reverse_iterator<!is_const> rh) const PLF_LIST_NOEXCEPT
+		{
+			return (node_pointer == rh.node_pointer);
+		}
+
+
+
 		inline PLF_LIST_FORCE_INLINE bool operator != (const list_reverse_iterator rh) const PLF_LIST_NOEXCEPT
+		{
+			return (node_pointer != rh.node_pointer);
+		}
+
+
+
+		inline PLF_LIST_FORCE_INLINE bool operator != (const list_reverse_iterator<!is_const> rh) const PLF_LIST_NOEXCEPT
 		{
 			return (node_pointer != rh.node_pointer);
 		}
@@ -1264,8 +1307,23 @@ public:
 
 
 
+		inline list_reverse_iterator & operator = (const list_reverse_iterator<!is_const> &rh) PLF_LIST_NOEXCEPT
+		{
+			node_pointer = rh.node_pointer;
+			return *this;
+		}
+
+
+
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 			inline list_reverse_iterator & operator = (const list_reverse_iterator &&rh) PLF_LIST_NOEXCEPT
+			{
+				node_pointer = std::move(rh.node_pointer);
+				return *this;
+			}
+
+
+			inline list_reverse_iterator & operator = (const list_reverse_iterator<!is_const> &&rh) PLF_LIST_NOEXCEPT
 			{
 				node_pointer = std::move(rh.node_pointer);
 				return *this;
