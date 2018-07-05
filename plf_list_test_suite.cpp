@@ -167,8 +167,8 @@ void failpass(const char *test_type, bool condition)
 	else 
 	{
 		std::cout << "Fail" << std::endl;
-		std::cin.get(); 
-		abort(); 
+		std::cin.get();
+		abort();
 	}
 }
 
@@ -200,10 +200,10 @@ struct small_struct
 	double unused_number;
 	unsigned int empty_field2;
 	double *empty_field_3;
-	double number;
+	int number;
 	unsigned int empty_field4;
 
-	small_struct(const int num): number(num) {};
+	small_struct(const int num) PLF_NOEXCEPT: number(num) {};
 };
 
 
@@ -228,14 +228,14 @@ struct larger_than_fifteen
 	{
 		const bool success;
 
-		perfect_forwarding_test(int&& /*perfect1*/, int& perfect2)
+		perfect_forwarding_test(int&& /*perfect1*/, int& perfect2) 
 			: success(true)
 		{
 			perfect2 = 1;
 		}
 
 		template <typename T, typename U>
-		perfect_forwarding_test(T&& /*imperfect1*/, U&& /*imperfect2*/)
+		perfect_forwarding_test(T&& /*imperfect1*/, U&& /*imperfect2*/) 
 			: success(false)
 		{}
 	};
@@ -778,22 +778,22 @@ int main(int argc, char **argv)
 					break;
 				}
 			}
-			
-			failpass("Reverse iteration test", passed);	
+
+			failpass("Reverse iteration test", passed);
 
 
 			for (int counter = -1; counter != -255; --counter)
 			{
 				s_list1.emplace_front(counter);
 			}
-			
+
 			temp = s_list1.emplace_front(-255);
-			
+
 			failpass("Emplace_front return value test", temp.number == -255);
-			
+
 
 			test_counter = -255;
-			
+
 			for (plf::list<small_struct>::iterator it = s_list1.begin(); it != s_list1.end(); ++it)
 			{
 				if (test_counter++ != it->number)
@@ -802,10 +802,10 @@ int main(int argc, char **argv)
 					break;
 				}
 			}
-			
-			failpass("Emplace_front test", passed);	
-			
-			
+
+			failpass("Emplace_front test", passed);
+
+
 			test_counter = 255;
 
 			for (plf::list<small_struct>::reverse_iterator rit = s_list1.rbegin(); rit != s_list1.rend(); ++rit)
@@ -890,7 +890,7 @@ int main(int argc, char **argv)
 					break;
 				}
 			}
-			
+
 			failpass("Copy constructor", passed);
 		}
 		#endif
@@ -1815,7 +1815,7 @@ int main(int argc, char **argv)
 			#else
 				list<int> i_list(3, 1);
 			#endif
-			
+
 			list<int> i_list2(i_list.begin(), i_list.end());
 			
 			failpass("Range-based constructor test", i_list2.size() == 3);
@@ -1849,6 +1849,26 @@ int main(int argc, char **argv)
 
 			failpass("Perfect forwarding test", (*pf_list.begin()).success);
 			failpass("Perfect forwarding test 2", lvalueref == 1);
+		}
+		{
+			title2("Basic emplace_back test");
+
+			list<small_struct> ss_list;
+			int total1 = 0, total2 = 0;
+
+			for (int counter = 0; counter != 100; ++counter)
+			{
+				ss_list.emplace_back(counter);
+				total1 += counter;
+			}
+
+			for (list<small_struct>::iterator it = ss_list.begin(); it != ss_list.end(); ++it)
+			{
+				total2 += it->number;
+			}
+
+			failpass("Basic emplace test", total1 == total2);
+			failpass("Perfect forwarding test 2", ss_list.size() == 100);
 		}
 		#endif
 	}
