@@ -952,11 +952,17 @@ private:
 
 		void swap(group_vector &source) PLF_LIST_NOEXCEPT_SWAP(group_allocator_type)
 		{
-			#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-				group_vector temp(std::move(source));
-				source = std::move(*this);
-				*this = std::move(temp);
-			#else
+			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+				if (std::is_trivial<group_pointer_type>::value) // if all pointer types are trivial we can just copy using memcpy - faster
+				{
+					char temp[sizeof(group_vector)];
+					std::memcpy(reinterpret_cast<void *>(&temp), reinterpret_cast<void *>(this), sizeof(group_vector));
+					std::memcpy(reinterpret_cast<void *>(this), reinterpret_cast<void *>(&source), sizeof(group_vector));
+					std::memcpy(reinterpret_cast<void *>(&source), reinterpret_cast<void *>(&temp), sizeof(group_vector));
+				}
+				else
+			#endif
+			{
 				const group_pointer_type swap_last_endpoint_group = last_endpoint_group, swap_block_pointer = block_pointer, swap_last_searched_group = last_searched_group;
 				const size_type swap_size = size, swap_element_capacity = element_allocator_pair.capacity, swap_capacity = group_allocator_pair.capacity;
 
@@ -973,7 +979,7 @@ private:
 				source.size = swap_size;
 				source.element_allocator_pair.capacity = swap_element_capacity;
 				source.group_allocator_pair.capacity = swap_capacity;
-			#endif
+			}
 		}
 
 
@@ -3282,11 +3288,17 @@ public:
 
 	void swap(list &source) PLF_LIST_NOEXCEPT_SWAP(allocator_type)
 	{
-		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-			list temp(std::move(source));
-			source = std::move(*this);
-			*this = std::move(temp);
-		#else
+		#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+			if (std::is_trivial<group_pointer_type>::value && std::is_trivial<node_pointer_type>::value) // if all pointer types are trivial we can just copy using memcpy - much faster
+			{
+				char temp[sizeof(list)];
+				std::memcpy(reinterpret_cast<void *>(&temp), reinterpret_cast<void *>(this), sizeof(list));
+				std::memcpy(reinterpret_cast<void *>(this), reinterpret_cast<void *>(&source), sizeof(list));
+				std::memcpy(reinterpret_cast<void *>(&source), reinterpret_cast<void *>(&temp), sizeof(list));
+			}
+			else
+		#endif
+		{
 			groups.swap(source.groups);
 
 			const node_pointer_type swap_end_node_previous = end_node.previous, swap_last_endpoint = last_endpoint;
@@ -3306,7 +3318,7 @@ public:
 			source.end_node.previous->next = source.begin_iterator.node_pointer->previous = source.end_iterator.node_pointer;
 			source.node_pointer_allocator_pair.total_number_of_elements = swap_total_number_of_elements;
 			source.node_allocator_pair.number_of_erased_nodes = swap_number_of_erased_nodes;
-		#endif
+		}
 	}
 
 };
