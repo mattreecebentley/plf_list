@@ -120,7 +120,6 @@
 
 #include <functional> // std::greater
 #include <vector> // range-insert testing
-#include <iostream>
 #include <algorithm> // std::find
 #include <cstdio> // log redirection
 #include <cstdlib> // abort
@@ -137,37 +136,38 @@
 
 void title1(const char *title_text)
 {
-	std::cout << std::endl << std::endl << std::endl << "*** " << title_text << " ***" << std::endl;
-	std::cout << "===========================================" << std::endl << std::endl << std::endl; 
+	printf("\n\n\n*** %s ***\n", title_text);
+	printf("===========================================\n\n\n");
 }
 
 
 
 void title2(const char *title_text)
 {
-	std::cout << std::endl << std::endl << "--- " << title_text << " ---" << std::endl << std::endl;
+	printf("\n\n--- %s ---\n\n", title_text);
 }
 
-	
+
+
 void title3(const char *title_text)
 {
-	std::cout << std::endl << title_text << std::endl;
+	printf("\n %s \n", title_text);
 }
 
-	
+
 
 void failpass(const char *test_type, bool condition)
 {
-	std::cout << "\n" << test_type << ": ";
-	
-	if (condition) 
-	{ 
-		std::cout << "Pass\n\n";
-	} 
-	else 
+	printf("%s: ", test_type);
+
+	if (condition)
 	{
-		std::cout << "Fail" << std::endl;
-		std::cin.get();
+		printf("Pass\n");
+	}
+	else
+	{
+		printf("Fail\n");
+		getchar();
 		abort();
 	}
 }
@@ -257,8 +257,8 @@ int main(int argc, char **argv)
 	#endif
 
 	#ifndef PLF_INITIALIZER_LIST_SUPPORT
-		std::cout << "Initializer_list support (C++11 or higher) is required for most tests. Most tests will skipped without it. Press ENTER to continue." << std::endl;
-		std::cin.get();
+		printf("Initializer_list support (C++11 or higher) is required for most tests. Most tests will skipped without it. Press ENTER to continue.\n");
+		getchar();
 	#endif
 
 	while (++loop_counter != 50)
@@ -276,7 +276,7 @@ int main(int argc, char **argv)
 			
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				printf("%d, ", *it);
 
 				if (test_counter++ != *it)
 				{
@@ -303,7 +303,7 @@ int main(int argc, char **argv)
 			test_counter = 1;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				printf("%d, ", *it);
 
 				if (test_counter++ != *it)
 				{
@@ -329,7 +329,7 @@ int main(int argc, char **argv)
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				printf("%d, ", *it);
 				test_counter += *it;
 			}
 			
@@ -352,7 +352,7 @@ int main(int argc, char **argv)
 			
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				printf("%d, ", *it);
 				test_counter += *it;
 			}
 
@@ -375,7 +375,7 @@ int main(int argc, char **argv)
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				printf("%d, ", *it);
 				test_counter += *it;
 			}
 			
@@ -397,7 +397,7 @@ int main(int argc, char **argv)
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				printf("%d, ", *it);
 				test_counter += *it;
 			}
 			
@@ -412,7 +412,7 @@ int main(int argc, char **argv)
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				printf("%d, ", *it);
 
 				if(*it < test_counter)
 				{
@@ -430,7 +430,7 @@ int main(int argc, char **argv)
 			test_counter = 65535;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				printf("%d, ", *it);
 				
 				if(*it > test_counter)
 				{
@@ -451,7 +451,7 @@ int main(int argc, char **argv)
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				printf("%d, ", *it);
 
 				if(*it < test_counter)
 				{
@@ -472,7 +472,7 @@ int main(int argc, char **argv)
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				printf("%d, ", *it);
 
 				if(*it == test_counter)
 				{
@@ -493,7 +493,7 @@ int main(int argc, char **argv)
 
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				printf("%d, ", *it);
 
 				if (*it > 15)
 				{
@@ -516,7 +516,7 @@ int main(int argc, char **argv)
 			
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				printf("%d, ", *it);
 
 				if(*it == 5)
 				{
@@ -539,7 +539,8 @@ int main(int argc, char **argv)
 
 			list1.reserve(4097);
 
-			std::cout << "\nInitial capacity after reserve = " << list1.capacity() << std::endl;
+			
+			printf("\nInitial capacity after reserve = %llu\n", list1.capacity());
 			
 			failpass("Reserve from empty test", list1.capacity() >= 4097);
 
@@ -566,15 +567,15 @@ int main(int argc, char **argv)
 				++test_counter;
 			}
 			
-			std::cout << "\nSize (after iteration) = " << test_counter << std::endl;
-			std::cout << "\nCapacity after insertion = " << list1.capacity() << std::endl;
+			printf("\nSize (after iteration) = %u\n", test_counter);
+			printf("\nCapacity after insertion = %llu\n", list1.capacity());
 
 			failpass("Fill-insert test", list1.size() == 10001 && test_counter == 10001 && list1.capacity() >= 10001);
 
 
 
 			list1.reserve(15000);
-			std::cout << "\nCapacity after 2nd reserve = " << list1.capacity() << std::endl;
+			printf("\nCapacity after 2nd reserve = %llu\n", list1.capacity());
 			failpass("Reserve post-insertion test", list1.capacity() >= 15000);
 
 
@@ -582,12 +583,12 @@ int main(int argc, char **argv)
 			title2("Resize tests");
 
 			list1.resize(2);
-			std::cout << "\nCapacity after resize = " << list1.capacity() << std::endl;
+			printf("\nCapacity after resize = %llu\n", list1.capacity());
 
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				printf("%d, ", *it);
 				++test_counter;
 			}
 			
@@ -600,12 +601,12 @@ int main(int argc, char **argv)
 			std::vector<int> test_vector = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 			
 			list1.assign(test_vector.begin(), test_vector.end());
-			std::cout << "\nCapacity after range-assign = " << list1.capacity() << std::endl;
+			printf("\nCapacity after range-assign = %llu\n", list1.capacity());
 
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				printf("%d, ", *it);
 				
 				if (++test_counter != *it)
 				{
@@ -618,12 +619,12 @@ int main(int argc, char **argv)
 			
 			
 			list1.assign(20, 1);
-			std::cout << "\nCapacity after fill-assign = " << list1.capacity() << std::endl;
+			printf("\nCapacity after fill-assign = %llu\n", list1.capacity());
 
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				printf("%d, ", *it);
 				++test_counter;
 				
 				if (*it != 1)
@@ -641,12 +642,12 @@ int main(int argc, char **argv)
 
 				
 			list1.assign(inlist);
-			std::cout << "\nCapacity after initializer-list assign = " << list1.capacity() << std::endl;
+			printf("\nCapacity after initializer-list assign = %llu\n", list1.capacity());
 
 			test_counter = 11;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				printf("%d, ", *it);
 
 				if (--test_counter != *it)
 				{
@@ -666,7 +667,7 @@ int main(int argc, char **argv)
 			
 			for (plf::list<int>::iterator it = list2.begin(); it != list2.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				printf("%d, ", *it);
 
 				if (test_counter++ != *it)
 				{
@@ -725,7 +726,7 @@ int main(int argc, char **argv)
 				
 				if (size_counter != list2.size())
 				{
-					std::cout << "Failing at counter == " << test_counter << std::endl;
+					printf("Failing at counter == %u\n", test_counter);
 				}
 			}
 			
@@ -1736,8 +1737,8 @@ int main(int argc, char **argv)
 
 					if (i_list.size() != counter)
 					{
-						std::cout << "Fail. loop counter: " << loop_counter << ", internal_loop_counter: " << internal_loop_counter << "." << std::endl;
-						std::cin.get(); 
+						printf("Fail. loop counter: %d, , internal_loop_counter: %d.", loop_counter, internal_loop_counter);
+						getchar();
 						abort(); 
 					}
 					
@@ -1875,7 +1876,7 @@ int main(int argc, char **argv)
 
 
 	title1("All tests passed! Press Enter to Exit.");
-	std::cin.get();
+	getchar();
 
 	return 0;
 }

@@ -3288,17 +3288,11 @@ public:
 
 	void swap(list &source) PLF_LIST_NOEXCEPT_SWAP(allocator_type)
 	{
-		#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-			if (std::is_trivial<group_pointer_type>::value && std::is_trivial<node_pointer_type>::value) // if all pointer types are trivial we can just copy using memcpy - much faster
-			{
-				char temp[sizeof(list)];
-				std::memcpy(reinterpret_cast<void *>(&temp), reinterpret_cast<void *>(this), sizeof(list));
-				std::memcpy(reinterpret_cast<void *>(this), reinterpret_cast<void *>(&source), sizeof(list));
-				std::memcpy(reinterpret_cast<void *>(&source), reinterpret_cast<void *>(&temp), sizeof(list));
-			}
-			else
-		#endif
-		{
+		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
+			list temp(std::move(source));
+			source = std::move(*this);
+			*this = std::move(temp);
+		#else
 			groups.swap(source.groups);
 
 			const node_pointer_type swap_end_node_previous = end_node.previous, swap_last_endpoint = last_endpoint;
@@ -3318,7 +3312,7 @@ public:
 			source.end_node.previous->next = source.begin_iterator.node_pointer->previous = source.end_iterator.node_pointer;
 			source.node_pointer_allocator_pair.total_number_of_elements = swap_total_number_of_elements;
 			source.node_allocator_pair.number_of_erased_nodes = swap_number_of_erased_nodes;
-		}
+		#endif
 	}
 
 };
