@@ -333,7 +333,7 @@ private:
 		{}
 
 
-		#if defined(PLF_LIST_MOVE_SEMANTICS_SUPPORT) || defined(PLF_LIST_VARIADICS_SUPPORT)
+		#if defined(PLF_LIST_VARIADICS_SUPPORT) || defined(PLF_LIST_MOVE_SEMANTICS_SUPPORT)
 			group(const group_size_type group_size, node_pointer_type const previous = NULL):
 				nodes(PLF_LIST_ALLOCATE_INITIALIZATION(node_allocator_type, group_size, previous)),
 				free_list_head(NULL),
@@ -629,39 +629,36 @@ private:
 			group_pointer_type const old_block = block_pointer;
 			block_pointer = PLF_LIST_ALLOCATE(group_allocator_type, group_allocator_pair, new_capacity, 0);
 
-			if (size != 0) // Introduced this test due to memcpy not begin guaranteed to succeed by the standard if source is NULL and copy size is 0.
-			{
-				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-					if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
-					{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
-						std::memcpy(reinterpret_cast<void *>(&*block_pointer), reinterpret_cast<void *>(&*old_block), sizeof(group) * size);
-					}
-					#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-						else if (std::is_move_constructible<node_pointer_type>::value)
-						{
-							std::uninitialized_copy(std::make_move_iterator(old_block), std::make_move_iterator(old_block + size), block_pointer);
-						}
-					#endif
-					else
-				#endif
-				{
-					// If allocator supplies non-trivial pointers it becomes necessary to destroy the group. uninitialized_copy will not work in this context as the copy constructor for "group" is overriden in C++03/98. The = operator for "group" has been overriden to make the following work:
-					const group_pointer_type beyond_end = old_block + size;
-					group_pointer_type current_new_group = block_pointer;
-
-					for (group_pointer_type current_group = old_block; current_group != beyond_end; ++current_group)
+			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+				if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
+				{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
+					std::memcpy(reinterpret_cast<void *>(&*block_pointer), reinterpret_cast<void *>(&*old_block), sizeof(group) * size); // reinterpret_cast necessary to deal with GCC 8 warnings
+				}
+				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
+					else if (std::is_move_constructible<node_pointer_type>::value)
 					{
-						*(current_new_group++) = *(current_group);
-
-						current_group->nodes = NULL;
-						current_group->beyond_end = NULL;
-						PLF_LIST_DESTROY(group_allocator_type, group_allocator_pair, current_group);
+						std::uninitialized_copy(std::make_move_iterator(old_block), std::make_move_iterator(old_block + size), block_pointer);
 					}
+				#endif
+				else
+			#endif
+			{
+				// If allocator supplies non-trivial pointers it becomes necessary to destroy the group. uninitialized_copy will not work in this context as the copy constructor for "group" is overriden in C++03/98. The = operator for "group" has been overriden to make the following work:
+				const group_pointer_type beyond_end = old_block + size;
+				group_pointer_type current_new_group = block_pointer;
+
+				for (group_pointer_type current_group = old_block; current_group != beyond_end; ++current_group)
+				{
+					*(current_new_group++) = *(current_group);
+
+					current_group->nodes = NULL;
+					current_group->beyond_end = NULL;
+					PLF_LIST_DESTROY(group_allocator_type, group_allocator_pair, current_group);
 				}
 			}
 
-			last_searched_group = block_pointer + (last_searched_group - old_block); // In the case of an empty list without previous insertions/erasures, both last_searched_group and old_block will be NULL, so this works.
-			PLF_LIST_DEALLOCATE(group_allocator_type, group_allocator_pair, old_block, group_allocator_pair.capacity); // As with the above, deallocating a NULL source is legal
+			last_searched_group = block_pointer + (last_searched_group - old_block); // correct pointer post-reallocation
+			PLF_LIST_DEALLOCATE(group_allocator_type, group_allocator_pair, old_block, group_allocator_pair.capacity);
 			group_allocator_pair.capacity = new_capacity;
 		}
 
@@ -671,17 +668,37 @@ private:
 		{
 			if (group_allocator_pair.capacity == size)
 			{
-				expand_capacity((group_allocator_pair.capacity * 2) + (group_allocator_pair.capacity == 0));
+				expand_capacity(group_allocator_pair.capacity * 2);
 			}
 
-			last_endpoint_group = block_pointer + size;
-			element_allocator_pair.capacity += group_size;
+			last_endpoint_group = block_pointer + size - 1;
 
 			#ifdef PLF_LIST_VARIADICS_SUPPORT
-				PLF_LIST_CONSTRUCT(group_allocator_type, group_allocator_pair, last_endpoint_group, group_size, (++size == 1) ? NULL : (last_endpoint_group - 1)->nodes);
+				PLF_LIST_CONSTRUCT(group_allocator_type, group_allocator_pair, last_endpoint_group + 1, group_size, last_endpoint_group->nodes);
 			#else
-				PLF_LIST_CONSTRUCT(group_allocator_type, group_allocator_pair, last_endpoint_group, group(group_size, (++size == 1) ? NULL : (last_endpoint_group - 1)->nodes));
+				PLF_LIST_CONSTRUCT(group_allocator_type, group_allocator_pair, last_endpoint_group + 1, group(group_size, last_endpoint_group->nodes));
 			#endif
+
+			++last_endpoint_group; // Doing this here instead of pre-construct to avoid need for a try-catch block
+			element_allocator_pair.capacity += group_size;
+			++size;
+		}
+
+
+
+		void initialize(const group_size_type group_size) // For adding first group *only* when group vector is completely empty and block_pointer is NULL
+		{
+			last_endpoint_group = block_pointer = last_searched_group = PLF_LIST_ALLOCATE(group_allocator_type, group_allocator_pair, 1, 0);
+			group_allocator_pair.capacity = 1;
+
+			#ifdef PLF_LIST_VARIADICS_SUPPORT
+				PLF_LIST_CONSTRUCT(group_allocator_type, group_allocator_pair, last_endpoint_group, group_size);
+			#else
+				PLF_LIST_CONSTRUCT(group_allocator_type, group_allocator_pair, last_endpoint_group, group(group_size));
+			#endif
+
+			size = 1; // Doing these here instead of pre-construct to avoid need for a try-catch block
+			element_allocator_pair.capacity = group_size;
 		}
 
 
@@ -1374,7 +1391,7 @@ private:
 
 	group_vector groups;
 	node_base end_node;
-	node_pointer_type last_endpoint;
+	node_pointer_type last_endpoint; // last_endpoint being NULL means no elements have been constructed, but there may still be groups available due to clear() or reservee()
 	iterator end_iterator, begin_iterator; // end_iterator is always the last entry point in last group in list (or one past the end of group)
 
 	struct ebco_pair1 : node_pointer_allocator_type // Packaging the group allocator with least-used member variables, for empty-base-class optimisation
@@ -1405,7 +1422,7 @@ public:
 
 
 
-	explicit list(const element_allocator_type &alloc):
+	explicit list(const element_allocator_type &alloc):  // allocator-extended constructor
 		element_allocator_type(alloc),
 		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
@@ -1697,7 +1714,7 @@ public:
 			{
 				if (last_endpoint == groups.last_endpoint_group->beyond_end) // last_endpoint is beyond the end of a group
 				{
-					if (static_cast<size_type>(groups.last_endpoint_group - groups.block_pointer) == groups.size - 1)
+					if (static_cast<size_type>(groups.last_endpoint_group - groups.block_pointer) == groups.size - 1) // ie. there are no reusable groups available at the back of group vector
 					{
 						groups.add_new((node_pointer_allocator_pair.total_number_of_elements < PLF_LIST_BLOCK_MAX) ? static_cast<group_size_type>(node_pointer_allocator_pair.total_number_of_elements) : PLF_LIST_BLOCK_MAX);
 					}
@@ -1760,7 +1777,7 @@ public:
 		{
 			if (groups.block_pointer == NULL) // In case of prior reserve/clear call as opposed to being uninitialized
 			{
-				groups.add_new(PLF_LIST_BLOCK_MIN);
+				groups.initialize(PLF_LIST_BLOCK_MIN);
 			}
 
 			groups.last_endpoint_group->number_of_elements = 1;
@@ -1886,7 +1903,7 @@ public:
 			{
 				if (groups.block_pointer == NULL)
 				{
-					groups.add_new(PLF_LIST_BLOCK_MIN);
+					groups.initialize(PLF_LIST_BLOCK_MIN);
 				}
 
 				groups.last_endpoint_group->number_of_elements = 1;
@@ -2007,7 +2024,7 @@ public:
 			{
 				if (groups.block_pointer == NULL)
 				{
-					groups.add_new(PLF_LIST_BLOCK_MIN);
+					groups.initialize(PLF_LIST_BLOCK_MIN);
 				}
 
 				groups.last_endpoint_group->number_of_elements = 1;
@@ -2128,18 +2145,41 @@ public:
 		}
 
 
-		if (last_endpoint == NULL) // ie. Uninitialized list
+		if (groups.block_pointer == NULL) // ie. Uninitialized list
 		{
 			if (number_of_elements > PLF_LIST_BLOCK_MAX)
 			{
-				// Create and fill first group:
-				groups.add_new(PLF_LIST_BLOCK_MAX);
-				end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-				group_fill_position(element, PLF_LIST_BLOCK_MAX, end_iterator.node_pointer);
-
-				// Create and fill all remaining groups:
 				size_type multiples = number_of_elements / PLF_LIST_BLOCK_MAX;
-				const group_size_type remainder = static_cast<const group_size_type>(number_of_elements - (multiples * PLF_LIST_BLOCK_MAX));
+				const group_size_type remainder = static_cast<const group_size_type>(number_of_elements - (multiples++ * PLF_LIST_BLOCK_MAX)); // ++ to aid while loop below
+
+				// Create and fill first group:
+				if (remainder != 0) // make sure smallest block is first
+				{
+					if (remainder >= PLF_LIST_BLOCK_MIN)
+					{
+						groups.initialize(remainder);
+						end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
+						group_fill_position(element, remainder, end_iterator.node_pointer);
+					}
+					else
+					{ // Create first group as BLOCK_MIN size then subtract difference between BLOCK_MIN and remainder from next group:
+						groups.initialize(PLF_LIST_BLOCK_MIN);
+						end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
+						group_fill_position(element, PLF_LIST_BLOCK_MIN, end_iterator.node_pointer);
+
+						groups.add_new(PLF_LIST_BLOCK_MAX - (PLF_LIST_BLOCK_MIN - remainder));
+						end_node.previous = last_endpoint = groups.last_endpoint_group->nodes;
+						group_fill_position(element, PLF_LIST_BLOCK_MAX - (PLF_LIST_BLOCK_MIN - remainder), end_iterator.node_pointer);
+						--multiples;
+					}
+				}
+				else
+				{
+					groups.initialize(PLF_LIST_BLOCK_MAX);
+					end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
+					group_fill_position(element, PLF_LIST_BLOCK_MAX, end_iterator.node_pointer);
+					--multiples;
+				}
 
 				while (--multiples != 0)
 				{
@@ -2148,16 +2188,10 @@ public:
 					group_fill_position(element, PLF_LIST_BLOCK_MAX, end_iterator.node_pointer);
 				}
 
-				if (remainder != 0)
-				{
-					groups.add_new(PLF_LIST_BLOCK_MAX);
-					end_node.previous = last_endpoint = groups.last_endpoint_group->nodes;
-					group_fill_position(element, remainder, end_iterator.node_pointer);
-				}
 			}
 			else
 			{
-				groups.add_new((number_of_elements < PLF_LIST_BLOCK_MIN) ? PLF_LIST_BLOCK_MIN : static_cast<group_size_type>(number_of_elements)); // Construct first group
+				groups.initialize((number_of_elements < PLF_LIST_BLOCK_MIN) ? PLF_LIST_BLOCK_MIN : static_cast<group_size_type>(number_of_elements)); // Construct first group
 				end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
 				group_fill_position(element, static_cast<group_size_type>(number_of_elements), end_iterator.node_pointer);
 			}
@@ -2230,7 +2264,7 @@ public:
 				group_fill_position(element, PLF_LIST_BLOCK_MAX, position.node_pointer);
 			}
 
-			if (remainder != 0)
+			if (remainder != 0) // Bit annoying to create a large block to house a lower number of elements, but beats the alternatives
 			{
 				groups.add_new(PLF_LIST_BLOCK_MAX);
 				last_endpoint = groups.last_endpoint_group->nodes;
@@ -2721,7 +2755,11 @@ public:
 
 	void reserve(size_type reserve_amount)
 	{
-		if (reserve_amount < PLF_LIST_BLOCK_MIN)
+		if (reserve_amount == 0 || reserve_amount <= groups.element_allocator_pair.capacity)
+		{
+			return;
+		}
+		else if (reserve_amount < PLF_LIST_BLOCK_MIN)
 		{
 			reserve_amount = PLF_LIST_BLOCK_MIN;
 		}
@@ -2731,9 +2769,8 @@ public:
 		}
 
 
-		// edge case: has been filled with elements then clear()'d - some groups may be smaller than would be desired, should be replaced
-		if (node_pointer_allocator_pair.total_number_of_elements == 0 && last_endpoint != NULL)
-		{
+		if (groups.block_pointer != NULL && node_pointer_allocator_pair.total_number_of_elements == 0)
+		{ // edge case: has been filled with elements then clear()'d - some groups may be smaller than would be desired, should be replaced
 			group_size_type end_group_size = static_cast<group_size_type>((groups.block_pointer + groups.size - 1)->beyond_end - (groups.block_pointer + groups.size - 1)->nodes);
 
 			if (reserve_amount > end_group_size && end_group_size != PLF_LIST_BLOCK_MAX) // if last group isn't large enough, remove all groups
@@ -2770,51 +2807,38 @@ public:
 			}
 		}
 
-
-		if (reserve_amount <= groups.element_allocator_pair.capacity)
-		{
-			return;
-		}
-
-
 		reserve_amount -= groups.element_allocator_pair.capacity;
 
-		// To correct from add_new adjustment:
+		// To correct from possible reallocation caused by add_new:
 		const difference_type last_endpoint_group_number = groups.last_endpoint_group - groups.block_pointer;
 
-		if (reserve_amount > PLF_LIST_BLOCK_MAX)
-		{
-			size_type number_of_full_groups = (reserve_amount / PLF_LIST_BLOCK_MAX);
-			reserve_amount -= (number_of_full_groups * PLF_LIST_BLOCK_MAX);
+		size_type number_of_full_groups = (reserve_amount / PLF_LIST_BLOCK_MAX);
+		reserve_amount -= (number_of_full_groups++ * PLF_LIST_BLOCK_MAX); // ++ to aid while loop below
 
+		if (groups.block_pointer == NULL) // Previously uninitialized list or reset in above if statement; most common scenario
+		{
 			if (reserve_amount != 0)
 			{
-				if (reserve_amount < PLF_LIST_BLOCK_MIN)
-				{
-					reserve_amount = PLF_LIST_BLOCK_MIN;
-				}
-
-				groups.add_new(static_cast<group_size_type>(reserve_amount));
+				groups.initialize(static_cast<group_size_type>(((reserve_amount < PLF_LIST_BLOCK_MIN) ? PLF_LIST_BLOCK_MIN : reserve_amount)));
 			}
-
-			do
+			else
 			{
-				groups.add_new(PLF_LIST_BLOCK_MAX);
-			} while (--number_of_full_groups != 0);
+				groups.initialize(PLF_LIST_BLOCK_MAX);
+				--number_of_full_groups;
+			}
 		}
-		else
+		else if (reserve_amount != 0)
+		{ // Create a group at least as large as the last group - may allocate more than necessary, but better solution than creating a veyr small group in the middle of the group vector, I think:
+			const group_size_type last_endpoint_group_capacity = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - groups.last_endpoint_group->nodes);
+			groups.add_new(static_cast<group_size_type>((reserve_amount < last_endpoint_group_capacity) ? last_endpoint_group_capacity : reserve_amount));
+		}
+
+		while (--number_of_full_groups != 0)
 		{
-			groups.add_new(static_cast<group_size_type>(reserve_amount));
+			groups.add_new(PLF_LIST_BLOCK_MAX);
 		}
 
 		groups.last_endpoint_group = groups.block_pointer + last_endpoint_group_number;
-
-		if (last_endpoint == NULL) // Previously uninitialized list; most common scenario
-		{
-			last_endpoint = groups.block_pointer->nodes;
-			end_node.next = reinterpret_cast<node_pointer_type>(&end_node);
-			end_node.previous = reinterpret_cast<node_pointer_type>(&end_node);
-		}
 	}
 
 
