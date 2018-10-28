@@ -1848,7 +1848,6 @@ int main(int argc, char **argv)
 			failpass("Perfect forwarding test", (*pf_list.begin()).success);
 			failpass("Perfect forwarding test 2", lvalueref == 1);
 		}
-		#endif
 
 
 		{
@@ -1871,6 +1870,7 @@ int main(int argc, char **argv)
 			failpass("Basic emplace test", total1 == total2);
 			failpass("Basic emplace test 2", ss_list.size() == 100);
 		}
+		#endif
 	}
 
 

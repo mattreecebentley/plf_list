@@ -440,12 +440,21 @@ private:
 
 		inline PLF_LIST_FORCE_INLINE void blank() PLF_LIST_NOEXCEPT
 		{
-			last_endpoint_group = NULL;
-			block_pointer = NULL;
-			last_searched_group = NULL;
-			size = 0;
-			element_allocator_pair.capacity = 0;
-			group_allocator_pair.capacity = 0;
+			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+				if (std::is_trivial<group_pointer_type>::value)
+				{
+					std::memset(static_cast<void *>(this), 0, sizeof(group_vector));
+				}
+				else
+			#endif
+			{
+				last_endpoint_group = NULL;
+				block_pointer = NULL;
+				last_searched_group = NULL;
+				size = 0;
+				element_allocator_pair.capacity = 0;
+				group_allocator_pair.capacity = 0;
+			}
 		}
 
 
@@ -465,12 +474,22 @@ private:
 
 			group_vector & operator = (group_vector &&source) PLF_LIST_NOEXCEPT
 			{
-				last_endpoint_group = std::move(source.last_endpoint_group);
-				block_pointer = std::move(source.block_pointer);
-				last_searched_group = std::move(source.last_searched_group);
-				size = source.size;
-				element_allocator_pair.capacity = source.element_allocator_pair.capacity;
-				group_allocator_pair.capacity = source.group_allocator_pair.capacity;
+				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+					if (std::is_trivial<group_pointer_type>::value)
+					{
+						std::memcpy(static_cast<void *>(this), &source, sizeof(group_vector));
+					}
+					else
+				#endif
+				{
+					last_endpoint_group = std::move(source.last_endpoint_group);
+					block_pointer = std::move(source.block_pointer);
+					last_searched_group = std::move(source.last_searched_group);
+					size = source.size;
+					element_allocator_pair.capacity = source.element_allocator_pair.capacity;
+					group_allocator_pair.capacity = source.group_allocator_pair.capacity;
+				}
+
 				source.blank();
 				return *this;
 			}
@@ -632,7 +651,7 @@ private:
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
 				if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
-					std::memcpy(reinterpret_cast<void *>(&*block_pointer), reinterpret_cast<void *>(&*old_block), sizeof(group) * size); // reinterpret_cast necessary to deal with GCC 8 warnings
+					std::memcpy(static_cast<void *>(&*block_pointer), static_cast<void *>(&*old_block), sizeof(group) * size); // reinterpret_cast necessary to deal with GCC 8 warnings
 				}
 				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 					else if (std::is_move_constructible<node_pointer_type>::value)
@@ -751,9 +770,9 @@ private:
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
 				if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{
-					std::memcpy(reinterpret_cast<void *>(&*temp_group), reinterpret_cast<void *>(&*group_to_erase), sizeof(group));
-					std::memmove(reinterpret_cast<void *>(&*group_to_erase), reinterpret_cast<void *>(&*group_to_erase + 1), sizeof(group) * ((size - 1) - (&*group_to_erase - &*block_pointer)));
-					std::memcpy(reinterpret_cast<void *>(&*(block_pointer + size - 1)), reinterpret_cast<void *>(&*temp_group), sizeof(group));
+					std::memcpy(static_cast<void *>(&*temp_group), static_cast<void *>(&*group_to_erase), sizeof(group));
+					std::memmove(static_cast<void *>(&*group_to_erase), static_cast<void *>(&*group_to_erase + 1), sizeof(group) * ((size - 1) - (&*group_to_erase - &*block_pointer)));
+					std::memcpy(static_cast<void *>(&*(block_pointer + size - 1)), static_cast<void *>(&*temp_group), sizeof(group));
 				}
 				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 					else if (std::is_move_constructible<node_pointer_type>::value)
@@ -973,9 +992,9 @@ private:
 				if (std::is_trivial<group_pointer_type>::value) // if all pointer types are trivial we can just copy using memcpy - faster
 				{
 					char temp[sizeof(group_vector)];
-					std::memcpy(reinterpret_cast<void *>(&temp), reinterpret_cast<void *>(this), sizeof(group_vector));
-					std::memcpy(reinterpret_cast<void *>(this), reinterpret_cast<void *>(&source), sizeof(group_vector));
-					std::memcpy(reinterpret_cast<void *>(&source), reinterpret_cast<void *>(&temp), sizeof(group_vector));
+					std::memcpy(static_cast<void *>(&temp), static_cast<void *>(this), sizeof(group_vector));
+					std::memcpy(static_cast<void *>(this), static_cast<void *>(&source), sizeof(group_vector));
+					std::memcpy(static_cast<void *>(&source), static_cast<void *>(&temp), sizeof(group_vector));
 				}
 				else
 			#endif
@@ -1029,7 +1048,7 @@ private:
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
 				if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{ // &* in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
-					std::memcpy(reinterpret_cast<void *>(&*block_pointer + size), reinterpret_cast<void *>(&*source.block_pointer), sizeof(group) * source.size);
+					std::memcpy(static_cast<void *>(&*block_pointer + size), static_cast<void *>(&*source.block_pointer), sizeof(group) * source.size);
 				}
 				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 					else if (std::is_move_constructible<node_pointer_type>::value)
