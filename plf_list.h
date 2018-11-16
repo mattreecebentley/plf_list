@@ -3143,12 +3143,14 @@ private:
 public:
 
 	template <class comparison_function>
-	void unique(comparison_function compare)
+	size_type unique(comparison_function compare)
 	{
 		if (node_pointer_allocator_pair.total_number_of_elements < 2)
 		{
-			return;
+			return 0;
 		}
+
+  		size_type number_of_removed_elements = 0;
 
 		element_type *previous = &(begin_iterator.node_pointer->element);
 
@@ -3157,26 +3159,36 @@ public:
 			if (compare(*current, *previous))
 			{
 				current = erase(current);
+				++number_of_removed_elements;
 			}
 			else
 			{
 				previous = &(current++.node_pointer->element);
 			}
 		}
+		
+		return number_of_removed_elements;
 	}
 
 
 
-	inline void unique()
+	inline size_type unique()
 	{
-		unique(eq());
+		return unique(eq());
 	}
 
 
 
 	template <class predicate_function>
-	void remove_if(predicate_function predicate)
+	size_type remove_if(predicate_function predicate)
 	{
+		if (groups.last_endpoint_group == NULL)
+		{
+			return 0;
+		}
+
+  		size_type number_of_removed_elements = 0;
+
 		for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 		{
 			group_size_type num_elements = current_group->number_of_elements;
@@ -3189,6 +3201,7 @@ public:
 					if (current_node->next != NULL && predicate(current_node->element)) // is not free list node and validates predicate
 					{
 						erase(current_node);
+						++number_of_removed_elements;
 
 						if (--num_elements == 0) // ie. group will be empty (and removed) now - nothing left to iterate over
 						{
@@ -3205,6 +3218,7 @@ public:
 					if (predicate(current_node->element))
 					{
 						erase(current_node);
+						++number_of_removed_elements;
 
 						if (--num_elements == 0)
 						{
@@ -3225,10 +3239,11 @@ public:
 				if (current_node->next != NULL && predicate(current_node->element))
 				{
 					erase(current_node);
+					++number_of_removed_elements;
 
 					if (--num_elements == 0)
 					{
-						return;
+						return number_of_removed_elements;
 					}
 				}
 			}
@@ -3240,21 +3255,24 @@ public:
 				if (predicate(current_node->element))
 				{
 					erase(current_node);
+					++number_of_removed_elements;
 
 					if (--num_elements == 0)
 					{
-						return;
+						return number_of_removed_elements;
 					}
 				}
 			}
 		}
+
+		return number_of_removed_elements;
 	}
 
 
 
-	inline void remove(const element_type &value)
+	inline size_type remove(const element_type &value)
 	{
-		remove_if(eq_to(value));
+		return remove_if(eq_to(value));
 	}
 
 

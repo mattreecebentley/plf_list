@@ -249,8 +249,6 @@ int main(int argc, char **argv)
 
 	using namespace plf;
 
-	unsigned int loop_counter = 0;
-	
 	#if defined(PLF_INITIALIZER_LIST_SUPPORT) || defined(PLF_MOVE_SEMANTICS_SUPPORT)
 		bool passed = true;
 	#endif
@@ -260,7 +258,7 @@ int main(int argc, char **argv)
 		std::cin.get();
 	#endif
 
-	while (++loop_counter != 50)
+	for (unsigned int prime_loop_counter = 0; prime_loop_counter != 50; ++prime_loop_counter)
 	{
 		int test_counter = 1;
 		
