@@ -1,13 +1,16 @@
 # plf_list
 A drop-in replacement for std::list with (on average):
-* 333% faster insertion
-* 81% faster erasure
-* 16% faster iteration
-* 72% faster sorting
-* 492% faster reversal
-* 103% faster remove/remove_if
-* 62% faster unique
-* 826% faster clear (1122550% for trivially-destructible types)
-* 1238% faster destruction (6187% for trivially-destructible types)
 
-(Benchmarks performed on a haswell-based CPU under GCC 7.3: http://www.plflib.org/benchmarks_haswell_gcc.htm)
+* 393% faster insertion
+* 57% faster erasure
+* 17% faster iteration
+* 77% faster sorting
+* 70% faster reversal
+* 91% faster remove/remove_if
+* 63% faster unique
+* 811% faster clear (1147900% for trivially-destructible types)
+* 1248% faster destruction (6350% for trivially-destructible types)
+* 20-24% faster performance overall in ordered use-case benchmarking(insertion, erasure and iteration on the fly and over time)
+
+(Benchmarks performed on a haswell-based CPU under GCC 8.1: http://www.plflib.org/benchmarks_haswell_gcc.htm)
+(insertion, erasure, and iteration percentages obtained as average of performance across 5 types frmp char to very large struct)
