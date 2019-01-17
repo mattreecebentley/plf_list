@@ -1,4 +1,4 @@
-// Copyright (c) 2018, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
+// Copyright (c) 2019, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
 
 // This software is provided 'as-is', without any express or implied
 // warranty. In no event will the authors be held liable for any damages
@@ -121,13 +121,18 @@
 		#if __GLIBCXX__ >= 20150422 // libstdc++ v4.9 and below do not support std::is_trivially_copyable
 			#define PLF_LIST_TYPE_TRAITS_SUPPORT
 		#endif
-	#elif defined(_LIBCPP_VERSION) // No type trait support in libc++ to date
+	#elif defined(_LIBCPP_VERSION)
 		#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
 		#define PLF_LIST_VARIADICS_SUPPORT
 		#define PLF_LIST_INITIALIZER_LIST_SUPPORT
+		#define PLF_LIST_ALIGNMENT_SUPPORT
 		#define PLF_LIST_NOEXCEPT noexcept
-		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal:value)
+		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
 		#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept
+
+		#if !(defined(_LIBCPP_CXX03_LANG) || defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES))
+			#define PLF_LIST_TYPE_TRAITS_SUPPORT
+		#endif
 	#else // Assume type traits and initializer support for non-GCC compilers and standard libraries
 		#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
 		#define PLF_LIST_VARIADICS_SUPPORT
@@ -182,7 +187,7 @@
 #include <iterator> 	// std::bidirectional_iterator_tag
 
 
-#ifndef PLF_TIMSORT_AVAILABLE
+#ifndef GFX_TIMSORT_HPP
 	#include <algorithm> // std::sort
 #endif
 
@@ -2701,8 +2706,8 @@ public:
 		}
 
 
-		#ifdef PLF_TIMSORT_AVAILABLE
-			plf::timsort(node_pointers, node_pointers + node_pointer_allocator_pair.total_number_of_elements, sort_dereferencer<comparison_function>(compare));
+		#ifdef GFX_TIMSORT_HPP
+			gfx::timsort(node_pointers, node_pointers + node_pointer_allocator_pair.total_number_of_elements, sort_dereferencer<comparison_function>(compare));
 		#else
 			std::sort(node_pointers, node_pointers + node_pointer_allocator_pair.total_number_of_elements, sort_dereferencer<comparison_function>(compare));
 		#endif
@@ -3035,42 +3040,16 @@ public:
 
 	void reverse() PLF_LIST_NOEXCEPT
 	{
-		if (node_pointer_allocator_pair.total_number_of_elements < 2)
-		{
-			return;
-		}
-		else if (node_pointer_allocator_pair.total_number_of_elements < 200) // This process's faster for under 200 elements
-		{
-			for (iterator current = begin_iterator; current != end_iterator;)
-			{
-				const node_pointer_type current_node = current.node_pointer, temp = current.node_pointer->next;
-				++current;
-				current_node->next = current_node->previous;
-				current_node->previous = temp;
-			}
-		}
-		else
+		if (node_pointer_allocator_pair.total_number_of_elements > 1)
 		{
 			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 			{
 				const node_pointer_type end = current_group->beyond_end;
 
-				if (end - current_group->nodes != current_group->number_of_elements) // If there are erased nodes present in the group
+				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 				{
-					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
-					{
-						if (current_node->next != NULL) // is not free list node
-						{ // swap the pointers:
-							const node_pointer_type temp = current_node->next;
-							current_node->next = current_node->previous;
-							current_node->previous = temp;
-						}
-					}
-				}
-				else // avoid needless per-node if-checks when no erased nodes are present:
-				{
-					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
-					{
+					if (current_node->next != NULL) // is not free list node
+					{ // swap the pointers:
 						const node_pointer_type temp = current_node->next;
 						current_node->next = current_node->previous;
 						current_node->previous = temp;
@@ -3078,35 +3057,23 @@ public:
 				}
 			}
 
-			if (last_endpoint - groups.last_endpoint_group->nodes != groups.last_endpoint_group->number_of_elements) // If there are erased nodes present in the group
+			for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 			{
-				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
-				{
-					if (current_node->next != NULL)
-					{
-						const node_pointer_type temp = current_node->next;
-						current_node->next = current_node->previous;
-						current_node->previous = temp;
-					}
-				}
-			}
-			else
-			{
-				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+				if (current_node->next != NULL)
 				{
 					const node_pointer_type temp = current_node->next;
 					current_node->next = current_node->previous;
 					current_node->previous = temp;
 				}
 			}
+
+			const node_pointer_type temp = end_node.previous;
+			end_node.previous = begin_iterator.node_pointer;
+			begin_iterator.node_pointer = temp;
+
+			end_node.previous->next = end_iterator.node_pointer;
+			begin_iterator.node_pointer->previous = end_iterator.node_pointer;
 		}
-
-		const node_pointer_type temp = end_node.previous;
-		end_node.previous = begin_iterator.node_pointer;
-		begin_iterator.node_pointer = temp;
-
-		end_node.previous->next = end_iterator.node_pointer;
-		begin_iterator.node_pointer->previous = end_iterator.node_pointer;
 	}
 
 
