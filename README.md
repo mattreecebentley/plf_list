@@ -1,7 +1,7 @@
 # plf_list
 A drop-in replacement for std::list with (on average):
 
-* 393% faster insertion
+* 293% faster insertion
 * 57% faster erasure
 * 17% faster iteration
 * 77% faster sorting
