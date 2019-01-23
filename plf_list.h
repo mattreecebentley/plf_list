@@ -741,7 +741,7 @@ private:
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
 				if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
-					std::memmove(reinterpret_cast<void *>(&*group_to_erase), reinterpret_cast<void *>(&*group_to_erase + 1), sizeof(group) * (--size - (&*group_to_erase - &*block_pointer)));
+					std::memmove(static_cast<void *>(&*group_to_erase), static_cast<void *>(&*group_to_erase + 1), sizeof(group) * (--size - (&*group_to_erase - &*block_pointer)));
 				}
 				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 					else if (std::is_move_constructible<node_pointer_type>::value)
@@ -3116,29 +3116,26 @@ public:
 	template <class comparison_function>
 	size_type unique(comparison_function compare)
 	{
-		if (node_pointer_allocator_pair.total_number_of_elements < 2)
+  		const size_type original_number_of_elements = node_pointer_allocator_pair.total_number_of_elements;
+
+		if (original_number_of_elements > 1)
 		{
-			return 0;
-		}
+			element_type *previous = &(begin_iterator.node_pointer->element);
 
-  		size_type number_of_removed_elements = 0;
-
-		element_type *previous = &(begin_iterator.node_pointer->element);
-
-		for (iterator current = ++iterator(begin_iterator); current != end_iterator;)
-		{
-			if (compare(*current, *previous))
+			for (iterator current = ++iterator(begin_iterator); current != end_iterator;)
 			{
-				current = erase(current);
-				++number_of_removed_elements;
-			}
-			else
-			{
-				previous = &(current++.node_pointer->element);
+				if (compare(*current, *previous))
+				{
+					current = erase(current);
+				}
+				else
+				{
+					previous = &(current++.node_pointer->element);
+				}
 			}
 		}
 		
-		return number_of_removed_elements;
+		return original_number_of_elements - node_pointer_allocator_pair.total_number_of_elements;
 	}
 
 
@@ -3153,90 +3150,84 @@ public:
 	template <class predicate_function>
 	size_type remove_if(predicate_function predicate)
 	{
-		if (groups.last_endpoint_group == NULL)
+  		const size_type original_number_of_elements = node_pointer_allocator_pair.total_number_of_elements;
+
+		if (original_number_of_elements != 0)
 		{
-			return 0;
-		}
-
-  		size_type number_of_removed_elements = 0;
-
-		for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
-		{
-			group_size_type num_elements = current_group->number_of_elements;
-			const node_pointer_type end = current_group->beyond_end;
-
-			if (end - current_group->nodes != num_elements) // If there are erased nodes present in the group
+			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 			{
-				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+				group_size_type num_elements = current_group->number_of_elements;
+				const node_pointer_type end = current_group->beyond_end;
+
+				if (end - current_group->nodes != num_elements) // If there are erased nodes present in the group
 				{
-					if (current_node->next != NULL && predicate(current_node->element)) // is not free list node and validates predicate
+					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+					{
+						if (current_node->next != NULL && predicate(current_node->element)) // is not free list node and validates predicate
+						{
+							erase(current_node);
+
+							if (--num_elements == 0) // ie. group will be empty (and removed) now - nothing left to iterate over
+							{
+								--current_group; // As current group has been removed, subsequent groups have already shifted back by one, hence, the ++ to the current group in the for loop is unnecessary, and negated here
+								break;
+							}
+						}
+					}
+				}
+				else // No erased nodes in group
+				{
+					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+					{
+						if (predicate(current_node->element))
+						{
+							erase(current_node);
+
+							if (--num_elements == 0)
+							{
+								--current_group;
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			group_size_type num_elements = groups.last_endpoint_group->number_of_elements;
+
+			if (last_endpoint - groups.last_endpoint_group->nodes != num_elements) // If there are erased nodes present in the group
+			{
+				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+				{
+					if (current_node->next != NULL && predicate(current_node->element))
 					{
 						erase(current_node);
-						++number_of_removed_elements;
 
-						if (--num_elements == 0) // ie. group will be empty (and removed) now - nothing left to iterate over
+						if (--num_elements == 0)
 						{
-							--current_group;
 							break;
 						}
 					}
 				}
 			}
-			else // No erased nodes in group
+			else
 			{
-				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
 					if (predicate(current_node->element))
 					{
 						erase(current_node);
-						++number_of_removed_elements;
 
 						if (--num_elements == 0)
 						{
-							--current_group;
 							break;
 						}
 					}
 				}
 			}
 		}
-
-		group_size_type num_elements = groups.last_endpoint_group->number_of_elements;
-
-		if (last_endpoint - groups.last_endpoint_group->nodes != num_elements) // If there are erased nodes present in the group
-		{
-			for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
-			{
-				if (current_node->next != NULL && predicate(current_node->element))
-				{
-					erase(current_node);
-					++number_of_removed_elements;
-
-					if (--num_elements == 0)
-					{
-						return number_of_removed_elements;
-					}
-				}
-			}
-		}
-		else
-		{
-			for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
-			{
-				if (predicate(current_node->element))
-				{
-					erase(current_node);
-					++number_of_removed_elements;
-
-					if (--num_elements == 0)
-					{
-						return number_of_removed_elements;
-					}
-				}
-			}
-		}
-
-		return number_of_removed_elements;
+		
+		return original_number_of_elements - node_pointer_allocator_pair.total_number_of_elements;
 	}
 
 
