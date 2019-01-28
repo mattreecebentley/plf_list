@@ -1502,7 +1502,7 @@ public:
 		{
 			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
 			source.groups.blank();
-			source.node_pointer_allocator_pair.total_number_of_elements = 0;
+			source.reset();
 		}
 
 
@@ -1519,7 +1519,7 @@ public:
 		{
 			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
 			source.groups.blank();
-			source.node_pointer_allocator_pair.total_number_of_elements = 0;
+			source.reset();
 		}
 	#endif
 

@@ -835,7 +835,10 @@ int main(int argc, char **argv)
 			
 			failpass("Move constructor", passed && s_list1.empty());
 			
+			s_list1.emplace_back(3);  // Reuse the moved list will cause segmentation fault
 			
+			failpass("Emplace post-moved-list test", s_list1.size() == 1);
+
 			s_list1 = std::move(s_list2);
 			
 			test_counter = 255;
