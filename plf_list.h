@@ -315,7 +315,7 @@ private:
 			template<typename... arguments>
 			node(node_pointer_type const next, node_pointer_type const previous, arguments&&... parameters):
 				node_base(next, previous),
-				element(std::forward<arguments>(parameters)...)
+				element(std::forward<arguments>(parameters) ...)
 			{}
 		#endif
 	};
@@ -403,7 +403,7 @@ private:
 
 		~group() PLF_LIST_NOEXCEPT
 		{
-			PLF_LIST_DEALLOCATE(node_allocator_type, (*this), nodes, beyond_end - nodes);
+			PLF_LIST_DEALLOCATE(node_allocator_type, (*this), nodes, static_cast<size_type>(beyond_end - nodes));
 		}
 	};
 
@@ -734,14 +734,14 @@ private:
 				--last_searched_group;
 			}
 
-			element_allocator_pair.capacity -= group_to_erase->beyond_end - group_to_erase->nodes;
+			element_allocator_pair.capacity -= static_cast<size_type>(group_to_erase->beyond_end - group_to_erase->nodes);
 
 			PLF_LIST_DESTROY(group_allocator_type, group_allocator_pair, group_to_erase);
 
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
 				if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
-					std::memmove(static_cast<void *>(&*group_to_erase), static_cast<void *>(&*group_to_erase + 1), sizeof(group) * (--size - (&*group_to_erase - &*block_pointer)));
+					std::memmove(static_cast<void *>(&*group_to_erase), static_cast<void *>(&*group_to_erase + 1), sizeof(group) * (--size - static_cast<size_type>(&*group_to_erase - &*block_pointer)));
 				}
 				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 					else if (std::is_move_constructible<node_pointer_type>::value)
@@ -776,7 +776,7 @@ private:
 				if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{
 					std::memcpy(static_cast<void *>(&*temp_group), static_cast<void *>(&*group_to_erase), sizeof(group));
-					std::memmove(static_cast<void *>(&*group_to_erase), static_cast<void *>(&*group_to_erase + 1), sizeof(group) * ((size - 1) - (&*group_to_erase - &*block_pointer)));
+					std::memmove(static_cast<void *>(&*group_to_erase), static_cast<void *>(&*group_to_erase + 1), sizeof(group) * ((size - 1) - static_cast<size_type>(&*group_to_erase - &*block_pointer)));
 					std::memcpy(static_cast<void *>(&*(block_pointer + size - 1)), static_cast<void *>(&*temp_group), sizeof(group));
 				}
 				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
@@ -1031,11 +1031,11 @@ private:
 
 			for (group_pointer_type current_group = last_endpoint_group + 1; current_group != beyond_last; ++current_group)
 			{
-				element_allocator_pair.capacity -= current_group->beyond_end - current_group->nodes;
+				element_allocator_pair.capacity -= static_cast<size_type>(current_group->beyond_end - current_group->nodes);
 				PLF_LIST_DESTROY(group_allocator_type, group_allocator_pair, current_group);
 			}
 
-			size -= (beyond_last - (last_endpoint_group + 1));
+			size -= static_cast<size_type>(beyond_last - (last_endpoint_group + 1));
 		}
 
 
@@ -2921,7 +2921,7 @@ private:
 				groups.last_endpoint_group->free_list_head = current_node;
 			}
 
-			node_allocator_pair.number_of_erased_nodes += groups.last_endpoint_group->beyond_end - last_endpoint;
+			node_allocator_pair.number_of_erased_nodes += static_cast<size_type>(groups.last_endpoint_group->beyond_end - last_endpoint);
 		}
 
 		groups.append(source.groups);

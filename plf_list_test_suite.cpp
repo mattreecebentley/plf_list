@@ -357,7 +357,7 @@ int main(int argc, char **argv)
 			list2.clear();
 			
 
-			for (unsigned int counter = 1; counter != 25; ++counter)
+			for (int counter = 1; counter != 25; ++counter)
 			{
 				list1.push_back(counter);
 				list2.push_back(counter + 25);
@@ -382,7 +382,7 @@ int main(int argc, char **argv)
 			list1.clear();
 			list2.clear();
 			
-			for (unsigned int counter = 5; counter != 36; ++counter)
+			for (int counter = 5; counter != 36; ++counter)
 			{
 				list1.push_back(counter);
 				list2.push_front(counter);
@@ -742,7 +742,7 @@ int main(int argc, char **argv)
 			plf::list<small_struct> s_list1;
 			
 
-			for (unsigned int counter = 0; counter != 254; ++counter)
+			for (int counter = 0; counter != 254; ++counter)
 			{
 				s_list1.emplace_back(counter);
 			}
@@ -907,7 +907,7 @@ int main(int argc, char **argv)
 			}
 
 
-			unsigned int original_total = 0;
+			int original_total = 0;
 
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
@@ -1013,7 +1013,7 @@ int main(int argc, char **argv)
 			
 			failpass("Range reorder to begin", pass == true);
 			
-			unsigned int total = 0;
+			int total = 0;
 			for (it1 = list1.begin(); it1 != list1.end(); ++it1)
 			{
 				total += *it1;
@@ -1053,7 +1053,7 @@ int main(int argc, char **argv)
 				p_list.push_back(&twenty);
 			}
 			
-			unsigned int total = 0, numtotal = 0;
+			int total = 0, numtotal = 0;
 			
 			for(list<int *>::iterator the_iterator = p_list.begin(); the_iterator != p_list.end(); ++the_iterator)
 			{
@@ -1270,7 +1270,7 @@ int main(int argc, char **argv)
 			
 			list<int> i_list;
 
-			for (unsigned int temp = 0; temp != 500000; ++temp)
+			for (int temp = 0; temp != 500000; ++temp)
 			{
 				i_list.push_back(temp);
 			}
@@ -1433,7 +1433,7 @@ int main(int argc, char **argv)
 			}
 			
 			
-			unsigned int total = 0;
+			int total = 0;
 			
 			for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != i_list.end(); ++the_iterator)
 			{
@@ -1543,7 +1543,7 @@ int main(int argc, char **argv)
 			
 			i_list.erase(it1, it2);
 			
-			unsigned int counter = 0;
+			int counter = 0;
 
 			for (list<int>::iterator it = i_list.begin(); it != i_list.end(); ++it)
 			{
@@ -1733,7 +1733,7 @@ int main(int argc, char **argv)
 						++counter;
 					}
 
-					if (i_list.size() != counter)
+					if (i_list.size() != static_cast<unsigned int>(counter))
 					{
 						std::cout << "Fail. loop counter: " << loop_counter << ", internal_loop_counter: " << internal_loop_counter << "." << std::endl;
 						std::cin.get(); 
