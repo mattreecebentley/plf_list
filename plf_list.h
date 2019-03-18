@@ -1,5 +1,6 @@
 // Copyright (c) 2019, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
 
+// zLib license (https://www.zlib.net/zlib_license.html):
 // This software is provided 'as-is', without any express or implied
 // warranty. In no event will the authors be held liable for any damages
 // arising from the use of this software.
@@ -21,7 +22,7 @@
 #define PLF_LIST_H
 
 
-#define PLF_LIST_BLOCK_MIN static_cast<const group_size_type>((sizeof(node) * 8 > (sizeof(*this) + sizeof(group)) * 2) ? 8 : (((sizeof(*this) + sizeof(group)) * 2) / sizeof(node)) + 1)
+#define PLF_LIST_BLOCK_MIN static_cast<group_size_type>((sizeof(node) * 8 > (sizeof(*this) + sizeof(group)) * 2) ? 8 : (((sizeof(*this) + sizeof(group)) * 2) / sizeof(node)) + 1)
 #define PLF_LIST_BLOCK_MAX 2048
 
 
@@ -994,7 +995,7 @@ private:
 		void swap(group_vector &source) PLF_LIST_NOEXCEPT_SWAP(group_allocator_type)
 		{
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (std::is_trivial<group_pointer_type>::value) // if all pointer types are trivial we can just copy using memcpy - faster
+				if (std::is_trivial<group_pointer_type>::value) // if all pointer types are trivial we can just copy using memcpy - faster - avoids constructors/destructors etc
 				{
 					char temp[sizeof(group_vector)];
 					std::memcpy(static_cast<void *>(&temp), static_cast<void *>(this), sizeof(group_vector));
@@ -2174,7 +2175,7 @@ public:
 			if (number_of_elements > PLF_LIST_BLOCK_MAX)
 			{
 				size_type multiples = number_of_elements / PLF_LIST_BLOCK_MAX;
-				const group_size_type remainder = static_cast<const group_size_type>(number_of_elements - (multiples++ * PLF_LIST_BLOCK_MAX)); // ++ to aid while loop below
+				const group_size_type remainder = static_cast<group_size_type>(number_of_elements - (multiples++ * PLF_LIST_BLOCK_MAX)); // ++ to aid while loop below
 
 				// Create and fill first group:
 				if (remainder != 0) // make sure smallest block is first
