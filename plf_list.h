@@ -1435,6 +1435,8 @@ private:
 
 public:
 
+	// Default constructor:
+
 	list() PLF_LIST_NOEXCEPT:
 		element_allocator_type(element_allocator_type()),
 		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
@@ -1447,7 +1449,9 @@ public:
 
 
 
-	explicit list(const element_allocator_type &alloc):  // allocator-extended constructor
+	// Allocator-extended constructor:
+
+	explicit list(const element_allocator_type &alloc):
 		element_allocator_type(alloc),
 		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
@@ -1458,6 +1462,8 @@ public:
 	{}
 
 
+
+	// Copy constructor:
 
 	list(const list &source):
 		element_allocator_type(source),
@@ -1473,6 +1479,8 @@ public:
 	}
 
 
+
+	// Allocator-extended copy constructor:
 
 	list(const list &source, const allocator_type &alloc):
 		element_allocator_type(alloc),
@@ -1491,6 +1499,7 @@ public:
 
 	#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 		// Move constructor:
+
 		list(list &&source) PLF_LIST_NOEXCEPT:
 			element_allocator_type(source),
 			groups(std::move(source.groups)),
@@ -1507,6 +1516,8 @@ public:
 		}
 
 
+
+		// Allocator-extended move constructor:
 
 		list(list &&source, const allocator_type &alloc):
 			element_allocator_type(alloc),
@@ -2305,7 +2316,7 @@ public:
 	// Range insert
 
 	template <class iterator_type>
-	iterator insert (const iterator it, typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
+	iterator insert(const iterator it, typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
 	{
 		if (first == last)
 		{
@@ -2327,7 +2338,7 @@ public:
 	// Initializer-list insert
 
 	#ifdef PLF_LIST_INITIALIZER_LIST_SUPPORT
-		inline iterator insert (const iterator it, const std::initializer_list<element_type> &element_list)
+		inline iterator insert(const iterator it, const std::initializer_list<element_type> &element_list)
 		{ // use range insert:
 			return insert(it, element_list.begin(), element_list.end());
 		}
@@ -2896,11 +2907,24 @@ public:
 			return;
 		}
 
-		list temp(*this);
-
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
+			list temp;
+		 	temp.reserve(node_pointer_allocator_pair.total_number_of_elements);
+
+			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
+				if (std::is_move_assignable<element_type>::value && std::is_move_constructible<element_type>::value) // move elements if possible, otherwise copy them
+				{
+					temp.insert(temp.end_iterator, std::make_move_iterator(begin_iterator), std::make_move_iterator(end_iterator));
+				}
+				else
+			#endif
+			{
+				temp.insert(temp.end_iterator, begin_iterator, end_iterator);
+			}
+
 			*this = std::move(temp);
 		#else
+			list temp(*this);
 			reset();
 			swap(temp);
 		#endif
