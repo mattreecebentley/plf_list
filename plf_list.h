@@ -58,6 +58,7 @@
 		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) throw()
 		#define PLF_LIST_INITIALIZER_LIST_SUPPORT
 	#elif _MSC_VER >= 1900
+		#define PLF_LIST_ALIGNMENT_SUPPORT
 		#define PLF_LIST_TYPE_TRAITS_SUPPORT
 		#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
 		#define PLF_LIST_VARIADICS_SUPPORT
@@ -67,7 +68,14 @@
 		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
 		#define PLF_LIST_INITIALIZER_LIST_SUPPORT
 	#endif
-#elif defined(__cplusplus) && __cplusplus >= 201103L
+
+	#if defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L)
+		#define PLF_LIST_CONSTEXPR constexpr
+	#else
+		#define PLF_LIST_CONSTEXPR
+	#endif
+
+#elif defined(__cplusplus) && __cplusplus >= 201103L // C++11 support, at least
 	#define PLF_LIST_FORCE_INLINE // note: GCC creates faster code without forcing inline
 
 	#if defined(__GNUC__) && defined(__GNUC_MINOR__) && !defined(__clang__) // If compiler is GCC/G++
@@ -93,10 +101,12 @@
 		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 7) || __GNUC__ > 4
 			#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
 		#endif
+		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 8) || __GNUC__ > 4
+			#define PLF_LIST_ALIGNMENT_SUPPORT
+		#endif
 		#if __GNUC__ >= 5 // GCC v4.9 and below do not support std::is_trivially_copyable
 			#define PLF_LIST_TYPE_TRAITS_SUPPORT
 		#endif
-
 	#elif defined(__GLIBCXX__) // Using another compiler type with libstdc++ - we are assuming full c++11 compliance for compiler - which may not be true
 		#if __GLIBCXX__ >= 20080606 	// libstdc++ 4.2 and below do not support variadic templates
 			#define PLF_LIST_VARIADICS_SUPPORT
@@ -119,6 +129,9 @@
 			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator)
 			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator)
 		#endif
+		#if __GLIBCXX__ >= 20130322
+			#define PLF_LIST_ALIGNMENT_SUPPORT
+		#endif
 		#if __GLIBCXX__ >= 20150422 // libstdc++ v4.9 and below do not support std::is_trivially_copyable
 			#define PLF_LIST_TYPE_TRAITS_SUPPORT
 		#endif
@@ -134,14 +147,29 @@
 		#if !(defined(_LIBCPP_CXX03_LANG) || defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES))
 			#define PLF_LIST_TYPE_TRAITS_SUPPORT
 		#endif
-	#else // Assume type traits and initializer support for non-GCC compilers and standard libraries
+	#else // Assume type traits and initializer support for other compilers and standard libraries
 		#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
+		#define PLF_LIST_ALIGNMENT_SUPPORT
 		#define PLF_LIST_VARIADICS_SUPPORT
 		#define PLF_LIST_INITIALIZER_LIST_SUPPORT
 		#define PLF_LIST_TYPE_TRAITS_SUPPORT
 		#define PLF_LIST_NOEXCEPT noexcept
-		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal:value)
+		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
 		#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept
+	#endif
+
+	#if __cplusplus >= 201703L
+		#if defined(__clang__) && ((__clang_major__ == 3 && __clang_minor__ == 9) || __clang_major__ > 3)
+			#define PLF_LIST_CONSTEXPR constexpr
+		#elif defined(__GNUC__) && __GNUC__ >= 7
+			#define PLF_LIST_CONSTEXPR constexpr
+		#elif !defined(__clang__) && !defined(__GNUC__)
+			#define PLF_LIST_CONSTEXPR constexpr // assume correct C++17 implementation for other compilers
+		#else
+			#define PLF_LIST_CONSTEXPR
+		#endif
+	#else
+		#define PLF_LIST_CONSTEXPR
 	#endif
 
 	#define PLF_LIST_MOVE_SEMANTICS_SUPPORT
@@ -150,6 +178,7 @@
 	#define PLF_LIST_NOEXCEPT throw()
 	#define PLF_LIST_NOEXCEPT_SWAP(the_allocator)
 	#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator)
+	#define PLF_LIST_CONSTEXPR
 #endif
 
 
@@ -447,7 +476,7 @@ private:
 		inline PLF_LIST_FORCE_INLINE void blank() PLF_LIST_NOEXCEPT
 		{
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (std::is_trivial<group_pointer_type>::value)
+				if PLF_LIST_CONSTEXPR (std::is_trivial<group_pointer_type>::value)
 				{
 					std::memset(static_cast<void *>(this), 0, sizeof(group_vector));
 				}
@@ -481,7 +510,7 @@ private:
 			group_vector & operator = (group_vector &&source) PLF_LIST_NOEXCEPT
 			{
 				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-					if (std::is_trivial<group_pointer_type>::value)
+					if PLF_LIST_CONSTEXPR (std::is_trivial<group_pointer_type>::value)
 					{
 						std::memcpy(static_cast<void *>(this), &source, sizeof(group_vector));
 					}
@@ -516,7 +545,7 @@ private:
 			}
 
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (!std::is_trivially_destructible<element_type>::value || !std::is_trivially_destructible<node_pointer_type>::value)
+				if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<element_type>::value || !std::is_trivially_destructible<node_pointer_type>::value)
 			#endif
 			{
 				clear(last_endpoint_node); // If clear has already been called, last_endpoint_node will already be == block_pointer->nodes, so no work will occur
@@ -539,7 +568,7 @@ private:
 			for (group_pointer_type current_group = block_pointer; current_group != last_endpoint_group; ++current_group)
 			{
 				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-					if (!std::is_trivially_destructible<element_type>::value || !std::is_trivially_destructible<node_pointer_type>::value)
+					if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<element_type>::value || !std::is_trivially_destructible<node_pointer_type>::value)
 				#endif
 				{
 					const node_pointer_type end = current_group->beyond_end;
@@ -549,7 +578,7 @@ private:
 						for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 						{
 							#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-								if (!std::is_trivially_destructible<element_type>::value)
+								if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<element_type>::value)
 							#endif
 							{
 								if (current_node->next != NULL) // ie. is not part of free list
@@ -559,7 +588,7 @@ private:
 							}
 
 							#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-								if (!std::is_trivially_destructible<node_pointer_type>::value)
+								if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 							#endif
 							{
 								PLF_LIST_DESTROY(node_pointer_allocator_type, (*this), &(current_node->next));
@@ -572,14 +601,14 @@ private:
 						for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 						{
 							#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-								if (!std::is_trivially_destructible<element_type>::value)
+								if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<element_type>::value)
 							#endif
 							{
 								PLF_LIST_DESTROY(element_allocator_type, element_allocator_pair, &(current_node->element));
 							}
 
 							#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-								if (!std::is_trivially_destructible<node_pointer_type>::value)
+								if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 							#endif
 							{
 								PLF_LIST_DESTROY(node_pointer_allocator_type, (*this), &(current_node->next));
@@ -594,7 +623,7 @@ private:
 			}
 
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (!std::is_trivially_destructible<element_type>::value || !std::is_trivially_destructible<node_pointer_type>::value)
+				if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<element_type>::value || !std::is_trivially_destructible<node_pointer_type>::value)
 			#endif
 			{
 				if ((last_endpoint_node - last_endpoint_group->nodes) != last_endpoint_group->number_of_elements) // If there are erased nodes present in the group
@@ -602,7 +631,7 @@ private:
 					for (node_pointer_type current_node = last_endpoint_group->nodes; current_node != last_endpoint_node; ++current_node)
 					{
 						#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-							if (!std::is_trivially_destructible<element_type>::value)
+							if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<element_type>::value)
 						#endif
 						{
 							if (current_node->next != NULL) // is not part of free list ie. element has not already had it's destructor called
@@ -612,7 +641,7 @@ private:
 						}
 
 						#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-							if (!std::is_trivially_destructible<node_pointer_type>::value)
+							if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 						#endif
 						{
 							PLF_LIST_DESTROY(node_pointer_allocator_type, (*this), &(current_node->next));
@@ -625,14 +654,14 @@ private:
 					for (node_pointer_type current_node = last_endpoint_group->nodes; current_node != last_endpoint_node; ++current_node)
 					{
 						#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-							if (!std::is_trivially_destructible<element_type>::value)
+							if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<element_type>::value)
 						#endif
 						{
 							PLF_LIST_DESTROY(element_allocator_type, element_allocator_pair, &(current_node->element));
 						}
 
 						#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-							if (!std::is_trivially_destructible<node_pointer_type>::value)
+							if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 						#endif
 						{
 							PLF_LIST_DESTROY(node_pointer_allocator_type, (*this), &(current_node->next));
@@ -655,12 +684,12 @@ private:
 			block_pointer = PLF_LIST_ALLOCATE(group_allocator_type, group_allocator_pair, new_capacity, 0);
 
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
+				if PLF_LIST_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
 					std::memcpy(static_cast<void *>(&*block_pointer), static_cast<void *>(&*old_block), sizeof(group) * size); // reinterpret_cast necessary to deal with GCC 8 warnings
 				}
 				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-					else if (std::is_move_constructible<node_pointer_type>::value)
+					else if PLF_LIST_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
 					{
 						std::uninitialized_copy(std::make_move_iterator(old_block), std::make_move_iterator(old_block + size), block_pointer);
 					}
@@ -740,12 +769,12 @@ private:
 			PLF_LIST_DESTROY(group_allocator_type, group_allocator_pair, group_to_erase);
 
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
+				if PLF_LIST_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
 					std::memmove(static_cast<void *>(&*group_to_erase), static_cast<void *>(&*group_to_erase + 1), sizeof(group) * (--size - static_cast<size_type>(&*group_to_erase - &*block_pointer)));
 				}
 				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-					else if (std::is_move_constructible<node_pointer_type>::value)
+					else if PLF_LIST_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
 					{
 						std::move(group_to_erase + 1, block_pointer + size--, group_to_erase);
 					}
@@ -774,20 +803,20 @@ private:
 			group *temp_group = PLF_LIST_ALLOCATE(group_allocator_type, group_allocator_pair, 1, NULL);
 
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
+				if PLF_LIST_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{
 					std::memcpy(static_cast<void *>(&*temp_group), static_cast<void *>(&*group_to_erase), sizeof(group));
 					std::memmove(static_cast<void *>(&*group_to_erase), static_cast<void *>(&*group_to_erase + 1), sizeof(group) * ((size - 1) - static_cast<size_type>(&*group_to_erase - &*block_pointer)));
 					std::memcpy(static_cast<void *>(&*(block_pointer + size - 1)), static_cast<void *>(&*temp_group), sizeof(group));
 				}
 				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-					else if (std::is_move_constructible<node_pointer_type>::value)
+					else if PLF_LIST_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
 					{
 						PLF_LIST_CONSTRUCT(group_allocator_type, group_allocator_pair, temp_group, std::move(*group_to_erase));
 						std::move(group_to_erase + 1, block_pointer + size, group_to_erase);
 						*(block_pointer + size - 1) = std::move(*temp_group);
 
-						if (!std::is_trivially_destructible<node_pointer_type>::value)
+						if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 						{
 							PLF_LIST_DESTROY(group_allocator_type, group_allocator_pair, temp_group);
 						}
@@ -995,7 +1024,7 @@ private:
 		void swap(group_vector &source) PLF_LIST_NOEXCEPT_SWAP(group_allocator_type)
 		{
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (std::is_trivial<group_pointer_type>::value) // if all pointer types are trivial we can just copy using memcpy - faster - avoids constructors/destructors etc
+				if PLF_LIST_CONSTEXPR (std::is_trivial<group_pointer_type>::value) // if all pointer types are trivial we can just copy using memcpy - faster - avoids constructors/destructors etc
 				{
 					char temp[sizeof(group_vector)];
 					std::memcpy(static_cast<void *>(&temp), static_cast<void *>(this), sizeof(group_vector));
@@ -1052,12 +1081,12 @@ private:
 			}
 
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
+				if PLF_LIST_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{ // &* in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
 					std::memcpy(static_cast<void *>(&*block_pointer + size), static_cast<void *>(&*source.block_pointer), sizeof(group) * source.size);
 				}
 				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-					else if (std::is_move_constructible<node_pointer_type>::value)
+					else if PLF_LIST_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
 					{
 						std::uninitialized_copy(std::make_move_iterator(source.block_pointer), std::make_move_iterator(source.block_pointer + source.size), block_pointer + size);
 					}
@@ -1821,7 +1850,7 @@ public:
 			node_pointer_allocator_pair.total_number_of_elements = 1;
 
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (std::is_nothrow_copy_constructible<node>::value) // Avoid try-catch code generation
+				if PLF_LIST_CONSTEXPR (std::is_nothrow_copy_constructible<node>::value) // Avoid try-catch code generation
 				{
 					#ifdef PLF_LIST_VARIADICS_SUPPORT
 						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, element);
@@ -1947,7 +1976,7 @@ public:
 				node_pointer_allocator_pair.total_number_of_elements = 1;
 
 				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-					if (std::is_nothrow_move_constructible<node>::value)
+					if PLF_LIST_CONSTEXPR (std::is_nothrow_move_constructible<node>::value)
 					{
 						#ifdef PLF_LIST_VARIADICS_SUPPORT
 							PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::move(element));
@@ -2068,7 +2097,7 @@ public:
 				node_pointer_allocator_pair.total_number_of_elements = 1;
 
 				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-					if (std::is_nothrow_constructible<element_type, arguments ...>::value)
+					if PLF_LIST_CONSTEXPR (std::is_nothrow_constructible<element_type, arguments ...>::value)
 					{
 						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
 					}
@@ -2122,7 +2151,7 @@ private:
 		do
 		{
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (std::is_nothrow_copy_constructible<element_type>::value) // should be resolved at compile-time
+				if PLF_LIST_CONSTEXPR (std::is_nothrow_copy_constructible<element_type>::value)
 				{
 					#ifdef PLF_LIST_VARIADICS_SUPPORT
 						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, last_endpoint + 1, previous, element);
@@ -2371,7 +2400,7 @@ public:
 		assert(it.node_pointer != end_iterator.node_pointer);
 
 		#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-			if (!(std::is_trivially_destructible<element_type>::value)) // This if-statement should be removed by the compiler on resolution of element_type. For some optimizing compilers this step won't be necessary (for MSVC 2013 it makes a difference)
+			if PLF_LIST_CONSTEXPR (!(std::is_trivially_destructible<element_type>::value))
 		#endif
 		{
 			PLF_LIST_DESTROY(element_allocator_type, (*this), &(it.node_pointer->element)); // Destruct element
@@ -2443,7 +2472,7 @@ public:
 			node_allocator_pair.number_of_erased_nodes -= group_size;
 
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (!(std::is_trivially_destructible<node_pointer_type>::value))
+				if PLF_LIST_CONSTEXPR (!(std::is_trivially_destructible<node_pointer_type>::value))
 			#endif
 			{
 				destroy_all_node_pointers(node_group, node_group->beyond_end);
@@ -2465,7 +2494,7 @@ public:
 		else // clear back group, leave trailing
 		{
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (!(std::is_trivially_destructible<node_pointer_type>::value))
+				if PLF_LIST_CONSTEXPR (!(std::is_trivially_destructible<node_pointer_type>::value))
 			#endif
 			{
 				destroy_all_node_pointers(node_group, last_endpoint);
@@ -2741,7 +2770,7 @@ public:
 			(*node_pointer)->previous = *(node_pointer - 1);
 
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (!std::is_trivially_destructible<node_pointer_type>::value)
+				if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 			#endif
 			{
 				PLF_LIST_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointer - 1);
@@ -2749,7 +2778,7 @@ public:
 		}
 
 		#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-			if (!std::is_trivially_destructible<node_pointer_type>::value)
+			if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 		#endif
 		{
 			PLF_LIST_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, back);
@@ -2912,7 +2941,7 @@ public:
 		 	temp.reserve(node_pointer_allocator_pair.total_number_of_elements);
 
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if (std::is_move_assignable<element_type>::value && std::is_move_constructible<element_type>::value) // move elements if possible, otherwise copy them
+				if PLF_LIST_CONSTEXPR (std::is_move_assignable<element_type>::value && std::is_move_constructible<element_type>::value) // move elements if possible, otherwise copy them
 				{
 					temp.insert(temp.end_iterator, std::make_move_iterator(begin_iterator), std::make_move_iterator(end_iterator));
 				}
@@ -3390,6 +3419,7 @@ inline void swap(list<swap_element_type, swap_element_allocator_type> &a, list<s
 #undef PLF_LIST_NOEXCEPT
 #undef PLF_LIST_NOEXCEPT_SWAP
 #undef PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT
+#undef PLF_LIST_CONSTEXPR
 
 #undef PLF_LIST_CONSTRUCT
 #undef PLF_LIST_DESTROY
