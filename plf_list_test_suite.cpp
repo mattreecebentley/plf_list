@@ -126,6 +126,7 @@
 
 #ifdef PLF_MOVE_SEMANTICS_SUPPORT
 	#include <utility> // std::move
+	#include <memory> // std::shared_ptr
 #endif
 
 
@@ -285,9 +286,36 @@ int main(int argc, char **argv)
 
 
 
+			title2("Clear tests");	
+
 			list1.clear();
 			list2.clear();
 			
+			list1.push_back(15);
+			
+			test_counter = 0;
+			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
+			{
+				++test_counter;
+			}
+
+			failpass("Push_back singular post-clear test", list1.size() == static_cast<unsigned int>(test_counter) && list1.size() == 1);
+
+
+			list1.insert(list1.begin(), 14);
+			
+			test_counter = 0;
+			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
+			{
+				++test_counter;
+			}
+
+			failpass("Insert singular post-clear test", list1.size() == static_cast<unsigned int>(test_counter) && list1.size() == 2);
+
+
+			list1.clear();
+			
+
 
 			title2("Splice tests");	
 
@@ -550,7 +578,7 @@ int main(int argc, char **argv)
 				++test_counter;
 			}
 
-			failpass("Push_back singular test", list1.size() == static_cast<unsigned int>(test_counter));
+			failpass("Push_back singular test post-reserve", list1.size() == static_cast<unsigned int>(test_counter));
 			
 			
 
@@ -891,6 +919,15 @@ int main(int argc, char **argv)
 			}
 			
 			failpass("Copy constructor", passed);
+
+			title2("Shared_ptr tests");
+			
+			plf::list<std::shared_ptr<int>> shared_ptr_list;
+			shared_ptr_list.reserve(10);
+			
+			failpass("Shared_ptr list reserve test", shared_ptr_list.capacity() == 10);
+			
+			// May crash here if shared_ptr_list destruction fails.
 		}
 		#endif
 
