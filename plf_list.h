@@ -352,7 +352,7 @@ private:
 
 
 
-	struct group : public node_allocator_type
+	struct group : public node_allocator_type // Element memory block + metadata
 	{
 		node_pointer_type nodes;
 		node_pointer_type free_list_head;
@@ -440,7 +440,7 @@ private:
 
 
 
-	class group_vector : private node_pointer_allocator_type
+	class group_vector : private node_pointer_allocator_type // Simple vector of groups + associated functions
 	{
 	public:
 		group_pointer_type last_endpoint_group, block_pointer, last_searched_group; // last_endpoint_group is the last -active- group in the block. Other -inactive- (previously used, now empty of elements) groups may be stored after this group for future usage (to reduce deallocation/reallocation of nodes). block_pointer + size - 1 == the last group in the block, regardless of whether or not the group is active.
@@ -548,7 +548,10 @@ private:
 				if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<element_type>::value || !std::is_trivially_destructible<node_pointer_type>::value)
 			#endif
 			{
-				clear(last_endpoint_node); // If clear has already been called, last_endpoint_node will already be == block_pointer->nodes, so no work will occur
+				if (last_endpoint_node != NULL)
+				{
+					clear(last_endpoint_node);
+				}
 			}
 
 			const group_pointer_type end_group = block_pointer + size;
@@ -1443,10 +1446,16 @@ private:
 
 
 
-	group_vector groups;
-	node_base end_node;
-	node_pointer_type last_endpoint; // last_endpoint being NULL means no elements have been constructed, but there may still be groups available due to clear() or reservee()
-	iterator end_iterator, begin_iterator; // end_iterator is always the last entry point in last group in list (or one past the end of group)
+	group_vector groups; // Structure which contains all groups (structures containing element memory blocks + block metadata)
+	node_base end_node; // The independent, content-less node which is returned by end()
+	// When the list is empty, the previous and next pointers of end_node both point to end_node.
+	node_pointer_type last_endpoint; // The node location which is one-past the last inserted element in the last group of the list. Is not affected by erasures to prior elements (these are handled using the group's freelist).
+	// If last_endpoint is beyond the end of a memory block it means a new group must be created upon the next insertion if prior erased nodes are not available for re-use.
+	// last_endpoint == NULL means total_number_of_elements is zero, but there may still be groups available due to calling clear(), reserve() on an empty list, or having erased all elements in the list
+	// groups.block_pointer == NULL means an uninitialized container ie. no groups or elements yet
+	iterator end_iterator, begin_iterator; // Returned by begin() and end().
+	// end_iterator always points to end_node. It is a convenience/optimization variable to save generating many temporary iterators from end_node during functions and during end().
+	// When the list is empty of elements, begin_iterator == end_iterator so that program loops iterating from begin() to end() will function as expected.
 
 	struct ebco_pair1 : node_pointer_allocator_type // Packaging the group allocator with least-used member variables, for empty-base-class optimisation
 	{
@@ -1743,7 +1752,7 @@ public:
 
 		end_node.next = reinterpret_cast<node_pointer_type>(&end_node);
 		end_node.previous = reinterpret_cast<node_pointer_type>(&end_node);
-		last_endpoint = groups.block_pointer->nodes;
+		last_endpoint = NULL;
 		begin_iterator.node_pointer = end_iterator.node_pointer;
 		node_pointer_allocator_pair.total_number_of_elements = 0;
 		node_allocator_pair.number_of_erased_nodes = 0;
@@ -2509,7 +2518,7 @@ public:
 			}
 			else
 			{
-				groups.last_endpoint_group = groups.block_pointer; // If number of elements is zero, it indicates that this was the first group in the vector. In which case the last_endpoint_group would be invalid at this point due to the decrement in the above else-if statement. So it needs to be reset, as it will not be reset in the function call below.
+				groups.last_endpoint_group = groups.block_pointer; // If number of elements is zero, it indicates that this was the only group in the vector. In which case the last_endpoint_group would be invalid at this point due to the decrement in the above else-if statement. So it needs to be reset, as it will not be reset in the function call below.
 				clear();
 			}
 
@@ -2817,10 +2826,7 @@ public:
 
 	inline void reorder(const iterator position, const iterator location) PLF_LIST_NOEXCEPT
 	{
-		if (position != location)
-		{
-			reorder(position, location, location);
-		}
+		reorder(position, location, location);
 	}
 
 
@@ -2924,7 +2930,7 @@ public:
 
 	void shrink_to_fit()
 	{
-		if ((last_endpoint == NULL) | (node_pointer_allocator_pair.total_number_of_elements == groups.element_allocator_pair.capacity)) // uninitialized list or full
+		if ((groups.block_pointer == NULL) | (node_pointer_allocator_pair.total_number_of_elements == groups.element_allocator_pair.capacity)) // uninitialized list or full
 		{
 			return;
 		}
@@ -3191,7 +3197,7 @@ public:
 				}
 			}
 		}
-		
+
 		return original_number_of_elements - node_pointer_allocator_pair.total_number_of_elements;
 	}
 
@@ -3283,7 +3289,7 @@ public:
 				}
 			}
 		}
-		
+
 		return original_number_of_elements - node_pointer_allocator_pair.total_number_of_elements;
 	}
 
@@ -3362,37 +3368,6 @@ public:
 	inline allocator_type get_allocator() const PLF_LIST_NOEXCEPT
 	{
 		return element_allocator_type();
-	}
-
-
-
-	void swap(list &source) PLF_LIST_NOEXCEPT_SWAP(allocator_type)
-	{
-		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-			list temp(std::move(source));
-			source = std::move(*this);
-			*this = std::move(temp);
-		#else
-			groups.swap(source.groups);
-
-			const node_pointer_type swap_end_node_previous = end_node.previous, swap_last_endpoint = last_endpoint;
-			const iterator swap_begin_iterator = begin_iterator;
-			const size_type swap_total_number_of_elements = node_pointer_allocator_pair.total_number_of_elements, swap_number_of_erased_nodes = node_allocator_pair.number_of_erased_nodes;
-
-			last_endpoint = source.last_endpoint;
-			end_node.next = begin_iterator.node_pointer = (source.begin_iterator.node_pointer != source.end_iterator.node_pointer) ? source.begin_iterator.node_pointer : end_iterator.node_pointer;
-			end_node.previous = (source.begin_iterator.node_pointer != source.end_iterator.node_pointer) ? source.end_node.previous : end_iterator.node_pointer;
-			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
-			node_pointer_allocator_pair.total_number_of_elements = source.node_pointer_allocator_pair.total_number_of_elements;
-			node_allocator_pair.number_of_erased_nodes = source.node_allocator_pair.number_of_erased_nodes;
-
-			source.last_endpoint = swap_last_endpoint;
-			source.end_node.next = source.begin_iterator.node_pointer = (swap_begin_iterator.node_pointer != end_iterator.node_pointer) ? swap_begin_iterator.node_pointer : source.end_iterator.node_pointer;
-			source.end_node.previous = (swap_begin_iterator.node_pointer != end_iterator.node_pointer) ? swap_end_node_previous : source.end_iterator.node_pointer;
-			source.end_node.previous->next = source.begin_iterator.node_pointer->previous = source.end_iterator.node_pointer;
-			source.node_pointer_allocator_pair.total_number_of_elements = swap_total_number_of_elements;
-			source.node_allocator_pair.number_of_erased_nodes = swap_number_of_erased_nodes;
-		#endif
 	}
 
 
@@ -3518,7 +3493,37 @@ public:
 	}
 
 
-};
+
+	void swap(list &source) PLF_LIST_NOEXCEPT_SWAP(allocator_type)
+	{
+		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
+			list temp(std::move(source));
+			source = std::move(*this);
+			*this = std::move(temp);
+		#else
+			groups.swap(source.groups);
+
+			const node_pointer_type swap_end_node_previous = end_node.previous, swap_last_endpoint = last_endpoint;
+			const iterator swap_begin_iterator = begin_iterator;
+			const size_type swap_total_number_of_elements = node_pointer_allocator_pair.total_number_of_elements, swap_number_of_erased_nodes = node_allocator_pair.number_of_erased_nodes;
+
+			last_endpoint = source.last_endpoint;
+			end_node.next = begin_iterator.node_pointer = (source.begin_iterator.node_pointer != source.end_iterator.node_pointer) ? source.begin_iterator.node_pointer : end_iterator.node_pointer;
+			end_node.previous = (source.begin_iterator.node_pointer != source.end_iterator.node_pointer) ? source.end_node.previous : end_iterator.node_pointer;
+			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
+			node_pointer_allocator_pair.total_number_of_elements = source.node_pointer_allocator_pair.total_number_of_elements;
+			node_allocator_pair.number_of_erased_nodes = source.node_allocator_pair.number_of_erased_nodes;
+
+			source.last_endpoint = swap_last_endpoint;
+			source.end_node.next = source.begin_iterator.node_pointer = (swap_begin_iterator.node_pointer != end_iterator.node_pointer) ? swap_begin_iterator.node_pointer : source.end_iterator.node_pointer;
+			source.end_node.previous = (swap_begin_iterator.node_pointer != end_iterator.node_pointer) ? swap_end_node_previous : source.end_iterator.node_pointer;
+			source.end_node.previous->next = source.begin_iterator.node_pointer->previous = source.end_iterator.node_pointer;
+			source.node_pointer_allocator_pair.total_number_of_elements = swap_total_number_of_elements;
+			source.node_allocator_pair.number_of_erased_nodes = swap_number_of_erased_nodes;
+		#endif
+	}
+
+}; // end of plf::list
 
 
 
@@ -3527,7 +3532,6 @@ inline void swap(list<swap_element_type, swap_element_allocator_type> &a, list<s
 {
 	a.swap(b);
 }
-
 
 
 } // plf namespace
