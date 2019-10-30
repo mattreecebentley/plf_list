@@ -352,7 +352,7 @@ private:
 
 
 
-	struct group : public node_allocator_type // Element memory block + metadata
+	struct group : public node_allocator_type
 	{
 		node_pointer_type nodes;
 		node_pointer_type free_list_head;
@@ -440,7 +440,7 @@ private:
 
 
 
-	class group_vector : private node_pointer_allocator_type // Simple vector of groups + associated functions
+	class group_vector : private node_pointer_allocator_type
 	{
 	public:
 		group_pointer_type last_endpoint_group, block_pointer, last_searched_group; // last_endpoint_group is the last -active- group in the block. Other -inactive- (previously used, now empty of elements) groups may be stored after this group for future usage (to reduce deallocation/reallocation of nodes). block_pointer + size - 1 == the last group in the block, regardless of whether or not the group is active.
@@ -548,10 +548,7 @@ private:
 				if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<element_type>::value || !std::is_trivially_destructible<node_pointer_type>::value)
 			#endif
 			{
-				if (last_endpoint_node != NULL)
-				{
-					clear(last_endpoint_node);
-				}
+				clear(last_endpoint_node); // If clear has already been called, last_endpoint_node will already be == block_pointer->nodes, so no work will occur
 			}
 
 			const group_pointer_type end_group = block_pointer + size;
@@ -1446,16 +1443,10 @@ private:
 
 
 
-	group_vector groups; // Structure which contains all groups (structures containing element memory blocks + block metadata)
-	node_base end_node; // The independent, content-less node which is returned by end()
-	// When the list is empty, the previous and next pointers of end_node both point to end_node.
-	node_pointer_type last_endpoint; // The node location which is one-past the last inserted element in the last group of the list. Is not affected by erasures to prior elements (these are handled using the group's freelist).
-	// If last_endpoint is beyond the end of a memory block it means a new group must be created upon the next insertion if prior erased nodes are not available for re-use.
-	// last_endpoint == NULL means total_number_of_elements is zero, but there may still be groups available due to calling clear(), reserve() on an empty list, or having erased all elements in the list
-	// groups.block_pointer == NULL means an uninitialized container ie. no groups or elements yet
-	iterator end_iterator, begin_iterator; // Returned by begin() and end().
-	// end_iterator always points to end_node. It is a convenience/optimization variable to save generating many temporary iterators from end_node during functions and during end().
-	// When the list is empty of elements, begin_iterator == end_iterator so that program loops iterating from begin() to end() will function as expected.
+	group_vector groups;
+	node_base end_node;
+	node_pointer_type last_endpoint; // last_endpoint being NULL means no elements have been constructed, but there may still be groups available due to clear() or reservee()
+	iterator end_iterator, begin_iterator; // end_iterator is always the last entry point in last group in list (or one past the end of group)
 
 	struct ebco_pair1 : node_pointer_allocator_type // Packaging the group allocator with least-used member variables, for empty-base-class optimisation
 	{
@@ -1752,7 +1743,7 @@ public:
 
 		end_node.next = reinterpret_cast<node_pointer_type>(&end_node);
 		end_node.previous = reinterpret_cast<node_pointer_type>(&end_node);
-		last_endpoint = NULL;
+		last_endpoint = groups.block_pointer->nodes;
 		begin_iterator.node_pointer = end_iterator.node_pointer;
 		node_pointer_allocator_pair.total_number_of_elements = 0;
 		node_allocator_pair.number_of_erased_nodes = 0;
@@ -2518,7 +2509,7 @@ public:
 			}
 			else
 			{
-				groups.last_endpoint_group = groups.block_pointer; // If number of elements is zero, it indicates that this was the only group in the vector. In which case the last_endpoint_group would be invalid at this point due to the decrement in the above else-if statement. So it needs to be reset, as it will not be reset in the function call below.
+				groups.last_endpoint_group = groups.block_pointer; // If number of elements is zero, it indicates that this was the first group in the vector. In which case the last_endpoint_group would be invalid at this point due to the decrement in the above else-if statement. So it needs to be reset, as it will not be reset in the function call below.
 				clear();
 			}
 
@@ -2826,7 +2817,10 @@ public:
 
 	inline void reorder(const iterator position, const iterator location) PLF_LIST_NOEXCEPT
 	{
-		reorder(position, location, location);
+		if (position != location)
+		{
+			reorder(position, location, location);
+		}
 	}
 
 
@@ -2930,7 +2924,7 @@ public:
 
 	void shrink_to_fit()
 	{
-		if ((groups.block_pointer == NULL) | (node_pointer_allocator_pair.total_number_of_elements == groups.element_allocator_pair.capacity)) // uninitialized list or full
+		if ((last_endpoint == NULL) | (node_pointer_allocator_pair.total_number_of_elements == groups.element_allocator_pair.capacity)) // uninitialized list or full
 		{
 			return;
 		}
@@ -3197,7 +3191,7 @@ public:
 				}
 			}
 		}
-
+		
 		return original_number_of_elements - node_pointer_allocator_pair.total_number_of_elements;
 	}
 
@@ -3289,7 +3283,7 @@ public:
 				}
 			}
 		}
-
+		
 		return original_number_of_elements - node_pointer_allocator_pair.total_number_of_elements;
 	}
 
@@ -3401,7 +3395,130 @@ public:
 		#endif
 	}
 
-}; // end of plf::list
+
+
+	iterator unordered_find_single(element_type element_to_match)
+	{
+		if (node_pointer_allocator_pair.total_number_of_elements != 0)
+		{
+			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
+			{
+				group_size_type num_elements = current_group->number_of_elements;
+				const node_pointer_type end = current_group->beyond_end;
+
+				if (end - current_group->nodes != num_elements) // If there are erased nodes present in the group
+				{
+					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+					{
+						if (current_node->next != NULL && current_node->element == element_to_match) // is not free list node and matches element
+						{
+							return iterator(current_node);
+						}
+					}
+				}
+				else // No erased nodes in group
+				{
+					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+					{
+						if (current_node->element == element_to_match)
+						{
+							return iterator(current_node);
+						}
+					}
+				}
+			}
+
+			group_size_type num_elements = groups.last_endpoint_group->number_of_elements;
+
+			if (last_endpoint - groups.last_endpoint_group->nodes != num_elements) // If there are erased nodes present in the group
+			{
+				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+				{
+					if (current_node->next != NULL && current_node->element == element_to_match)
+					{
+						return iterator(current_node);
+					}
+				}
+			}
+			else
+			{
+				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+				{
+					if (current_node->element == element_to_match)
+					{
+						return iterator(current_node);
+					}
+				}
+			}
+		}
+
+		return end_iterator;
+	}
+
+
+
+	list<iterator> unordered_find_multiple(element_type element_to_match)
+	{
+		list<iterator> return_list;
+		
+		if (node_pointer_allocator_pair.total_number_of_elements != 0)
+		{
+			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
+			{
+				group_size_type num_elements = current_group->number_of_elements;
+				const node_pointer_type end = current_group->beyond_end;
+
+				if (end - current_group->nodes != num_elements) // If there are erased nodes present in the group
+				{
+					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+					{
+						if (current_node->next != NULL && current_node->element == element_to_match) // is not free list node and matches element
+						{
+							return_list.push_back(iterator(current_node));
+						}
+					}
+				}
+				else // No erased nodes in group
+				{
+					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+					{
+						if (current_node->element == element_to_match)
+						{
+							return_list.push_back(iterator(current_node));
+						}
+					}
+				}
+			}
+
+			group_size_type num_elements = groups.last_endpoint_group->number_of_elements;
+
+			if (last_endpoint - groups.last_endpoint_group->nodes != num_elements) // If there are erased nodes present in the group
+			{
+				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+				{
+					if (current_node->next != NULL && current_node->element == element_to_match)
+					{
+						return_list.push_back(iterator(current_node));
+					}
+				}
+			}
+			else
+			{
+				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+				{
+					if (current_node->element == element_to_match)
+					{
+						return_list.push_back(iterator(current_node));
+					}
+				}
+			}
+		}
+
+		return return_list;
+	}
+
+
+};
 
 
 
@@ -3410,6 +3527,7 @@ inline void swap(list<swap_element_type, swap_element_allocator_type> &a, list<s
 {
 	a.swap(b);
 }
+
 
 
 } // plf namespace

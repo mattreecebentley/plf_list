@@ -126,7 +126,6 @@
 
 #ifdef PLF_MOVE_SEMANTICS_SUPPORT
 	#include <utility> // std::move
-	#include <memory> // std::shared_ptr
 #endif
 
 
@@ -286,36 +285,9 @@ int main(int argc, char **argv)
 
 
 
-			title2("Clear tests");	
-
 			list1.clear();
 			list2.clear();
 			
-			list1.push_back(15);
-			
-			test_counter = 0;
-			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
-			{
-				++test_counter;
-			}
-
-			failpass("Push_back singular post-clear test", list1.size() == static_cast<unsigned int>(test_counter) && list1.size() == 1);
-
-
-			list1.insert(list1.begin(), 14);
-			
-			test_counter = 0;
-			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
-			{
-				++test_counter;
-			}
-
-			failpass("Insert singular post-clear test", list1.size() == static_cast<unsigned int>(test_counter) && list1.size() == 2);
-
-
-			list1.clear();
-			
-
 
 			title2("Splice tests");	
 
@@ -578,7 +550,7 @@ int main(int argc, char **argv)
 				++test_counter;
 			}
 
-			failpass("Push_back singular test post-reserve", list1.size() == static_cast<unsigned int>(test_counter));
+			failpass("Push_back singular test", list1.size() == static_cast<unsigned int>(test_counter));
 			
 			
 
@@ -919,15 +891,6 @@ int main(int argc, char **argv)
 			}
 			
 			failpass("Copy constructor", passed);
-
-			title2("Shared_ptr tests");
-			
-			plf::list<std::shared_ptr<int>> shared_ptr_list;
-			shared_ptr_list.reserve(10);
-			
-			failpass("Shared_ptr list reserve test", shared_ptr_list.capacity() == 10);
-			
-			// May crash here if shared_ptr_list destruction fails.
 		}
 		#endif
 
@@ -1561,6 +1524,42 @@ int main(int argc, char **argv)
 
 			failpass("Multiple sequential small insert/erase commands test", count == i_list.size());
 		}
+
+
+
+		{
+			title2("unordered_find tests");
+			
+			list<int> i_list;
+
+			for (int temp = 0; temp != 1000; ++temp)
+			{
+				i_list.push_back(10);
+				i_list.push_back(20);
+			}
+			
+
+			list<int>::iterator found_item = i_list.unordered_find_single(10);
+			
+			failpass("unordered_find_single test", i_list.begin() == found_item);
+
+
+			found_item = i_list.unordered_find_single(20);
+			
+			failpass("unordered_find_single test 2", ++(list<int>::iterator(i_list.begin())) == found_item);
+
+
+			list<list<int>::iterator> found_items_list = i_list.unordered_find_multiple(10);
+			
+			failpass("unordered_find_multiple test", found_items_list.size() == 1000);
+			
+			
+			found_items_list = i_list.unordered_find_multiple(20);
+			
+			failpass("unordered_find_multiple test", found_items_list.size() == 1000);
+		}
+
+
 
 		{
 			title2("Range-erase tests");
