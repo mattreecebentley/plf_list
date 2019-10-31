@@ -3372,7 +3372,7 @@ public:
 
 
 
-	iterator unordered_find_single(element_type element_to_match)
+	iterator unordered_find_single(const element_type &element_to_match)
 	{
 		if (node_pointer_allocator_pair.total_number_of_elements != 0)
 		{
@@ -3432,10 +3432,93 @@ public:
 
 
 
-	list<iterator> unordered_find_multiple(element_type element_to_match)
+	list<iterator> unordered_find_multiple(const element_type &element_to_match, const size_type number_to_find)
 	{
 		list<iterator> return_list;
-		
+		size_type number_found = 0;
+
+		if (node_pointer_allocator_pair.total_number_of_elements != 0)
+		{
+			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
+			{
+				group_size_type num_elements = current_group->number_of_elements;
+				const node_pointer_type end = current_group->beyond_end;
+
+				if (end - current_group->nodes != num_elements) // If there are erased nodes present in the group
+				{
+					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+					{
+						if (current_node->next != NULL && current_node->element == element_to_match) // is not free list node and matches element
+						{
+							return_list.push_back(iterator(current_node));
+
+							if (++number_found == number_to_find)
+							{
+								return return_list;
+							}
+						}
+					}
+				}
+				else // No erased nodes in group
+				{
+					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
+					{
+						if (current_node->element == element_to_match)
+						{
+							return_list.push_back(iterator(current_node));
+
+							if (++number_found == number_to_find)
+							{
+								return return_list;
+							}
+						}
+					}
+				}
+			}
+
+			group_size_type num_elements = groups.last_endpoint_group->number_of_elements;
+
+			if (last_endpoint - groups.last_endpoint_group->nodes != num_elements) // If there are erased nodes present in the group
+			{
+				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+				{
+					if (current_node->next != NULL && current_node->element == element_to_match)
+					{
+						return_list.push_back(iterator(current_node));
+
+						if (++number_found == number_to_find)
+						{
+							return return_list;
+						}
+					}
+				}
+			}
+			else
+			{
+				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
+				{
+					if (current_node->element == element_to_match)
+					{
+						return_list.push_back(iterator(current_node));
+
+						if (++number_found == number_to_find)
+						{
+							return return_list;
+						}
+					}
+				}
+			}
+		}
+
+		return return_list;
+	}
+
+
+
+	list<iterator> unordered_find_all(const element_type &element_to_match)
+	{
+		list<iterator> return_list;
+
 		if (node_pointer_allocator_pair.total_number_of_elements != 0)
 		{
 			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)

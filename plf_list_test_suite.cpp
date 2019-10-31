@@ -1586,14 +1586,24 @@ int main(int argc, char **argv)
 			failpass("unordered_find_single test 2", ++(list<int>::iterator(i_list.begin())) == found_item);
 
 
-			list<list<int>::iterator> found_items_list = i_list.unordered_find_multiple(10);
+			list<list<int>::iterator> found_items_list = i_list.unordered_find_multiple(20, 50);
 			
-			failpass("unordered_find_multiple test", found_items_list.size() == 1000);
+			failpass("unordered_find_multiple test", found_items_list.size() == 50);
+			
+
+			found_items_list = i_list.unordered_find_multiple(10, 135);
+			
+			failpass("unordered_find_multiple test 2", found_items_list.size() == 135);
+			
+
+			found_items_list = i_list.unordered_find_all(10);
+			
+			failpass("unordered_find_all test", found_items_list.size() == 1000);
 			
 			
-			found_items_list = i_list.unordered_find_multiple(20);
+			found_items_list = i_list.unordered_find_all(20);
 			
-			failpass("unordered_find_multiple test", found_items_list.size() == 1000);
+			failpass("unordered_find_all test 2", found_items_list.size() == 1000);
 		}
 
 
