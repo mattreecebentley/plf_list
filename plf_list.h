@@ -3372,16 +3372,15 @@ public:
 
 
 
-	iterator unordered_find_single(const element_type &element_to_match)
+	iterator unordered_find_single(const element_type &element_to_match) noexcept
 	{
 		if (node_pointer_allocator_pair.total_number_of_elements != 0)
 		{
 			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 			{
-				group_size_type num_elements = current_group->number_of_elements;
 				const node_pointer_type end = current_group->beyond_end;
 
-				if (end - current_group->nodes != num_elements) // If there are erased nodes present in the group
+				if (end - current_group->nodes != current_group->number_of_elements) // If there are erased nodes present in the group
 				{
 					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 					{
@@ -3403,9 +3402,7 @@ public:
 				}
 			}
 
-			group_size_type num_elements = groups.last_endpoint_group->number_of_elements;
-
-			if (last_endpoint - groups.last_endpoint_group->nodes != num_elements) // If there are erased nodes present in the group
+			if (last_endpoint - groups.last_endpoint_group->nodes != groups.last_endpoint_group->number_of_elements) // If there are erased nodes present in the group
 			{
 				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
@@ -3441,10 +3438,9 @@ public:
 		{
 			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 			{
-				group_size_type num_elements = current_group->number_of_elements;
 				const node_pointer_type end = current_group->beyond_end;
 
-				if (end - current_group->nodes != num_elements) // If there are erased nodes present in the group
+				if (end - current_group->nodes != current_group->number_of_elements) // If there are erased nodes present in the group
 				{
 					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 					{
@@ -3476,9 +3472,7 @@ public:
 				}
 			}
 
-			group_size_type num_elements = groups.last_endpoint_group->number_of_elements;
-
-			if (last_endpoint - groups.last_endpoint_group->nodes != num_elements) // If there are erased nodes present in the group
+			if (last_endpoint - groups.last_endpoint_group->nodes != groups.last_endpoint_group->number_of_elements) // If there are erased nodes present in the group
 			{
 				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
@@ -3523,10 +3517,9 @@ public:
 		{
 			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 			{
-				group_size_type num_elements = current_group->number_of_elements;
 				const node_pointer_type end = current_group->beyond_end;
 
-				if (end - current_group->nodes != num_elements) // If there are erased nodes present in the group
+				if (end - current_group->nodes != current_group->number_of_elements) // If there are erased nodes present in the group
 				{
 					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 					{
@@ -3548,9 +3541,7 @@ public:
 				}
 			}
 
-			group_size_type num_elements = groups.last_endpoint_group->number_of_elements;
-
-			if (last_endpoint - groups.last_endpoint_group->nodes != num_elements) // If there are erased nodes present in the group
+			if (last_endpoint - groups.last_endpoint_group->nodes != groups.last_endpoint_group->number_of_elements) // If there are erased nodes present in the group
 			{
 				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
