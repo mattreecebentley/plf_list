@@ -2457,16 +2457,19 @@ public:
 			groups.last_searched_group = node_group;
 		}
 
-		it.node_pointer->next->previous = it.node_pointer->previous;
-		it.node_pointer->previous->next = it.node_pointer->next;
-
+		// To avoid pointer aliasing and increase performance:
+		const node_pointer_type previous = it.node_pointer->previous;
+		const node_pointer_type next = it.node_pointer->next;
+		next->previous = previous;
+		previous->next = next;
+ 
 		if (it.node_pointer == begin_iterator.node_pointer)
 		{
-			begin_iterator.node_pointer = it.node_pointer->next;
+			begin_iterator.node_pointer = next;
 		}
 
 
-		const iterator return_iterator(it.node_pointer->next);
+		const iterator return_iterator(next);
 
 		if (--(node_group->number_of_elements) != 0) // ie. group is not empty yet, add node to free list
 		{
@@ -2807,13 +2810,18 @@ public:
 
 	void reorder(const iterator position, const iterator first, const iterator last) PLF_LIST_NOEXCEPT
 	{
-		last.node_pointer->next->previous = first.node_pointer->previous;
-		first.node_pointer->previous->next = last.node_pointer->next;
+		// To avoid pointer aliasing and subsequently increase performance via simultaneous assignments:
+		const node_pointer_type first_previous = first.node_pointer->previous;
+		const node_pointer_type last_next = last.node_pointer->next;
+		const node_pointer_type position_previous = position.node_pointer->previous;
 
-		last.node_pointer->next = position.node_pointer;
-		first.node_pointer->previous = position.node_pointer->previous;
+		last_next->previous = first_previous;
+		first.node_pointer->previous->next = last_next;
+ 
+ 		last.node_pointer->next = position.node_pointer;
+		first.node_pointer->previous = position_previous;
 
-		position.node_pointer->previous->next = first.node_pointer;
+		position_previous->next = first.node_pointer;
 		position.node_pointer->previous = last.node_pointer;
 
 		if (begin_iterator == position)
@@ -3402,7 +3410,7 @@ public:
 				}
 			}
 
-			if (last_endpoint - groups.last_endpoint_group->nodes != groups.last_endpoint_group->number_of_elements) // If there are erased nodes present in the group
+			if (last_endpoint - groups.last_endpoint_group->nodes != groups.last_endpoint_group->number_of_elements)
 			{
 				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
@@ -3440,11 +3448,11 @@ public:
 			{
 				const node_pointer_type end = current_group->beyond_end;
 
-				if (end - current_group->nodes != current_group->number_of_elements) // If there are erased nodes present in the group
+				if (end - current_group->nodes != current_group->number_of_elements)
 				{
 					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 					{
-						if (current_node->next != NULL && current_node->element == element_to_match) // is not free list node and matches element
+						if (current_node->next != NULL && current_node->element == element_to_match)
 						{
 							return_list.push_back(iterator(current_node));
 
@@ -3472,7 +3480,7 @@ public:
 				}
 			}
 
-			if (last_endpoint - groups.last_endpoint_group->nodes != groups.last_endpoint_group->number_of_elements) // If there are erased nodes present in the group
+			if (last_endpoint - groups.last_endpoint_group->nodes != groups.last_endpoint_group->number_of_elements)
 			{
 				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
@@ -3519,11 +3527,11 @@ public:
 			{
 				const node_pointer_type end = current_group->beyond_end;
 
-				if (end - current_group->nodes != current_group->number_of_elements) // If there are erased nodes present in the group
+				if (end - current_group->nodes != current_group->number_of_elements)
 				{
 					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 					{
-						if (current_node->next != NULL && current_node->element == element_to_match) // is not free list node and matches element
+						if (current_node->next != NULL && current_node->element == element_to_match)
 						{
 							return_list.push_back(iterator(current_node));
 						}
@@ -3541,7 +3549,7 @@ public:
 				}
 			}
 
-			if (last_endpoint - groups.last_endpoint_group->nodes != groups.last_endpoint_group->number_of_elements) // If there are erased nodes present in the group
+			if (last_endpoint - groups.last_endpoint_group->nodes != groups.last_endpoint_group->number_of_elements)
 			{
 				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
