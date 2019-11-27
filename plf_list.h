@@ -1249,6 +1249,7 @@ public:
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 			inline list_iterator & operator = (const list_iterator &&rh) PLF_LIST_NOEXCEPT
 			{
+				assert (&rh != this);
 				node_pointer = std::move(rh.node_pointer);
 				return *this;
 			}
@@ -1395,6 +1396,7 @@ public:
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 			inline list_reverse_iterator & operator = (const list_reverse_iterator &&rh) PLF_LIST_NOEXCEPT
 			{
+				assert (&rh != this);
 				node_pointer = std::move(rh.node_pointer);
 				return *this;
 			}
@@ -1421,7 +1423,13 @@ public:
 		list_reverse_iterator(const list_reverse_iterator &source) PLF_LIST_NOEXCEPT: node_pointer(source.node_pointer) {}
 
 		#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-			list_reverse_iterator (const list_reverse_iterator &&source) PLF_LIST_NOEXCEPT: node_pointer(std::move(source.node_pointer)) {}
+			list_reverse_iterator (const list_reverse_iterator &&source) PLF_LIST_NOEXCEPT:
+				node_pointer(std::move(source.node_pointer))
+			{
+				assert(&source != this);
+			}
+
+			list_reverse_iterator (const list_reverse_iterator<!is_const> &&source) PLF_LIST_NOEXCEPT: node_pointer(std::move(source.node_pointer)) {}
 		#endif
 
 	private:
@@ -1548,6 +1556,7 @@ public:
 			node_pointer_allocator_pair(source.node_pointer_allocator_pair.total_number_of_elements),
 			node_allocator_pair(source.node_allocator_pair.number_of_erased_nodes)
 		{
+			assert(&source != this);
 			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
 			source.groups.blank();
 			source.reset();
@@ -1567,6 +1576,7 @@ public:
 			node_pointer_allocator_pair(source.node_pointer_allocator_pair.total_number_of_elements),
 			node_allocator_pair(source.node_allocator_pair.number_of_erased_nodes)
 		{
+			assert(&source != this);
 			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
 			source.groups.blank();
 			source.reset();
