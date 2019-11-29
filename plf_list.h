@@ -2544,12 +2544,11 @@ public:
 
 	// Range-erase:
 
-	inline void erase(const const_iterator iterator1, const const_iterator iterator2)  // if uninitialized/invalid iterator supplied, function could generate an exception
+	inline iterator erase(const_iterator iterator1, const const_iterator iterator2)  // if uninitialized/invalid iterator supplied, function could generate an exception
 	{
-		for (const_iterator current = iterator1; current != iterator2;)
-		{
-			current = erase(current);
-		}
+		while (iterator1 != iterator2)
+			iterator1 = erase(iterator1);
+		return iterator2;
 	}
 
 
