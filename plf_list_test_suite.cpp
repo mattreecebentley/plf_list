@@ -486,8 +486,34 @@ int main(int argc, char **argv)
 				test_counter = *it;
 			}
 			
-			failpass("Test reverse", passed);
+			failpass("Reverse test 1", passed);
 
+			{
+				plf::list<int> list2, list3;
+				
+				int counter2 = 50000;
+				for (int counter = 0; counter != 50000; ++counter)
+				{
+					list2.push_back(counter);
+					list3.push_back(--counter2);
+				}
+				
+				list2.reverse();
+				
+				plf::list<int>::iterator it2 = list2.begin(), it3 = list3.begin();
+				
+				do
+				{
+					if (*it2++ != *it3++)
+					{
+						passed = false;
+						break;
+					}
+				}
+				while(it2 != list2.end());
+				
+				failpass("Reverse test 2", passed);
+			}
 
 
 			title2("Unique tests");
