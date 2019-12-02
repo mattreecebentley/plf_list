@@ -1610,22 +1610,22 @@ int main(int argc, char **argv)
 
 		{
 			title2("Range-erase tests");
-		
+
 			list<int> i_list;
-			
+
 			for (int counter = 0; counter != 1000; ++counter)
 			{
 				i_list.push_back(counter);
 			}
-			
-			
-			list<int>::iterator it1 = i_list.begin(), it2 = i_list.begin();
-			
+
+
+			list<int>::iterator it1 = i_list.begin(), it2 = i_list.begin(), it3;
+
 			std::advance(it1, 500);
 			std::advance(it2, 800);
-			
-			i_list.erase(it1, it2);
-			
+
+			it3 = i_list.erase(it1, it2);
+
 			int counter = 0;
 
 			for (list<int>::iterator it = i_list.begin(); it != i_list.end(); ++it)
@@ -1635,7 +1635,9 @@ int main(int argc, char **argv)
 
 			failpass("Simple range-erase test 1", counter == 700 && i_list.size() == 700);
 
-		
+			failpass("Range-erase return value test", it3 == it2);
+
+
 			it1 = it2 = i_list.begin();
 			
 			std::advance(it1, 400);

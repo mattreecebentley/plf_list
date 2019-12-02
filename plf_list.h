@@ -2494,7 +2494,7 @@ public:
 			node_allocator_pair.number_of_erased_nodes -= group_size;
 
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if PLF_LIST_CONSTEXPR (!(std::is_trivially_destructible<node_pointer_type>::value))
+				if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 			#endif
 			{
 				destroy_all_node_pointers(node_group, node_group->beyond_end);
@@ -2516,7 +2516,7 @@ public:
 		else // clear back group, leave trailing
 		{
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if PLF_LIST_CONSTEXPR (!(std::is_trivially_destructible<node_pointer_type>::value))
+				if PLF_LIST_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 			#endif
 			{
 				destroy_all_node_pointers(node_group, last_endpoint);
@@ -2544,12 +2544,14 @@ public:
 
 	// Range-erase:
 
-	inline void erase(const const_iterator iterator1, const const_iterator iterator2)  // if uninitialized/invalid iterator supplied, function could generate an exception
+	inline iterator erase(const_iterator iterator1, const const_iterator iterator2)  // if uninitialized/invalid iterator supplied, function could generate an exception
 	{
-		for (const_iterator current = iterator1; current != iterator2;)
+		while (iterator1 != iterator2)
 		{
-			current = erase(current);
+			iterator1 = erase(iterator1);
 		}
+		
+		return iterator2;
 	}
 
 
