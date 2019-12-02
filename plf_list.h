@@ -249,7 +249,7 @@ public:
 	typedef element_allocator_type													allocator_type;
 	typedef unsigned short															group_size_type;
 
-	#ifdef PLF_LIST_ALLOCATOR_TRAITS_SUPPORT // C++11
+	#ifdef PLF_LIST_ALLOCATOR_TRAITS_SUPPORT // >= C++11
 		typedef typename std::allocator_traits<element_allocator_type>::size_type			size_type;
 		typedef typename std::allocator_traits<element_allocator_type>::difference_type 	difference_type;
 		typedef element_type &																reference;
@@ -284,7 +284,7 @@ private:
 	struct group; // forward declarations for typedefs below
 	struct node;
 
-	#ifdef PLF_LIST_ALLOCATOR_TRAITS_SUPPORT // C++11
+	#ifdef PLF_LIST_ALLOCATOR_TRAITS_SUPPORT // >= C++11
 		typedef typename std::allocator_traits<element_allocator_type>::template rebind_alloc<group>				group_allocator_type;
 		typedef typename std::allocator_traits<element_allocator_type>::template rebind_alloc<node>					node_allocator_type;
 		typedef typename std::allocator_traits<group_allocator_type>::pointer 				group_pointer_type;
@@ -352,7 +352,7 @@ private:
 
 
 
-	struct group : public node_allocator_type // Element memory block + metadata
+	struct group : public node_allocator_type // Node memory block + metadata
 	{
 		node_pointer_type nodes;
 		node_pointer_type free_list_head;
@@ -689,7 +689,7 @@ private:
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
 				if PLF_LIST_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
-					std::memcpy(static_cast<void *>(&*block_pointer), static_cast<void *>(&*old_block), sizeof(group) * size); // reinterpret_cast necessary to deal with GCC 8 warnings
+					std::memcpy(static_cast<void *>(&*block_pointer), static_cast<void *>(&*old_block), sizeof(group) * size); // static_cast or reinterpret_cast necessary to deal with GCC 8 warnings
 				}
 				#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
 					else if PLF_LIST_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
@@ -1019,7 +1019,7 @@ private:
 				}
 			}
 
-			// Will never reach here on functioning implementations
+			// Will never reach here on a functioning implementation
 		}
 
 
@@ -1027,7 +1027,7 @@ private:
 		void swap(group_vector &source) PLF_LIST_NOEXCEPT_SWAP(group_allocator_type)
 		{
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
-				if PLF_LIST_CONSTEXPR (std::is_trivial<group_pointer_type>::value) // if all pointer types are trivial we can just copy using memcpy - faster - avoids constructors/destructors etc
+				if PLF_LIST_CONSTEXPR (std::is_trivial<group_pointer_type>::value) // if pointer type is trivial we can just copy using memcpy - faster - avoids constructors/destructors etc
 				{
 					char temp[sizeof(group_vector)];
 					std::memcpy(static_cast<void *>(&temp), static_cast<void *>(this), sizeof(group_vector));
@@ -1454,7 +1454,7 @@ private:
 
 
 
-	group_vector groups; // Structure which contains all groups (structures containing element memory blocks + block metadata)
+	group_vector groups; // Structure which contains all groups (structures containing node memory blocks + block metadata)
 	node_base end_node; // The independent, content-less node which is returned by end()
 	// When the list is empty, the previous and next pointers of end_node both point to end_node.
 	node_pointer_type last_endpoint; // The node location which is one-past the last inserted element in the last group of the list. Is not affected by erasures to prior elements (these are handled using the group's freelist).
@@ -2045,7 +2045,7 @@ public:
 
 	#ifdef PLF_LIST_VARIADICS_SUPPORT
 		template<typename... arguments>
-		iterator emplace(const iterator it, arguments &&... parameters) // This is almost identical to the insert implementations above with the only changes being std::forward of element parameters and removal of VARIADICS support checking
+		iterator emplace(const iterator it, arguments &&... parameters) // This is almost identical to the insert implementations above with the only changes being std::forward of element parameters, removal of VARIADICS support checking, and is_nothrow_contructible
 		{
 			if (last_endpoint != NULL)
 			{
@@ -2321,7 +2321,7 @@ public:
 
 
 			// use up trailing groups:
-			while ((groups.last_endpoint_group != (groups.block_pointer + groups.size - 1)) & (remainder != 0))
+			while ((groups.last_endpoint_group != (groups.block_pointer + groups.size - 1)) & (remainder != 0)) // Logical or seems to be faster here
 			{
 				last_endpoint = (++groups.last_endpoint_group)->nodes;
 				const group_size_type group_size = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - groups.last_endpoint_group->nodes);
@@ -2400,8 +2400,8 @@ private:
 	{
 		for (node_pointer_type current_node = group_to_process->nodes; current_node != beyond_end_node; ++current_node)
 		{
-			PLF_LIST_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->next)); // Destruct element
-			PLF_LIST_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->previous)); // Destruct element
+			PLF_LIST_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->next));
+			PLF_LIST_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->previous));
 		}
 	}
 
@@ -2429,9 +2429,9 @@ public:
 		++node_allocator_pair.number_of_erased_nodes;
 
 
+		// find the group this element is in, starting from the last group an element to-be-erased was found in (as erasures are, for most programs, likely to be closer in proximity to previous erasures):
 		group_pointer_type node_group = groups.last_searched_group;
 
-		// find the group (memory chunk + metadata) this element is in, starting from the last searched group (as erasures are, for most programs, likely to be in closer proximity to previous erasures):
 		if ((it.node_pointer < node_group->nodes) || (it.node_pointer >= node_group->beyond_end))
 		{
 			// Search groups to the left and right of the last searched group, in the group vector:
@@ -2483,7 +2483,7 @@ public:
 
 		if (--(node_group->number_of_elements) != 0) // ie. group is not empty yet, add node to free list
 		{
-			it.node_pointer->next = NULL; // next == NULL so that destructor and other functions which linearly iterate over memory can detect this as a free list node, ie erased
+			it.node_pointer->next = NULL; // next == NULL so that destructor and other functions which linearly iterate over node memory chunks can detect this as a free list node, ie an erased node
 			it.node_pointer->previous = node_group->free_list_head;
 			node_group->free_list_head = it.node_pointer;
 			return return_iterator;
@@ -2743,7 +2743,7 @@ public:
 					}
 				}
 			}
-			else
+			else // If no erased nodes present we can avoid the per-node testing
 			{
 				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 				{
@@ -3123,6 +3123,7 @@ public:
 
 	void reverse() PLF_LIST_NOEXCEPT
 	{
+		// Note: Because current_node->next has to be read during swapping in this process anyway, including a test to figure out whether or not a given group has erased elements within it, and thus avoid per-node tests, is actually detrimental to performance according to benchmarks. This is unlike sort() where current_node->next is not used in the rest of the process and avoiding per-node tests of it's value is therefore beneficial in benchmarks.
 		if (node_pointer_allocator_pair.total_number_of_elements > 1)
 		{
 			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
