@@ -2431,10 +2431,10 @@ public:
 
 		group_pointer_type node_group = groups.last_searched_group;
 
-		// find nearest group with reusable (erased element) memory location:
+		// find the group (memory chunk + metadata) this element is in, starting from the last searched group (as erasures are, for most programs, likely to be in closer proximity to previous erasures):
 		if ((it.node_pointer < node_group->nodes) || (it.node_pointer >= node_group->beyond_end))
 		{
-			// Search left and right:
+			// Search groups to the left and right of the last searched group, in the group vector:
 			const group_pointer_type beyond_end_group = groups.last_endpoint_group + 1;
 			group_pointer_type left = node_group - 1;
 			bool right_not_beyond_back = (++node_group < beyond_end_group);
@@ -2444,7 +2444,7 @@ public:
 			{
 				if (right_not_beyond_back)
 				{
-					if ((it.node_pointer < node_group->beyond_end) && (it.node_pointer >= node_group->nodes)) // usable location found
+					if ((it.node_pointer < node_group->beyond_end) && (it.node_pointer >= node_group->nodes)) // element location found
 					{
 						break;
 					}
@@ -2454,7 +2454,7 @@ public:
 
 				if (left_not_beyond_front)
 				{
-					if ((it.node_pointer >= left->nodes) && (it.node_pointer < left->beyond_end)) // usable location found
+					if ((it.node_pointer >= left->nodes) && (it.node_pointer < left->beyond_end)) // element location found
 					{
 						node_group = left;
 						break;
@@ -2472,7 +2472,7 @@ public:
 		const node_pointer_type next = it.node_pointer->next;
 		next->previous = previous;
 		previous->next = next;
- 
+
 		if (it.node_pointer == begin_iterator.node_pointer)
 		{
 			begin_iterator.node_pointer = next;
@@ -2483,7 +2483,7 @@ public:
 
 		if (--(node_group->number_of_elements) != 0) // ie. group is not empty yet, add node to free list
 		{
-			it.node_pointer->next = NULL; // next == NULL so that destructor can detect the free list item as opposed to non-free-list item
+			it.node_pointer->next = NULL; // next == NULL so that destructor and other functions which linearly iterate over memory can detect this as a free list node, ie erased
 			it.node_pointer->previous = node_group->free_list_head;
 			node_group->free_list_head = it.node_pointer;
 			return return_iterator;
@@ -2502,7 +2502,7 @@ public:
 
 			node_group->free_list_head = NULL;
 
-			if ((group_size == PLF_LIST_BLOCK_MAX) | (node_group >= groups.last_endpoint_group - 1)) // Preserve only last (active) group or second/third-to-last group - seems to be best for performance under high-modification benchmarks
+			if ((group_size == PLF_LIST_BLOCK_MAX) | (node_group >= groups.last_endpoint_group - 1)) // Preserve only groups which are at the maximum possible size, or first/second/third-to-last active groups - seems to be best for performance under high-modification benchmarks
 			{
 				groups.move_to_back(node_group);
 			}
@@ -2926,7 +2926,7 @@ public:
 			}
 		}
 		else if (reserve_amount != 0)
-		{ // Create a group at least as large as the last group - may allocate more than necessary, but better solution than creating a veyr small group in the middle of the group vector, I think:
+		{ // Create a group at least as large as the last group - may allocate more than necessary, but better solution than creating a very small group in the middle of the group vector, I think:
 			const group_size_type last_endpoint_group_capacity = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - groups.last_endpoint_group->nodes);
 			groups.add_new(static_cast<group_size_type>((reserve_amount < last_endpoint_group_capacity) ? last_endpoint_group_capacity : reserve_amount));
 		}
@@ -2950,7 +2950,7 @@ public:
 
 	void shrink_to_fit()
 	{
-		if ((groups.block_pointer == NULL) | (node_pointer_allocator_pair.total_number_of_elements == groups.element_allocator_pair.capacity)) // uninitialized list or full
+		if ((groups.block_pointer == NULL) | (node_pointer_allocator_pair.total_number_of_elements == groups.element_allocator_pair.capacity)) // if list is uninitialized or full
 		{
 			return;
 		}
@@ -2959,7 +2959,7 @@ public:
 			reset();
 			return;
 		}
-		else if (node_allocator_pair.number_of_erased_nodes == 0 && last_endpoint == groups.last_endpoint_group->beyond_end) //edge case - currently no waste except for possible trailing groups
+		else if (node_allocator_pair.number_of_erased_nodes == 0 && last_endpoint == groups.last_endpoint_group->beyond_end) //edge case - currently no wasted space except for possible trailing groups
 		{
 			groups.trim_trailing_groups();
 			return;
@@ -3131,7 +3131,7 @@ public:
 
 				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 				{
-					if (current_node->next != NULL) // is not free list node
+					if (current_node->next != NULL) // ie. is not free list node
 					{ // swap the pointers:
 						const node_pointer_type temp = current_node->next;
 						current_node->next = current_node->previous;
