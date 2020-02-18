@@ -71,8 +71,10 @@
 
 	#if defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L)
 		#define PLF_LIST_CONSTEXPR constexpr
+		#define PLF_LIST_MAYBE_UNUSED [[maybe_unused]]
 	#else
 		#define PLF_LIST_CONSTEXPR
+		#define PLF_LIST_MAYBE_UNUSED
 	#endif
 
 #elif defined(__cplusplus) && __cplusplus >= 201103L // C++11 support, at least
@@ -161,15 +163,20 @@
 	#if __cplusplus >= 201703L
 		#if defined(__clang__) && ((__clang_major__ == 3 && __clang_minor__ == 9) || __clang_major__ > 3)
 			#define PLF_LIST_CONSTEXPR constexpr
+			#define PLF_LIST_MAYBE_UNUSED [[maybe_unused]]
 		#elif defined(__GNUC__) && __GNUC__ >= 7
 			#define PLF_LIST_CONSTEXPR constexpr
+ 			#define PLF_LIST_MAYBE_UNUSED [[maybe_unused]]
 		#elif !defined(__clang__) && !defined(__GNUC__)
 			#define PLF_LIST_CONSTEXPR constexpr // assume correct C++17 implementation for other compilers
+			#define PLF_LIST_MAYBE_UNUSED [[maybe_unused]]
 		#else
 			#define PLF_LIST_CONSTEXPR
+			#define PLF_LIST_MAYBE_UNUSED
 		#endif
 	#else
 		#define PLF_LIST_CONSTEXPR
+		#define PLF_LIST_MAYBE_UNUSED
 	#endif
 
 	#define PLF_LIST_MOVE_SEMANTICS_SUPPORT
@@ -179,6 +186,7 @@
 	#define PLF_LIST_NOEXCEPT_SWAP(the_allocator)
 	#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator)
 	#define PLF_LIST_CONSTEXPR
+	#define PLF_LIST_MAYBE_UNUSED
 #endif
 
 
@@ -537,7 +545,7 @@ private:
 
 
 
-		void destroy_all_data(const node_pointer_type last_endpoint_node) PLF_LIST_NOEXCEPT
+		void destroy_all_data(PLF_LIST_MAYBE_UNUSED const node_pointer_type last_endpoint_node) PLF_LIST_NOEXCEPT
 		{
 			if (block_pointer == NULL)
 			{
@@ -566,7 +574,7 @@ private:
 
 
 
-		void clear(const node_pointer_type last_endpoint_node) PLF_LIST_NOEXCEPT
+		void clear(PLF_LIST_MAYBE_UNUSED const node_pointer_type last_endpoint_node) PLF_LIST_NOEXCEPT
 		{
 			for (group_pointer_type current_group = block_pointer; current_group != last_endpoint_group; ++current_group)
 			{
