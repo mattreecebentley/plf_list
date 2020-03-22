@@ -1,4 +1,4 @@
-// Copyright (c) 2019, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
+// Copyright (c) 2020, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
 
 // zLib license (https://www.zlib.net/zlib_license.html):
 // This software is provided 'as-is', without any express or implied
@@ -64,13 +64,14 @@
 		#define PLF_LIST_VARIADICS_SUPPORT
 		#define PLF_LIST_MOVE_SEMANTICS_SUPPORT
 		#define PLF_LIST_NOEXCEPT noexcept
-		#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value)
-		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
+		#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value || std::allocator_traits<the_allocator>::is_always_equal::value)
+		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<the_allocator>::is_always_equal::value)
 		#define PLF_LIST_INITIALIZER_LIST_SUPPORT
 	#endif
 
 	#if defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L)
 		#define PLF_LIST_CONSTEXPR constexpr
+		#define PLF_LIST_CONSTEXPR_SUPPORT
 	#else
 		#define PLF_LIST_CONSTEXPR
 	#endif
@@ -95,8 +96,8 @@
 			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept
 		#else // C++17 support
 			#define PLF_LIST_NOEXCEPT noexcept
-			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
-			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value)
+		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<the_allocator>::is_always_equal::value)
+			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value || std::allocator_traits<the_allocator>::is_always_equal::value)
 		#endif
 		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 7) || __GNUC__ > 4
 			#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
@@ -117,8 +118,8 @@
 		#if __GLIBCXX__ >= 20160111
 			#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
 			#define PLF_LIST_NOEXCEPT noexcept
-			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
-			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value)
+		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<the_allocator>::is_always_equal::value)
+			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value || std::allocator_traits<the_allocator>::is_always_equal::value)
 		#elif __GLIBCXX__ >= 20120322
 			#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
 			#define PLF_LIST_NOEXCEPT noexcept
@@ -141,7 +142,7 @@
 		#define PLF_LIST_INITIALIZER_LIST_SUPPORT
 		#define PLF_LIST_ALIGNMENT_SUPPORT
 		#define PLF_LIST_NOEXCEPT noexcept
-		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
+		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<the_allocator>::is_always_equal::value)
 		#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept
 
 		#if !(defined(_LIBCPP_CXX03_LANG) || defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES))
@@ -154,17 +155,20 @@
 		#define PLF_LIST_INITIALIZER_LIST_SUPPORT
 		#define PLF_LIST_TYPE_TRAITS_SUPPORT
 		#define PLF_LIST_NOEXCEPT noexcept
-		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
+		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<the_allocator>::is_always_equal::value)
 		#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept
 	#endif
 
 	#if __cplusplus >= 201703L
 		#if defined(__clang__) && ((__clang_major__ == 3 && __clang_minor__ == 9) || __clang_major__ > 3)
 			#define PLF_LIST_CONSTEXPR constexpr
+			#define PLF_LIST_CONSTEXPR_SUPPORT
 		#elif defined(__GNUC__) && __GNUC__ >= 7
 			#define PLF_LIST_CONSTEXPR constexpr
+			#define PLF_LIST_CONSTEXPR_SUPPORT
 		#elif !defined(__clang__) && !defined(__GNUC__)
 			#define PLF_LIST_CONSTEXPR constexpr // assume correct C++17 implementation for other compilers
+			#define PLF_LIST_CONSTEXPR_SUPPORT
 		#else
 			#define PLF_LIST_CONSTEXPR
 		#endif
@@ -2366,6 +2370,13 @@ public:
 	template <class iterator_type>
 	iterator insert(const iterator it, typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
 	{
+		#if defined(PLF_LIST_TYPE_TRAITS_SUPPORT) && defined(PLF_LIST_CONSTEXPR_SUPPORT) // Constexpr must be present for the following statement to work:
+			if PLF_LIST_CONSTEXPR (std::is_same<typename std::iterator_traits<iterator_type>::iterator_category, std::random_access_iterator_tag>::value)
+			{
+				reserve(node_pointer_allocator_pair.total_number_of_elements + static_cast<size_type>(last - first));
+			}
+		#endif
+
 		if (first == last)
 		{
 			return end_iterator;
@@ -2603,6 +2614,17 @@ public:
 
 			source.groups.blank();
 			source.reset();
+			return *this;
+		}
+	#endif
+
+
+	
+	#ifdef PLF_COLONY_INITIALIZER_LIST_SUPPORT
+		inline list & operator = (const std::initializer_list<element_type> &element_list)
+		{
+			clear();
+			insert(begin_iterator, element_list);
 			return *this;
 		}
 	#endif
@@ -3393,7 +3415,7 @@ public:
 
 
 
-	iterator unordered_find_single(const element_type &element_to_match) noexcept
+	iterator unordered_find_single(const element_type &element_to_match) PLF_LIST_NOEXCEPT
 	{
 		if (node_pointer_allocator_pair.total_number_of_elements != 0)
 		{

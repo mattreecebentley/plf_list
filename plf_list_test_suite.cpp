@@ -1943,6 +1943,13 @@ int main(int argc, char **argv)
 			i_list2.insert(i_list2.begin(), some_ints.begin(), some_ints.end());
 			
 			failpass("Fill insertion test", i_list2.size() == 500503);
+
+			#ifdef PLF_INITIALIZER_LIST_SUPPORT
+				i_list = {5, 4, 3, 2, 1};
+				
+				failpass("Initializer-list operator = test", i_list.size() == 5 && i_list.front() == 5);
+			#endif
+			
 		}
 
 
