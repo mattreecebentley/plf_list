@@ -76,6 +76,10 @@
 		#define PLF_LIST_CONSTEXPR
 	#endif
 
+	#if defined(_MSVC_LANG) && (_MSVC_LANG > 201703L)
+		#define PLF_LIST_CPP20_SUPPORT
+	#endif
+
 #elif defined(__cplusplus) && __cplusplus >= 201103L // C++11 support, at least
 	#define PLF_LIST_FORCE_INLINE // note: GCC creates faster code without forcing inline
 
@@ -83,9 +87,11 @@
 		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 3) || __GNUC__ > 4 // 4.2 and below do not support variadic templates
 			#define PLF_LIST_VARIADICS_SUPPORT
 		#endif
+
 		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 4) || __GNUC__ > 4 // 4.3 and below do not support initializer lists
 			#define PLF_LIST_INITIALIZER_LIST_SUPPORT
 		#endif
+
 		#if (__GNUC__ == 4 && __GNUC_MINOR__ < 6) || __GNUC__ < 4
 			#define PLF_LIST_NOEXCEPT throw()
 			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator)
@@ -96,9 +102,10 @@
 			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept
 		#else // C++17 support
 			#define PLF_LIST_NOEXCEPT noexcept
-		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<the_allocator>::is_always_equal::value)
+			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<the_allocator>::is_always_equal::value)
 			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value || std::allocator_traits<the_allocator>::is_always_equal::value)
 		#endif
+
 		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 7) || __GNUC__ > 4
 			#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
 		#endif
@@ -118,7 +125,7 @@
 		#if __GLIBCXX__ >= 20160111
 			#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
 			#define PLF_LIST_NOEXCEPT noexcept
-		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<the_allocator>::is_always_equal::value)
+			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<the_allocator>::is_always_equal::value)
 			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value || std::allocator_traits<the_allocator>::is_always_equal::value)
 		#elif __GLIBCXX__ >= 20120322
 			#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
@@ -143,7 +150,7 @@
 		#define PLF_LIST_ALIGNMENT_SUPPORT
 		#define PLF_LIST_NOEXCEPT noexcept
 		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<the_allocator>::is_always_equal::value)
-		#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept
+		#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value || std::allocator_traits<the_allocator>::is_always_equal::value)
 
 		#if !(defined(_LIBCPP_CXX03_LANG) || defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES))
 			#define PLF_LIST_TYPE_TRAITS_SUPPORT
@@ -156,7 +163,7 @@
 		#define PLF_LIST_TYPE_TRAITS_SUPPORT
 		#define PLF_LIST_NOEXCEPT noexcept
 		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<the_allocator>::is_always_equal::value)
-		#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept
+		#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value || std::allocator_traits<the_allocator>::is_always_equal::value)
 	#endif
 
 	#if __cplusplus >= 201703L
@@ -174,6 +181,16 @@
 		#endif
 	#else
 		#define PLF_LIST_CONSTEXPR
+	#endif
+
+	#if __cplusplus > 201703L // C++20
+		#if defined(__clang__) && (__clang_major__ >= 10)
+			#define PLF_LIST_CPP20_SUPPORT
+		#elif defined(__GNUC__) && __GNUC__ >= 10
+			#define PLF_LIST_CPP20_SUPPORT
+		#elif !defined(__clang__) && !defined(__GNUC__) // assume correct C++20 implementation for other compilers
+			#define PLF_LIST_CPP20_SUPPORT
+		#endif
 	#endif
 
 	#define PLF_LIST_MOVE_SEMANTICS_SUPPORT
@@ -2620,7 +2637,7 @@ public:
 
 
 	
-	#ifdef PLF_COLONY_INITIALIZER_LIST_SUPPORT
+	#ifdef PLF_LIST_INITIALIZER_LIST_SUPPORT
 		inline list & operator = (const std::initializer_list<element_type> &element_list)
 		{
 			clear();
@@ -2662,6 +2679,9 @@ public:
 
 
 
+	#ifdef PLF_LIST_CPP20_SUPPORT
+		[[nodiscard]]
+	#endif
 	inline bool empty() const PLF_LIST_NOEXCEPT
 	{
 		return node_pointer_allocator_pair.total_number_of_elements == 0;
@@ -3658,6 +3678,7 @@ inline void swap(list<swap_element_type, swap_element_allocator_type> &a, list<s
 
 #undef PLF_LIST_FORCE_INLINE
 
+#undef PLF_LIST_ALIGNMENT_SUPPORT
 #undef PLF_LIST_INITIALIZER_LIST_SUPPORT
 #undef PLF_LIST_TYPE_TRAITS_SUPPORT
 #undef PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
@@ -3667,6 +3688,8 @@ inline void swap(list<swap_element_type, swap_element_allocator_type> &a, list<s
 #undef PLF_LIST_NOEXCEPT_SWAP
 #undef PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT
 #undef PLF_LIST_CONSTEXPR
+#undef PLF_LIST_CONSTEXPR_SUPPORT
+#undef PLF_LIST_CPP20_SUPPORT
 
 #undef PLF_LIST_CONSTRUCT
 #undef PLF_LIST_DESTROY
