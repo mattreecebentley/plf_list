@@ -1807,29 +1807,65 @@ private:
 
 
 
+	inline void add_group_if_necessary()
+	{
+		if (last_endpoint == groups.last_endpoint_group->beyond_end) // last_endpoint is beyond the end of a group
+		{
+			if (static_cast<size_type>(groups.last_endpoint_group - groups.block_pointer) == groups.size - 1) // ie. there are no reusable groups available at the back of group vector
+			{
+				groups.add_new((node_pointer_allocator_pair.total_number_of_elements < PLF_LIST_BLOCK_MAX) ? static_cast<group_size_type>(node_pointer_allocator_pair.total_number_of_elements) : PLF_LIST_BLOCK_MAX);
+			}
+			else
+			{
+				++groups.last_endpoint_group;
+			}
+
+			last_endpoint = groups.last_endpoint_group->nodes;
+		}
+	}
+	
+
+
+	inline void update_sizes_and_iterators(const const_iterator it)
+	{
+		++(groups.last_endpoint_group->number_of_elements);
+		++node_pointer_allocator_pair.total_number_of_elements;
+
+		if (it.node_pointer == begin_iterator.node_pointer)
+		{
+			begin_iterator.node_pointer = last_endpoint;
+		}
+
+		it.node_pointer->previous->next = last_endpoint;
+		it.node_pointer->previous = last_endpoint;
+	}
+
+
+
+	inline void insert_initialize()
+	{
+		if (groups.block_pointer == NULL) // In case of prior reserve/clear call as opposed to being uninitialized
+		{
+			groups.initialize(PLF_LIST_BLOCK_MIN);
+		}
+
+		groups.last_endpoint_group->number_of_elements = 1;
+		end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
+		node_pointer_allocator_pair.total_number_of_elements = 1;
+	}
+
+
 
 public:
 
 
-	iterator insert(const iterator it, const element_type &element)
+	iterator insert(const const_iterator it, const element_type &element)
 	{
 		if (last_endpoint != NULL) // ie. list is not empty
 		{
 			if (node_allocator_pair.number_of_erased_nodes == 0) // No erased nodes available for reuse
 			{
-				if (last_endpoint == groups.last_endpoint_group->beyond_end) // last_endpoint is beyond the end of a group
-				{
-					if (static_cast<size_type>(groups.last_endpoint_group - groups.block_pointer) == groups.size - 1) // ie. there are no reusable groups available at the back of group vector
-					{
-						groups.add_new((node_pointer_allocator_pair.total_number_of_elements < PLF_LIST_BLOCK_MAX) ? static_cast<group_size_type>(node_pointer_allocator_pair.total_number_of_elements) : PLF_LIST_BLOCK_MAX);
-					}
-					else
-					{
-						++groups.last_endpoint_group;
-					}
-
-					last_endpoint = groups.last_endpoint_group->nodes;
-				}
+				add_group_if_necessary();
 
 				#ifdef PLF_LIST_VARIADICS_SUPPORT
 					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, it.node_pointer, it.node_pointer->previous, element);
@@ -1837,17 +1873,7 @@ public:
 					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(it.node_pointer, it.node_pointer->previous, element));
 				#endif
 
-				++(groups.last_endpoint_group->number_of_elements);
-				++node_pointer_allocator_pair.total_number_of_elements;
-
-				if (it.node_pointer == begin_iterator.node_pointer)
-				{
-					begin_iterator.node_pointer = last_endpoint;
-				}
-
-				it.node_pointer->previous->next = last_endpoint;
-				it.node_pointer->previous = last_endpoint;
-
+				update_sizes_and_iterators(it);
 				return iterator(last_endpoint++);
 			}
 			else
@@ -1866,10 +1892,10 @@ public:
 				++(node_group->number_of_elements);
 				++node_pointer_allocator_pair.total_number_of_elements;
 				--node_allocator_pair.number_of_erased_nodes;
-
+		
 				it.node_pointer->previous->next = selected_node;
 				it.node_pointer->previous = selected_node;
-
+		
 				if (it.node_pointer == begin_iterator.node_pointer)
 				{
 					begin_iterator.node_pointer = selected_node;
@@ -1880,14 +1906,7 @@ public:
 		}
 		else // list is empty
 		{
-			if (groups.block_pointer == NULL) // In case of prior reserve/clear call as opposed to being uninitialized
-			{
-				groups.initialize(PLF_LIST_BLOCK_MIN);
-			}
-
-			groups.last_endpoint_group->number_of_elements = 1;
-			end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-			node_pointer_allocator_pair.total_number_of_elements = 1;
+			insert_initialize();
 
 			#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
 				if PLF_LIST_CONSTEXPR (std::is_nothrow_copy_constructible<node>::value) // Avoid try-catch code generation
@@ -1937,25 +1956,13 @@ public:
 
 
 	#ifdef PLF_LIST_MOVE_SEMANTICS_SUPPORT
-		iterator insert(const iterator it, element_type &&element) // This is almost identical to the insert implementation above with the only change being std::move of the element
+		iterator insert(const const_iterator it, element_type &&element) // This is almost identical to the insert implementation above with the only change being std::move of the element
 		{
 			if (last_endpoint != NULL)
 			{
 				if (node_allocator_pair.number_of_erased_nodes == 0)
 				{
-					if (last_endpoint == groups.last_endpoint_group->beyond_end)
-					{
-						if (static_cast<size_type>(groups.last_endpoint_group - groups.block_pointer) == groups.size - 1)
-						{
-							groups.add_new((node_pointer_allocator_pair.total_number_of_elements < PLF_LIST_BLOCK_MAX) ? static_cast<group_size_type>(node_pointer_allocator_pair.total_number_of_elements) : PLF_LIST_BLOCK_MAX);
-						}
-						else
-						{
-							++groups.last_endpoint_group;
-						}
-
-						last_endpoint = groups.last_endpoint_group->nodes;
-					}
+					add_group_if_necessary();
 
 					#ifdef PLF_LIST_VARIADICS_SUPPORT
 						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, it.node_pointer, it.node_pointer->previous, std::move(element));
@@ -1963,17 +1970,7 @@ public:
 						PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(it.node_pointer, it.node_pointer->previous, std::move(element)));
 					#endif
 
-					++(groups.last_endpoint_group->number_of_elements);
-					++node_pointer_allocator_pair.total_number_of_elements;
-
-					if (it.node_pointer == begin_iterator.node_pointer)
-					{
-						begin_iterator.node_pointer = last_endpoint;
-					}
-
-					it.node_pointer->previous->next = last_endpoint;
-					it.node_pointer->previous = last_endpoint;
-
+					update_sizes_and_iterators(it);
 					return iterator(last_endpoint++);
 				}
 				else
@@ -1992,28 +1989,21 @@ public:
 					++(node_group->number_of_elements);
 					++node_pointer_allocator_pair.total_number_of_elements;
 					--node_allocator_pair.number_of_erased_nodes;
-
+		
 					it.node_pointer->previous->next = selected_node;
 					it.node_pointer->previous = selected_node;
-
+		
 					if (it.node_pointer == begin_iterator.node_pointer)
 					{
 						begin_iterator.node_pointer = selected_node;
 					}
-
+		
 					return iterator(selected_node);
 				}
 			}
 			else
 			{
-				if (groups.block_pointer == NULL)
-				{
-					groups.initialize(PLF_LIST_BLOCK_MIN);
-				}
-
-				groups.last_endpoint_group->number_of_elements = 1;
-				end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-				node_pointer_allocator_pair.total_number_of_elements = 1;
+				insert_initialize();
 
 				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
 					if PLF_LIST_CONSTEXPR (std::is_nothrow_move_constructible<node>::value)
@@ -2066,39 +2056,17 @@ public:
 
 	#ifdef PLF_LIST_VARIADICS_SUPPORT
 		template<typename... arguments>
-		iterator emplace(const iterator it, arguments &&... parameters) // This is almost identical to the insert implementations above with the only changes being std::forward of element parameters, removal of VARIADICS support checking, and is_nothrow_contructible
+		iterator emplace(const const_iterator it, arguments &&... parameters) // This is almost identical to the insert implementations above with the only changes being std::forward of element parameters, removal of VARIADICS support checking, and is_nothrow_contructible
 		{
 			if (last_endpoint != NULL)
 			{
 				if (node_allocator_pair.number_of_erased_nodes == 0)
 				{
-					if (last_endpoint == groups.last_endpoint_group->beyond_end)
-					{
-						if (static_cast<size_type>(groups.last_endpoint_group - groups.block_pointer) == groups.size - 1)
-						{
-							groups.add_new((node_pointer_allocator_pair.total_number_of_elements < PLF_LIST_BLOCK_MAX) ? static_cast<group_size_type>(node_pointer_allocator_pair.total_number_of_elements) : PLF_LIST_BLOCK_MAX);
-						}
-						else
-						{
-							++groups.last_endpoint_group;
-						}
-
-						last_endpoint = groups.last_endpoint_group->nodes;
-					}
+            	add_group_if_necessary();
 
 					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, it.node_pointer, it.node_pointer->previous, std::forward<arguments>(parameters)...);
 
-					++(groups.last_endpoint_group->number_of_elements);
-					++node_pointer_allocator_pair.total_number_of_elements;
-
-					if (it.node_pointer == begin_iterator.node_pointer)
-					{
-						begin_iterator.node_pointer = last_endpoint;
-					}
-
-					it.node_pointer->previous->next = last_endpoint;
-					it.node_pointer->previous = last_endpoint;
-
+            	update_sizes_and_iterators(it);
 					return iterator(last_endpoint++);
 				}
 				else
@@ -2113,28 +2081,20 @@ public:
 					++(node_group->number_of_elements);
 					++node_pointer_allocator_pair.total_number_of_elements;
 					--node_allocator_pair.number_of_erased_nodes;
-
+			
 					it.node_pointer->previous->next = selected_node;
 					it.node_pointer->previous = selected_node;
-
+			
 					if (it.node_pointer == begin_iterator.node_pointer)
 					{
 						begin_iterator.node_pointer = selected_node;
 					}
-
 					return iterator(selected_node);
 				}
 			}
 			else
 			{
-				if (groups.block_pointer == NULL)
-				{
-					groups.initialize(PLF_LIST_BLOCK_MIN);
-				}
-
-				groups.last_endpoint_group->number_of_elements = 1;
-				end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-				node_pointer_allocator_pair.total_number_of_elements = 1;
+           	insert_initialize();
 
 				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
 					if PLF_LIST_CONSTEXPR (std::is_nothrow_constructible<element_type, arguments ...>::value)
@@ -2232,7 +2192,7 @@ public:
 
 	// Fill insert
 
-	iterator insert(iterator position, const size_type number_of_elements, const element_type &element)
+	iterator insert(const_iterator position, const size_type number_of_elements, const element_type &element)
 	{
 		if (number_of_elements == 0)
 		{
@@ -2385,7 +2345,7 @@ public:
 	// Range insert
 
 	template <class iterator_type>
-	iterator insert(const iterator it, typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
+	iterator insert(const const_iterator position, typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
 	{
 		#if defined(PLF_LIST_TYPE_TRAITS_SUPPORT) && defined(PLF_LIST_CONSTEXPR_SUPPORT) // Constexpr must be present for the following statement to work:
 			if PLF_LIST_CONSTEXPR (std::is_same<typename std::iterator_traits<iterator_type>::iterator_category, std::random_access_iterator_tag>::value)
@@ -2399,11 +2359,11 @@ public:
 			return end_iterator;
 		}
 
-		const iterator return_iterator = insert(it, *first);
+		const iterator return_iterator = insert(position, *first);
 
 		while(++first != last)
 		{
-			insert(it, *first);
+			insert(position, *first);
 		}
 
 		return return_iterator;
@@ -2414,7 +2374,7 @@ public:
 	// Initializer-list insert
 
 	#ifdef PLF_LIST_INITIALIZER_LIST_SUPPORT
-		inline iterator insert(const iterator it, const std::initializer_list<element_type> &element_list)
+		inline iterator insert(const const_iterator it, const std::initializer_list<element_type> &element_list)
 		{ // use range insert:
 			return insert(it, element_list.begin(), element_list.end());
 		}
@@ -2563,7 +2523,6 @@ public:
 				clear();
 			}
 
-
 			return return_iterator;
 		}
 	}
@@ -2578,7 +2537,7 @@ public:
 		{
 			iterator1 = erase(iterator1);
 		}
-		
+
 		return iterator2;
 	}
 
@@ -2657,11 +2616,9 @@ public:
 			return false;
 		}
 
-		iterator rh_iterator = rh.begin_iterator;
-
-		for (iterator lh_iterator = begin_iterator; lh_iterator != end_iterator;)
+		for (const_iterator lh_iterator = begin_iterator, rh_iterator = rh.begin_iterator; lh_iterator != end_iterator; ++lh_iterator, ++rh_iterator)
 		{
-			if (*rh_iterator++ != *lh_iterator++)
+			if (*lh_iterator != *rh_iterator)
 			{
 				return false;
 			}
@@ -3382,7 +3339,7 @@ public:
 		}
 		else // ie. node_pointer_allocator_pair.total_number_of_elements > number_of_elements
 		{
-			iterator current(end_node.previous);
+			const_iterator current(end_node.previous);
 
 			for (size_type number_to_remove = node_pointer_allocator_pair.total_number_of_elements - number_of_elements; number_to_remove != 0; --number_to_remove)
 			{
