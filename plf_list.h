@@ -3392,7 +3392,7 @@ public:
 
 
 
-	iterator unordered_find_single(const element_type &element_to_match) PLF_LIST_NOEXCEPT
+	iterator unordered_find_single(const element_type &element_to_match) const PLF_LIST_NOEXCEPT
 	{
 		if (node_pointer_allocator_pair.total_number_of_elements != 0)
 		{
@@ -3449,7 +3449,7 @@ public:
 
 
 
-	list<iterator> unordered_find_multiple(const element_type &element_to_match, const size_type number_to_find)
+	list<iterator> unordered_find_multiple(const element_type &element_to_match, const size_type number_to_find) const
 	{
 		list<iterator> return_list;
 		size_type number_found = 0;
@@ -3529,7 +3529,7 @@ public:
 
 
 
-	list<iterator> unordered_find_all(const element_type &element_to_match)
+	list<iterator> unordered_find_all(const element_type &element_to_match) const
 	{
 		list<iterator> return_list;
 
