@@ -57,7 +57,6 @@
 
 	#if defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L)
 		#define PLF_LIST_CONSTEXPR constexpr
-		#define PLF_LIST_CONSTEXPR_SUPPORT
 	#else
 		#define PLF_LIST_CONSTEXPR
 	#endif
@@ -143,7 +142,6 @@
 
 	#if __cplusplus >= 201703L   &&   ((defined(__clang__) && ((__clang_major__ == 3 && __clang_minor__ == 9) || __clang_major__ > 3))   ||   (defined(__GNUC__) && __GNUC__ >= 7)   ||   (!defined(__clang__) && !defined(__GNUC__))) // assume correct C++17 implementation for non-GNU/cland compilers
 		#define PLF_LIST_CONSTEXPR constexpr
-		#define PLF_LIST_CONSTEXPR_SUPPORT
 	#else
 		#define PLF_LIST_CONSTEXPR
 	#endif
@@ -2301,15 +2299,12 @@ public:
 	// Range insert
 
 	template <class iterator_type>
-	iterator insert(const const_iterator position, typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
+	#if defined(PLF_LIST_TYPE_TRAITS_SUPPORT)
+		iterator insert(const const_iterator position, typename plf_enable_if_c<(!std::numeric_limits<iterator_type>::is_integer) && (!std::is_same<typename std::iterator_traits<iterator_type>::iterator_category, std::random_access_iterator_tag>::value), iterator_type>::type first, const iterator_type last)
+	#else
+		iterator insert(const const_iterator position, typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
+	#endif
 	{
-		#if defined(PLF_LIST_TYPE_TRAITS_SUPPORT) && defined(PLF_LIST_CONSTEXPR_SUPPORT) // Constexpr must be present for the following statement to work:
-			if PLF_LIST_CONSTEXPR (std::is_same<typename std::iterator_traits<iterator_type>::iterator_category, std::random_access_iterator_tag>::value)
-			{
-				reserve(node_pointer_allocator_pair.total_number_of_elements + static_cast<size_type>(last - first));
-			}
-		#endif
-
 		if (first == last)
 		{
 			return end_iterator;
@@ -2324,6 +2319,30 @@ public:
 
 		return return_iterator;
 	}
+
+
+
+	#if defined(PLF_LIST_TYPE_TRAITS_SUPPORT)
+		template <class iterator_type>
+		iterator insert(const const_iterator position, typename plf_enable_if_c<(!std::numeric_limits<iterator_type>::is_integer) && std::is_same<typename std::iterator_traits<iterator_type>::iterator_category, std::random_access_iterator_tag>::value, iterator_type>::type first, const iterator_type last)
+		{
+			reserve(node_pointer_allocator_pair.total_number_of_elements + static_cast<size_type>(last - first));
+	
+			if (first == last)
+			{
+				return end_iterator;
+			}
+	
+			const iterator return_iterator = insert(position, *first);
+	
+			while(++first != last)
+			{
+				insert(position, *first);
+			}
+	
+			return return_iterator;
+		}
+	#endif
 
 
 
@@ -3601,7 +3620,6 @@ inline void swap(list<swap_element_type, swap_element_allocator_type> &a, list<s
 #undef PLF_LIST_NOEXCEPT_SWAP
 #undef PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT
 #undef PLF_LIST_CONSTEXPR
-#undef PLF_LIST_CONSTEXPR_SUPPORT
 #undef PLF_LIST_CPP20_SUPPORT
 
 #undef PLF_LIST_CONSTRUCT
