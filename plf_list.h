@@ -3596,14 +3596,19 @@ public:
 
 
 
+} // plf namespace
+
+
+namespace std
+{
+
 template <class swap_element_type, class swap_element_allocator_type>
-inline void swap(list<swap_element_type, swap_element_allocator_type> &a, list<swap_element_type, swap_element_allocator_type> &b) PLF_LIST_NOEXCEPT_SWAP(swap_element_allocator_type)
+inline void swap(plf::list<swap_element_type, swap_element_allocator_type> &a, plf::list<swap_element_type, swap_element_allocator_type> &b) PLF_LIST_NOEXCEPT_SWAP(swap_element_allocator_type)
 {
 	a.swap(b);
 }
 
-
-} // plf namespace
+}
 
 #undef PLF_LIST_BLOCK_MAX
 #undef PLF_LIST_BLOCK_MIN
