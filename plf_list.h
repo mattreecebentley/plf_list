@@ -1581,7 +1581,7 @@ public:
 
 	// Fill constructor:
 
-	list(const size_type fill_number, const element_type &element, const element_allocator_type &alloc = element_allocator_type()):
+	explicit list(const size_type fill_number, const element_type &element, const element_allocator_type &alloc = element_allocator_type()):
 		element_allocator_type(alloc),
 		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
@@ -1592,6 +1592,23 @@ public:
 	{
 		reserve(fill_number);
 		insert(end_iterator, fill_number, element);
+	}
+
+
+
+	// Default element value fill constructor:
+
+	explicit list(const size_type fill_number, const element_allocator_type &alloc = element_allocator_type()):
+		element_allocator_type(alloc),
+		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+		last_endpoint(NULL),
+		end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+		begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+		node_pointer_allocator_pair(0),
+		node_allocator_pair(0)
+	{
+		reserve(fill_number);
+		insert(end_iterator, fill_number, element_type());
 	}
 
 
@@ -3442,10 +3459,9 @@ public:
 
 
 
-	list<iterator> unordered_find_multiple(const element_type &element_to_match, const size_type number_to_find) const
+	list<iterator> unordered_find_multiple(const element_type &element_to_match, size_type number_to_find) const
 	{
 		list<iterator> return_list;
-		size_type number_found = 0;
 
 		if (node_pointer_allocator_pair.total_number_of_elements != 0)
 		{
@@ -3461,7 +3477,7 @@ public:
 						{
 							return_list.push_back(iterator(current_node));
 
-							if (++number_found == number_to_find)
+							if (--number_to_find == 0)
 							{
 								return return_list;
 							}
@@ -3476,7 +3492,7 @@ public:
 						{
 							return_list.push_back(iterator(current_node));
 
-							if (++number_found == number_to_find)
+							if (--number_to_find == 0)
 							{
 								return return_list;
 							}
@@ -3493,7 +3509,7 @@ public:
 					{
 						return_list.push_back(iterator(current_node));
 
-						if (++number_found == number_to_find)
+						if (--number_to_find == 0)
 						{
 							return return_list;
 						}
@@ -3508,7 +3524,7 @@ public:
 					{
 						return_list.push_back(iterator(current_node));
 
-						if (++number_found == number_to_find)
+						if (--number_to_find == 0)
 						{
 							return return_list;
 						}
