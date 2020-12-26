@@ -88,6 +88,7 @@
 #endif
 
 
+#include "plf_pcgrand.h"
 #include "plf_list.h"
 
 
@@ -130,25 +131,6 @@ void failpass(const char *test_type, bool condition)
 	}
 }
 
-
-
-// Fast xorshift+128 random number generator function (original: https://codingforspeed.com/using-faster-psudo-random-generator-xorshift/)
-unsigned int xor_rand()
-{
-	static unsigned int x = 123456789;
-	static unsigned int y = 362436069;
-	static unsigned int z = 521288629;
-	static unsigned int w = 88675123;
-
-	const unsigned int t = x ^ (x << 11); 
-
-	// Rotate the static values (w rotation in return statement):
-	x = y;
-	y = z;
-	z = w;
-
-	return w = w ^ (w >> 19) ^ (t ^ (t >> 8));
-}
 
 
 
@@ -707,12 +689,12 @@ int main(int argc, char **argv)
 			{
 				for (plf::list<int>::iterator it = list2.begin(); it != list2.end();)
 				{
-					if ((xor_rand() & 15) == 0)
+					if ((pcg_rand() & 15) == 0)
 					{
 						list2.insert(it, 13);
 					}
 					
-					if ((xor_rand() & 7) == 0)
+					if ((pcg_rand() & 7) == 0)
 					{
 						it = list2.erase(it);
 					}
@@ -1321,7 +1303,7 @@ int main(int argc, char **argv)
 			{
 				for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != i_list.end();)
 				{
-					if ((xor_rand() & 7) == 0)
+					if ((pcg_rand() & 7) == 0)
 					{
 						the_iterator = i_list.erase(the_iterator);
 					}
@@ -1351,7 +1333,7 @@ int main(int argc, char **argv)
 			{
 				for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != i_list.end();)
 				{
-					if ((xor_rand() & 7) == 0)
+					if ((pcg_rand() & 7) == 0)
 					{
 						the_iterator = i_list.erase(the_iterator);
 						++count2;
@@ -1399,7 +1381,7 @@ int main(int argc, char **argv)
 			{
 				for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != i_list.end();)
 				{
-					if ((xor_rand() & 3) == 0)
+					if ((pcg_rand() & 3) == 0)
 					{
 						++the_iterator;
 						i_list.push_front(1);
@@ -1522,7 +1504,7 @@ int main(int argc, char **argv)
 			{
 				for (unsigned int loop = 0; loop != 10; ++loop)
 				{
-					if ((xor_rand() & 7) == 0)
+					if ((pcg_rand() & 7) == 0)
 					{
 						i_list.push_back(1);
 						++count;
@@ -1531,7 +1513,7 @@ int main(int argc, char **argv)
 
 				for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != i_list.end();)
 				{
-					if ((xor_rand() & 7) == 0)
+					if ((pcg_rand() & 7) == 0)
 					{
 						the_iterator = i_list.erase(the_iterator);
 						--count;
@@ -1750,7 +1732,7 @@ int main(int argc, char **argv)
 			
 			for (list<int>::iterator it = i_list.begin(); it != i_list.end(); ++it)
 			{
-				if ((xor_rand() & 1) == 0)
+				if ((pcg_rand() & 1) == 0)
 				{
 					it = i_list.erase(it);
 					++test_counter;
@@ -1799,8 +1781,8 @@ int main(int argc, char **argv)
 					it2 = it1 = i_list.begin();
 
 					size = static_cast<unsigned int>(i_list.size());
-					range1 = xor_rand() % size;
-					range2 = range1 + 1 + (xor_rand() % (size - range1));
+					range1 = pcg_rand() % size;
+					range2 = range1 + 1 + (pcg_rand() % (size - range1));
 					std::advance(it1, range1);
 					std::advance(it2, range2);
 
@@ -1843,7 +1825,7 @@ int main(int argc, char **argv)
 
 			for (unsigned int temp = 0; temp != 50000; ++temp)
 			{
-				i_list.push_back(xor_rand() & 65535);
+				i_list.push_back(pcg_rand() & 65535);
 			}
 			
 			i_list.sort();

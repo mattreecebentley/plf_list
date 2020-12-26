@@ -32,6 +32,20 @@
 #if defined(_MSC_VER)
 	#define PLF_LIST_FORCE_INLINE __forceinline
 
+	#if _MSC_VER >= 1600
+		#define PLF_LIST_MOVE_SEMANTICS_SUPPORT
+		#define PLF_LIST_STATIC_ASSERT(check, message) static_assert(check, message)
+	#else
+		#define PLF_LIST_STATIC_ASSERT(check, message) assert(check)
+	#endif
+	#if _MSC_VER >= 1700
+		#define PLF_LIST_TYPE_TRAITS_SUPPORT
+		#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
+	#endif
+	#if _MSC_VER >= 1800
+		#define PLF_LIST_VARIADICS_SUPPORT // Variadics, in this context, means both variadic templates and variadic macros are supported
+		#define PLF_LIST_INITIALIZER_LIST_SUPPORT
+	#endif
 	#if _MSC_VER >= 1900
 		#define PLF_LIST_ALIGNMENT_SUPPORT
 		#define PLF_LIST_NOEXCEPT noexcept
@@ -42,23 +56,7 @@
 		#define PLF_LIST_NOEXCEPT throw()
 		#define PLF_LIST_NOEXCEPT_SWAP(the_allocator)
 		#define PLF_LIST_NOEXCEPT_SPLICE(the_allocator)
-		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) throw()
-	#endif
-
-	#if _MSC_VER >= 1600
-		#define PLF_LIST_MOVE_SEMANTICS_SUPPORT
-		#define PLF_LIST_STATIC_ASSERT(check, message) static_assert(check, message)
-	#else
-		#define PLF_LIST_STATIC_ASSERT(check, message) assert(check)
-	#endif
-
-	#if _MSC_VER >= 1700
-		#define PLF_LIST_TYPE_TRAITS_SUPPORT
-		#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
-	#endif
-	#if _MSC_VER >= 1800
-		#define PLF_LIST_VARIADICS_SUPPORT // Variadics, in this context, means both variadic templates and variadic macros are supported
-		#define PLF_LIST_INITIALIZER_LIST_SUPPORT
+		#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator)
 	#endif
 
 	#if defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L)
@@ -70,7 +68,7 @@
 		#define PLF_LIST_CPP20_SUPPORT
 	#endif
 #elif defined(__cplusplus) && __cplusplus >= 201103L // C++11 support, at least
-	#define PLF_LIST_FORCE_INLINE // note: GCC creates faster code without forcing inline
+	#define PLF_LIST_FORCE_INLINE // note: GCC and clang create faster code without forcing inline
 	#define PLF_LIST_MOVE_SEMANTICS_SUPPORT
 
 	#if defined(__GNUC__) && defined(__GNUC_MINOR__) && !defined(__clang__) // If compiler is GCC/G++
@@ -83,21 +81,10 @@
 		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 4) || __GNUC__ > 4 // 4.3 and below do not support initializer lists
 			#define PLF_LIST_INITIALIZER_LIST_SUPPORT
 		#endif
-		#if (__GNUC__ == 4 && __GNUC_MINOR__ < 6) || __GNUC__ < 4
+		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 6) || __GNUC__ > 4
+			#define PLF_LIST_NOEXCEPT noexcept
+		#else
 			#define PLF_LIST_NOEXCEPT throw()
-			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator)
-			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator)
-			#define PLF_LIST_NOEXCEPT_SPLICE(the_allocator)
-		#elif __GNUC__ < 6
-			#define PLF_LIST_NOEXCEPT noexcept
-			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept
-			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept
-			#define PLF_LIST_NOEXCEPT_SPLICE(the_allocator) noexcept
-		#else // C++17 support
-			#define PLF_LIST_NOEXCEPT noexcept
-			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<the_allocator>::is_always_equal::value)
-			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value || std::allocator_traits<the_allocator>::is_always_equal::value)
-			#define PLF_LIST_NOEXCEPT_SPLICE(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
 		#endif
 		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 7) || __GNUC__ > 4
 			#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
@@ -108,39 +95,79 @@
 		#if __GNUC__ >= 5 // GCC v4.9 and below do not support std::is_trivially_copyable
 			#define PLF_LIST_TYPE_TRAITS_SUPPORT
 		#endif
+		#if __GNUC__ > 6 && __cplusplus >= 201703L
+			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<the_allocator>::is_always_equal::value)
+			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value || std::allocator_traits<the_allocator>::is_always_equal::value)
+			#define PLF_LIST_NOEXCEPT_SPLICE(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
+		#else
+			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator)
+			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator)
+			#define PLF_LIST_NOEXCEPT_SPLICE(the_allocator)
+		#endif
+	#elif defined(__clang__) && !defined(__GLIBCXX__) && !defined(_LIBCPP_CXX03_LANG)
+		#if __has_feature(cxx_alignas) && __has_feature(cxx_alignof)
+			#define PLF_LIST_ALIGNMENT_SUPPORT
+		#endif
+		#if __has_feature(cxx_noexcept)
+			#define PLF_LIST_NOEXCEPT noexcept
+		#else
+			#define PLF_LIST_NOEXCEPT throw()
+		#endif
+		#if (__clang_major__ >= 3)
+			#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
+			#define PLF_LIST_TYPE_TRAITS_SUPPORT
+			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value || std::allocator_traits<the_allocator>::is_always_equal::value)
+			#define PLF_LIST_NOEXCEPT_SPLICE(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
+			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<the_allocator>::is_always_equal::value)
+		#else
+			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator)
+			#define PLF_LIST_NOEXCEPT_SPLICE(the_allocator)
+			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator)
+		#endif
+		#if __has_feature(cxx_rvalue_references) && !defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES)
+			#define PLF_LIST_MOVE_SEMANTICS_SUPPORT
+		#endif
+		#if __has_feature(cxx_static_assert)
+			#define PLF_LIST_STATIC_ASSERT(check, message) static_assert(check, message)
+		#else
+			#define PLF_LIST_STATIC_ASSERT(check, message) assert(check)
+   	#endif
+		#if __has_feature(cxx_variadic_templates) && !defined(_LIBCPP_HAS_NO_VARIADICS)
+			#define PLF_LIST_VARIADICS_SUPPORT
+		#endif
+		#if ((__clang_major__ == 3 && __clang_minor__ >= 1) || __clang_major__ > 3)
+			#define PLF_LIST_INITIALIZER_LIST_SUPPORT
+		#endif
 	#elif defined(__GLIBCXX__) // Using another compiler type with libstdc++ - we are assuming full c++11 compliance for compiler - which may not be true
-		#if __GLIBCXX__ >= 20080606 	// libstdc++ 4.2 and below do not support variadic templates
+		#if __GLIBCXX__ >= 20080606
 			#define PLF_LIST_VARIADICS_SUPPORT
 			#define PLF_LIST_STATIC_ASSERT(check, message) static_assert(check, message)
 		#else
 			#define PLF_LIST_STATIC_ASSERT(check, message) assert(check)
 		#endif
-		#if __GLIBCXX__ >= 20090421 	// libstdc++ 4.3 and below do not support initializer lists
+		#if __GLIBCXX__ >= 20090421
 			#define PLF_LIST_INITIALIZER_LIST_SUPPORT
 		#endif
-		#if __GLIBCXX__ >= 20160111
+		#if __GLIBCXX__ >= 20120322
 			#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
 			#define PLF_LIST_NOEXCEPT noexcept
-			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<the_allocator>::is_always_equal::value)
-			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value || std::allocator_traits<the_allocator>::is_always_equal::value)
-			#define PLF_LIST_NOEXCEPT_SPLICE(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
-		#elif __GLIBCXX__ >= 20120322
-			#define PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
-			#define PLF_LIST_NOEXCEPT noexcept
-			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept
-			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept
-			#define PLF_LIST_NOEXCEPT_SPLICE(the_allocator) noexcept
 		#else
 			#define PLF_LIST_NOEXCEPT throw()
-			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator)
-			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator)
-			#define PLF_LIST_NOEXCEPT_SPLICE(the_allocator)
 		#endif
 		#if __GLIBCXX__ >= 20130322
 			#define PLF_LIST_ALIGNMENT_SUPPORT
 		#endif
 		#if __GLIBCXX__ >= 20150422 // libstdc++ v4.9 and below do not support std::is_trivially_copyable
 			#define PLF_LIST_TYPE_TRAITS_SUPPORT
+		#endif
+		#if __GLIBCXX__ >= 20160111
+			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<the_allocator>::is_always_equal::value)
+			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value || std::allocator_traits<the_allocator>::is_always_equal::value)
+			#define PLF_LIST_NOEXCEPT_SPLICE(the_allocator) noexcept(std::allocator_traits<the_allocator>::is_always_equal::value)
+		#else
+			#define PLF_LIST_NOEXCEPT_MOVE_ASSIGNMENT(the_allocator)
+			#define PLF_LIST_NOEXCEPT_SWAP(the_allocator)
+			#define PLF_LIST_NOEXCEPT_SPLICE(the_allocator)
 		#endif
 	#elif (defined(_LIBCPP_CXX03_LANG) || defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES) || defined(_LIBCPP_HAS_NO_VARIADICS)) // Special case for checking C++11 support with libCPP
 		#define PLF_LIST_STATIC_ASSERT(check, message) assert(check)
@@ -162,7 +189,7 @@
 		#define PLF_LIST_NOEXCEPT_SPLICE(the_allocator) noexcept
 	#endif
 
-	#if __cplusplus >= 201703L && ((defined(__clang__) && ((__clang_major__ == 3 && __clang_minor__ == 9) || __clang_major__ > 3))	 ||	(defined(__GNUC__) && __GNUC__ >= 7)	||   (!defined(__clang__) && !defined(__GNUC__))) // assume correct C++17 implementation for non-GNU/cland compilers
+	#if __cplusplus >= 201703L && ((defined(__clang__) && ((__clang_major__ == 3 && __clang_minor__ == 9) || __clang_major__ > 3))	 ||	(defined(__GNUC__) && __GNUC__ >= 7)	||   (!defined(__clang__) && !defined(__GNUC__))) // assume correct C++17 implementation for non-GNU/clang compilers
 		#define PLF_LIST_CONSTEXPR constexpr
 	#else
 		#define PLF_LIST_CONSTEXPR
@@ -1581,7 +1608,7 @@ public:
 
 	// Fill constructor:
 
-	explicit list(const size_type fill_number, const element_type &element, const element_allocator_type &alloc = element_allocator_type()):
+	list(const size_type fill_number, const element_type &element, const element_allocator_type &alloc = element_allocator_type()):
 		element_allocator_type(alloc),
 		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
