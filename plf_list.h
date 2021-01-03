@@ -2709,7 +2709,7 @@ public:
 
 
 
-	inline size_type approximate_memory_use() const PLF_LIST_NOEXCEPT
+	inline size_type memory() const PLF_LIST_NOEXCEPT
 	{
 		return static_cast<size_type>(sizeof(*this) + (groups.element_allocator_pair.capacity * sizeof(node)) + (sizeof(group) * groups.group_allocator_pair.capacity));
 	}
