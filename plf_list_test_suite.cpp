@@ -88,7 +88,7 @@
 #endif
 
 
-#include "plf_pcgrand.h"
+#include "plf_rand.h"
 #include "plf_list.h"
 
 
@@ -689,12 +689,12 @@ int main(int argc, char **argv)
 			{
 				for (plf::list<int>::iterator it = list2.begin(); it != list2.end();)
 				{
-					if ((pcg_rand() & 15) == 0)
+					if ((plf::rand() & 15) == 0)
 					{
 						list2.insert(it, 13);
 					}
 					
-					if ((pcg_rand() & 7) == 0)
+					if ((plf::rand() & 7) == 0)
 					{
 						it = list2.erase(it);
 					}
@@ -1303,7 +1303,7 @@ int main(int argc, char **argv)
 			{
 				for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != i_list.end();)
 				{
-					if ((pcg_rand() & 7) == 0)
+					if ((plf::rand() & 7) == 0)
 					{
 						the_iterator = i_list.erase(the_iterator);
 					}
@@ -1333,7 +1333,7 @@ int main(int argc, char **argv)
 			{
 				for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != i_list.end();)
 				{
-					if ((pcg_rand() & 7) == 0)
+					if ((plf::rand() & 7) == 0)
 					{
 						the_iterator = i_list.erase(the_iterator);
 						++count2;
@@ -1381,7 +1381,7 @@ int main(int argc, char **argv)
 			{
 				for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != i_list.end();)
 				{
-					if ((pcg_rand() & 3) == 0)
+					if ((plf::rand() & 3) == 0)
 					{
 						++the_iterator;
 						i_list.push_front(1);
@@ -1504,7 +1504,7 @@ int main(int argc, char **argv)
 			{
 				for (unsigned int loop = 0; loop != 10; ++loop)
 				{
-					if ((pcg_rand() & 7) == 0)
+					if ((plf::rand() & 7) == 0)
 					{
 						i_list.push_back(1);
 						++count;
@@ -1513,7 +1513,7 @@ int main(int argc, char **argv)
 
 				for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != i_list.end();)
 				{
-					if ((pcg_rand() & 7) == 0)
+					if ((plf::rand() & 7) == 0)
 					{
 						the_iterator = i_list.erase(the_iterator);
 						--count;
@@ -1732,7 +1732,7 @@ int main(int argc, char **argv)
 			
 			for (list<int>::iterator it = i_list.begin(); it != i_list.end(); ++it)
 			{
-				if ((pcg_rand() & 1) == 0)
+				if ((plf::rand() & 1) == 0)
 				{
 					it = i_list.erase(it);
 					++test_counter;
@@ -1781,8 +1781,8 @@ int main(int argc, char **argv)
 					it2 = it1 = i_list.begin();
 
 					size = static_cast<unsigned int>(i_list.size());
-					range1 = pcg_rand() % size;
-					range2 = range1 + 1 + (pcg_rand() % (size - range1));
+					range1 = plf::rand() % size;
+					range2 = range1 + 1 + (plf::rand() % (size - range1));
 					std::advance(it1, range1);
 					std::advance(it2, range2);
 
@@ -1825,7 +1825,7 @@ int main(int argc, char **argv)
 
 			for (unsigned int temp = 0; temp != 50000; ++temp)
 			{
-				i_list.push_back(pcg_rand() & 65535);
+				i_list.push_back(plf::rand() & 65535);
 			}
 			
 			i_list.sort();
