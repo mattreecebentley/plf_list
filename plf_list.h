@@ -1,4 +1,4 @@
-// Copyright (c) 2020, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
+// Copyright (c) 2021, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
 
 // zLib license (https://www.zlib.net/zlib_license.html):
 // This software is provided 'as-is', without any express or implied
@@ -10,11 +10,11 @@
 // freely, subject to the following restrictions:
 //
 // 1. The origin of this software must not be misrepresented; you must not
-//    claim that you wrote the original software. If you use this software
-//    in a product, an acknowledgement in the product documentation would be
-//    appreciated but is not required.
+// 	claim that you wrote the original software. If you use this software
+// 	in a product, an acknowledgement in the product documentation would be
+// 	appreciated but is not required.
 // 2. Altered source versions must be plainly marked as such, and must not be
-//    misrepresented as being the original software.
+// 	misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
 
@@ -131,7 +131,7 @@
 			#define PLF_LIST_STATIC_ASSERT(check, message) static_assert(check, message)
 		#else
 			#define PLF_LIST_STATIC_ASSERT(check, message) assert(check)
-   	#endif
+		#endif
 		#if __has_feature(cxx_variadic_templates) && !defined(_LIBCPP_HAS_NO_VARIADICS)
 			#define PLF_LIST_VARIADICS_SUPPORT
 		#endif
@@ -219,7 +219,6 @@
 
 	#define PLF_LIST_DESTROY(the_allocator, allocator_instance, location) 				std::allocator_traits<the_allocator>::destroy(allocator_instance, location)
 	#define PLF_LIST_ALLOCATE(the_allocator, allocator_instance, size, hint) 			std::allocator_traits<the_allocator>::allocate(allocator_instance, size, hint)
- 	#define PLF_LIST_ALLOCATE_INITIALIZATION(the_allocator, size, hint) 				std::allocator_traits<the_allocator>::allocate(*this, size, hint)
 	#define PLF_LIST_DEALLOCATE(the_allocator, allocator_instance, location, size) 	std::allocator_traits<the_allocator>::deallocate(allocator_instance, location, size)
 #else
 	#ifdef PLF_LIST_VARIADICS_SUPPORT
@@ -230,7 +229,6 @@
 
 	#define PLF_LIST_DESTROY(the_allocator, allocator_instance, location) 			allocator_instance.destroy(location)
 	#define PLF_LIST_ALLOCATE(the_allocator, allocator_instance, size, hint)	 		allocator_instance.allocate(size, hint)
-	#define PLF_LIST_ALLOCATE_INITIALIZATION(the_allocator, size, hint) 				the_allocator::allocate(size, hint)
 	#define PLF_LIST_DEALLOCATE(the_allocator, allocator_instance, location, size) 	allocator_instance.deallocate(location, size)
 #endif
 
@@ -240,7 +238,7 @@
 #include <cstring>	// memmove, memcpy
 #include <cassert>	// assert
 #include <limits>  	// std::numeric_limits
-#include <memory>	// std::uninitialized_copy, std::allocator
+#include <memory>		// std::uninitialized_copy, std::allocator
 #include <iterator> 	// std::bidirectional_iterator_tag
 
 
@@ -273,14 +271,14 @@ template <class element_type, class element_allocator_type = std::allocator<elem
 public:
 	// Standard container typedefs:
 	typedef element_type															value_type;
-	typedef element_allocator_type													allocator_type;
-	typedef unsigned short															group_size_type;
+	typedef element_allocator_type											allocator_type;
+	typedef unsigned short														group_size_type;
 
 	#ifdef PLF_LIST_ALLOCATOR_TRAITS_SUPPORT // >= C++11
 		typedef typename std::allocator_traits<element_allocator_type>::size_type			size_type;
 		typedef typename std::allocator_traits<element_allocator_type>::difference_type 	difference_type;
-		typedef element_type &																reference;
-		typedef const element_type &														const_reference;
+		typedef element_type &																				reference;
+		typedef const element_type &																		const_reference;
 		typedef typename std::allocator_traits<element_allocator_type>::pointer 			pointer;
 		typedef typename std::allocator_traits<element_allocator_type>::const_pointer		const_pointer;
 	#else
@@ -289,7 +287,7 @@ public:
 		typedef typename element_allocator_type::reference			reference;
 		typedef typename element_allocator_type::const_reference	const_reference;
 		typedef typename element_allocator_type::pointer			pointer;
-		typedef typename element_allocator_type::const_pointer		const_pointer;
+		typedef typename element_allocator_type::const_pointer	const_pointer;
 	#endif
 
 
@@ -397,7 +395,7 @@ private:
 
 		#if defined(PLF_LIST_VARIADICS_SUPPORT) || defined(PLF_LIST_MOVE_SEMANTICS_SUPPORT)
 			group(const group_size_type group_size, node_pointer_type const previous = NULL):
-				nodes(PLF_LIST_ALLOCATE_INITIALIZATION(node_allocator_type, group_size, previous)),
+				nodes(PLF_LIST_ALLOCATE(node_allocator_type, (*this), group_size, previous)),
 				free_list_head(NULL),
 				beyond_end(nodes + group_size),
 				number_of_elements(0)
@@ -414,7 +412,7 @@ private:
 			// Not a real copy constructor ie. actually a move constructor. Only used for allocator.construct in C++03 for reasons stated above:
 			group(const group &source):
 				node_allocator_type(source),
-				nodes(PLF_LIST_ALLOCATE_INITIALIZATION(node_allocator_type, source.number_of_elements, source.free_list_head)),
+				nodes(PLF_LIST_ALLOCATE(node_allocator_type, (*this), source.number_of_elements, source.free_list_head)),
 				free_list_head(NULL),
 				beyond_end(nodes + source.number_of_elements),
 				number_of_elements(0)
@@ -2079,11 +2077,11 @@ public:
 			{
 				if (node_allocator_pair.number_of_erased_nodes == 0)
 				{
-            	add_group_if_necessary();
+					add_group_if_necessary();
 
 					PLF_LIST_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, it.node_pointer, it.node_pointer->previous, std::forward<arguments>(parameters)...);
 
-            	update_sizes_and_iterators(it);
+					update_sizes_and_iterators(it);
 					return iterator(last_endpoint++);
 				}
 				else
@@ -2111,7 +2109,7 @@ public:
 			}
 			else
 			{
-           	insert_initialize();
+			  	insert_initialize();
 
 				#ifdef PLF_LIST_TYPE_TRAITS_SUPPORT
 					if PLF_LIST_CONSTEXPR (std::is_nothrow_constructible<element_type, arguments ...>::value)
@@ -2569,7 +2567,7 @@ public:
 
 	// Range-erase:
 
-	inline iterator erase(const_iterator iterator1, const const_iterator iterator2)  // if uninitialized/invalid iterator supplied, function could generate an exception
+	inline iterator erase(const_iterator iterator1, const const_iterator iterator2)	// if uninitialized/invalid iterator supplied, function could generate an exception
 	{
 		while (iterator1 != iterator2)
 		{
@@ -2694,10 +2692,10 @@ public:
 	inline size_type max_size() const PLF_LIST_NOEXCEPT
 	{
 		#ifdef PLF_LIST_ALLOCATOR_TRAITS_SUPPORT
-      	return std::allocator_traits<element_allocator_type>::max_size(*this);
+			return std::allocator_traits<element_allocator_type>::max_size(*this);
 		#else
-      	return element_allocator_type::max_size();
-      #endif
+			return element_allocator_type::max_size();
+		#endif
 	}
 
 
@@ -2711,7 +2709,7 @@ public:
 
 	inline size_type memory() const PLF_LIST_NOEXCEPT
 	{
-		return static_cast<size_type>(sizeof(*this) + (groups.element_allocator_pair.capacity * sizeof(node)) + (sizeof(group) * groups.group_allocator_pair.capacity));
+		return static_cast<size_type>(sizeof(*this) + (groups.element_allocator_pair.capacity * sizeof(node)) + (groups.group_allocator_pair.capacity * sizeof(group)));
 	}
 
 
@@ -3705,7 +3703,6 @@ namespace std
 #undef PLF_LIST_CONSTRUCT
 #undef PLF_LIST_DESTROY
 #undef PLF_LIST_ALLOCATE
-#undef PLF_LIST_ALLOCATE_INITIALIZATION
 #undef PLF_LIST_DEALLOCATE
 
 
