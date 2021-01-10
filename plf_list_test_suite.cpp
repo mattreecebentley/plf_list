@@ -97,7 +97,7 @@
 void title1(const char *title_text)
 {
 	std::cout << std::endl << std::endl << std::endl << "*** " << title_text << " ***" << std::endl;
-	std::cout << "===========================================" << std::endl << std::endl << std::endl; 
+	std::cout << "===========================================" << std::endl << std::endl << std::endl;
 }
 
 
@@ -107,27 +107,27 @@ void title2(const char *title_text)
 	std::cout << std::endl << std::endl << "--- " << title_text << " ---" << std::endl << std::endl;
 }
 
-	
+
 void title3(const char *title_text)
 {
 	std::cout << std::endl << title_text << std::endl;
 }
 
-	
+
 
 void failpass(const char *test_type, bool condition)
 {
 	std::cout << "\n" << test_type << ": ";
-	
-	if (condition) 
-	{ 
+
+	if (condition)
+	{
 		std::cout << "Pass\n\n";
 	}
-	else 
+	else
 	{
 		std::cout << "Fail" << std::endl;
-		std::cin.get(); 
-		abort(); 
+		std::cin.get();
+		abort();
 	}
 }
 
@@ -221,18 +221,18 @@ int main(int argc, char **argv)
 					passed = false;
 				}
 			}
-			
-			failpass("Merge test", passed);	
+
+			failpass("Merge test", passed);
 
 
 
-			title2("Clear tests");	
+			title2("Clear tests");
 
 			list1.clear();
 			list2.clear();
-			
+
 			list1.push_back(15);
-			
+
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
@@ -243,7 +243,7 @@ int main(int argc, char **argv)
 
 
 			list1.insert(list1.begin(), 14);
-			
+
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
@@ -254,17 +254,17 @@ int main(int argc, char **argv)
 
 
 			list1.clear();
-			
 
 
-			title2("Splice tests");	
+
+			title2("Splice tests");
 
 			list1 = {1, 2, 3, 4, 5};
 			list2 = {6, 7, 8, 9, 10};
-			
-			
+
+
 			list1.splice(list1.end(), list2);
-			
+
 			test_counter = 1;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
@@ -275,46 +275,46 @@ int main(int argc, char **argv)
 					passed = false;
 				}
 			}
-			
-			failpass("Test splice at end", passed);	
+
+			failpass("Test splice at end", passed);
 
 
 			list1.clear();
 			list2.clear();
 
 
-			
+
 			list1 = {1, 2, 3, 4, 5};
 			list2 = {6, 7, 8, 9, 10};
-			
-			
+
+
 			list1.splice(list1.begin(), list2);
-			
-			
+
+
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
 				std::cout << *it << ",  ";
 				test_counter += *it;
 			}
-			
-			failpass("Test splice at begin", test_counter == 55);	
+
+			failpass("Test splice at begin", test_counter == 55);
 
 
 
 			list1.clear();
 			list2.clear();
-			
+
 			list1 = {1, 2, 3, 4, 5};
 			list2 = {6, 7, 8, 9, 10};
-			
+
 			plf::list<int>::iterator it2 = list1.begin();
 			std::advance(it2, 3);
-			
+
 			list1.splice(it2, list2);
-			
+
 			test_counter = 0;
-			
+
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
 				std::cout << *it << ",  ";
@@ -323,33 +323,33 @@ int main(int argc, char **argv)
 
 			list1.clear();
 			list2.clear();
-			
+
 
 			for (int counter = 1; counter != 25; ++counter)
 			{
 				list1.push_back(counter);
 				list2.push_back(counter + 25);
 			}
-			
-			
+
+
 			plf::list<int>::iterator it3 = list1.begin();
 			std::advance(it3, 18);
-			
+
 			list1.splice(it3, list2);
-			
+
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
 				std::cout << *it << ",  ";
 				test_counter += *it;
 			}
-			
+
 			failpass("Test splice past middle", test_counter == 1200);
 
 
 			list1.clear();
 			list2.clear();
-			
+
 			for (int counter = 5; counter != 36; ++counter)
 			{
 				list1.push_back(counter);
@@ -358,14 +358,14 @@ int main(int argc, char **argv)
 
 
 			list1.splice(list1.begin(), list2);
-			
+
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
 				std::cout << *it << ",  ";
 				test_counter += *it;
 			}
-			
+
 			failpass("Large list splice", test_counter == 1240);
 
 
@@ -378,30 +378,30 @@ int main(int argc, char **argv)
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
 				std::cout << *it << ",  ";
-				
+
 				if(*it < test_counter)
 				{
 					passed = false;
 				}
-				
+
 				test_counter = *it;
 			}
-			
+
 			failpass("Sort ((default) less than)", passed);
-			
-			
+
+
 			list1.sort(std::greater<int>());
-			
+
 			test_counter = 65535;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
 				std::cout << *it << ",  ";
-				
+
 				if(*it > test_counter)
 				{
 					passed = false;
 				}
-				
+
 				test_counter = *it;
 			}
 
@@ -422,26 +422,26 @@ int main(int argc, char **argv)
 				{
 					passed = false;
 				}
-				
+
 				test_counter = *it;
 			}
-			
+
 			failpass("Reverse test 1", passed);
 
 			{
 				plf::list<int> list2, list3;
-				
+
 				int counter2 = 50000;
 				for (int counter = 0; counter != 50000; ++counter)
 				{
 					list2.push_back(counter);
 					list3.push_back(--counter2);
 				}
-				
+
 				list2.reverse();
-				
+
 				plf::list<int>::iterator it2 = list2.begin(), it3 = list3.begin();
-				
+
 				do
 				{
 					if (*it2++ != *it3++)
@@ -451,7 +451,7 @@ int main(int argc, char **argv)
 					}
 				}
 				while(it2 != list2.end());
-				
+
 				failpass("Reverse test 2", passed);
 			}
 
@@ -459,7 +459,7 @@ int main(int argc, char **argv)
 			title2("Unique tests");
 
 			list1.unique();
-			
+
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
@@ -469,13 +469,13 @@ int main(int argc, char **argv)
 				{
 					passed = false;
 				}
-				
+
 				test_counter = *it;
 			}
-			
+
 			failpass("Unique test", passed);
 
-			
+
 
 
 			title2("Remove tests");
@@ -491,20 +491,20 @@ int main(int argc, char **argv)
 					passed = false;
 				}
 			}
-			
+
 			failpass("remove_if ( > 15) test", passed);
 
 
 			list1.clear();
 			list2.clear();
-			
 
-			
+
+
 			list1 = {5, 5, 4, 4};
-			
+
 			list1.remove(5);
-			
-			
+
+
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
 				std::cout << *it << ",  ";
@@ -514,30 +514,30 @@ int main(int argc, char **argv)
 					passed = false;
 				}
 			}
-			
+
 			failpass("remove ( == 5) test", passed);
 
 
 			list1.remove(4);
 			failpass("Remove to create empty list test", list1.empty());
-			
-		
+
+
 			title2("Reserve tests");
 
 			list1.clear();
 			list2.clear();
-			
+
 
 			list1.reserve(4097);
 
 			std::cout << "\nInitial capacity after reserve = " << list1.capacity() << std::endl;
-			
+
 			failpass("Reserve from empty test", list1.capacity() >= 4097);
 
 
 
 			list1.push_back(15);
-			
+
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
@@ -545,18 +545,18 @@ int main(int argc, char **argv)
 			}
 
 			failpass("Push_back singular test post-reserve", list1.size() == static_cast<unsigned int>(test_counter));
-			
-			
 
-			
+
+
+
 			list1.insert(list1.end(), 10000, 15);
-			
+
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
 				++test_counter;
 			}
-			
+
 			std::cout << "\nSize (after iteration) = " << test_counter << std::endl;
 			std::cout << "\nCapacity after insertion = " << list1.capacity() << std::endl;
 
@@ -581,15 +581,15 @@ int main(int argc, char **argv)
 				std::cout << *it << ",  ";
 				++test_counter;
 			}
-			
+
 			failpass("Resize test", list1.size() == 2 && test_counter == 2);
-			
+
 
 
 			title2("Assign tests");
 
 			std::vector<int> test_vector = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-			
+
 			list1.assign(test_vector.begin(), test_vector.end());
 			std::cout << "\nCapacity after range-assign = " << list1.capacity() << std::endl;
 
@@ -597,17 +597,17 @@ int main(int argc, char **argv)
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
 				std::cout << *it << ",  ";
-				
+
 				if (++test_counter != *it)
 				{
 					passed = false;
 				}
 			}
-			
+
 			failpass("Range-assign test", list1.size() == 10 && test_counter == 10 && passed);
-			
-			
-			
+
+
+
 			list1.assign(20, 1);
 			std::cout << "\nCapacity after fill-assign = " << list1.capacity() << std::endl;
 
@@ -622,15 +622,15 @@ int main(int argc, char **argv)
 					passed = false;
 				}
 			}
-			
-			failpass("Fill-assign test", list1.size() == 20 && test_counter == 20 && passed);
-			
-			
 
-			
+			failpass("Fill-assign test", list1.size() == 20 && test_counter == 20 && passed);
+
+
+
+
 			std::initializer_list<int> inlist = {10, 9, 8, 7, 6, 5, 4, 3, 2, 1};
 
-				
+
 			list1.assign(inlist);
 			std::cout << "\nCapacity after initializer-list assign = " << list1.capacity() << std::endl;
 
@@ -644,17 +644,17 @@ int main(int argc, char **argv)
 					passed = false;
 				}
 			}
-				
+
 			failpass("Initializer-list assign test", list1.size() == 10 && test_counter == 1 && passed);
-			
-			
+
+
 			title2("Insert tests");
-			
-			
+
+
 			list2.insert(list2.end(), test_vector.begin(), test_vector.end());
-			
+
 			test_counter = 1;
-			
+
 			for (plf::list<int>::iterator it = list2.begin(); it != list2.end(); ++it)
 			{
 				std::cout << *it << ",  ";
@@ -664,27 +664,27 @@ int main(int argc, char **argv)
 					passed = false;
 				}
 			}
-			
-			failpass("Range-insert test", passed);	
+
+			failpass("Range-insert test", passed);
 
 
 
 			list2.insert(list2.begin(), 50, 50000);
-			
+
 
 			test_counter = 0;
-			
+
 			for (plf::list<int>::iterator it = list2.begin(); it != list2.end(); ++it)
 			{
 				++test_counter;
 			}
-			
-			failpass("Fill-insert post range-insert test", test_counter == 60 && list2.size() == 60);	
+
+			failpass("Fill-insert post range-insert test", test_counter == 60 && list2.size() == 60);
 
 
 
 			test_counter = 0;
-			
+
 			while (!list2.empty())
 			{
 				for (plf::list<int>::iterator it = list2.begin(); it != list2.end();)
@@ -693,7 +693,7 @@ int main(int argc, char **argv)
 					{
 						list2.insert(it, 13);
 					}
-					
+
 					if ((plf::rand() & 7) == 0)
 					{
 						it = list2.erase(it);
@@ -708,46 +708,46 @@ int main(int argc, char **argv)
 
 
 				unsigned int size_counter = 0;
-				
+
 				for (plf::list<int>::iterator it = list2.begin(); it != list2.end(); ++it)
 				{
 					++size_counter;
 				}
-				
+
 				if (size_counter != list2.size())
 				{
 					std::cout << "Failing at counter == " << test_counter << std::endl;
 				}
 			}
-			
-			failpass("Erase and insert randomly till empty test", list2.empty());	
+
+			failpass("Erase and insert randomly till empty test", list2.empty());
 
 
 			list1.clear();
 			list2.clear();
-			
+
 		}
 		#endif
 
 		#if defined(PLF_MOVE_SEMANTICS_SUPPORT) && defined(PLF_VARIADICS_SUPPORT)
 		{
 			title2("Emplace, move and Reverse iterate tests");
-			
+
 			plf::list<small_struct> s_list1;
-			
+
 
 			for (int counter = 0; counter != 254; ++counter)
 			{
 				s_list1.emplace_back(counter);
 			}
-			
+
 			small_struct temp = s_list1.emplace_back(254);
-			
+
 			failpass("Emplace_back return value test", temp.number == 254);
-			
+
 
 			test_counter = 0;
-			
+
 			for (plf::list<small_struct>::iterator it = s_list1.begin(); it != s_list1.end(); ++it)
 			{
 				if (test_counter++ != it->number)
@@ -756,8 +756,8 @@ int main(int argc, char **argv)
 					break;
 				}
 			}
-			
-			failpass("Emplace_back test", passed);	
+
+			failpass("Emplace_back test", passed);
 
 
 			for (plf::list<small_struct>::reverse_iterator rit = s_list1.rbegin(); rit != s_list1.rend(); ++rit)
@@ -768,22 +768,22 @@ int main(int argc, char **argv)
 					break;
 				}
 			}
-			
-			failpass("Reverse iteration test", passed);	
+
+			failpass("Reverse iteration test", passed);
 
 
 			for (int counter = -1; counter != -255; --counter)
 			{
 				s_list1.emplace_front(counter);
 			}
-			
+
 			temp = s_list1.emplace_front(-255);
-			
+
 			failpass("Emplace_front return value test", temp.number == -255);
-			
+
 
 			test_counter = -255;
-			
+
 			for (plf::list<small_struct>::iterator it = s_list1.begin(); it != s_list1.end(); ++it)
 			{
 				if (test_counter++ != it->number)
@@ -792,10 +792,10 @@ int main(int argc, char **argv)
 					break;
 				}
 			}
-			
-			failpass("Emplace_front test", passed);	
-			
-			
+
+			failpass("Emplace_front test", passed);
+
+
 			test_counter = 255;
 
 			for (plf::list<small_struct>::reverse_iterator rit = s_list1.rbegin(); rit != s_list1.rend(); ++rit)
@@ -806,16 +806,16 @@ int main(int argc, char **argv)
 					break;
 				}
 			}
-			
-			failpass("Reverse iteration test 2", passed);	
-			
-			
-			
+
+			failpass("Reverse iteration test 2", passed);
+
+
+
 			title2("Move tests");
 
 			plf::list<small_struct> s_list2(std::move(s_list1));
-			
-			
+
+
 			test_counter = 255;
 
 			for (plf::list<small_struct>::reverse_iterator rit = s_list2.rbegin(); rit != s_list2.rend(); ++rit)
@@ -826,15 +826,15 @@ int main(int argc, char **argv)
 					break;
 				}
 			}
-			
+
 			failpass("Move constructor", passed && s_list1.empty());
-			
+
 			s_list1.emplace_back(3);  // Reuse the moved list will cause segmentation fault
-			
+
 			failpass("Emplace post-moved-list test", s_list1.size() == 1);
 
 			s_list1 = std::move(s_list2);
-			
+
 			test_counter = 255;
 
 			for (plf::list<small_struct>::reverse_iterator rit = s_list1.rbegin(); rit != s_list1.rend(); ++rit)
@@ -845,17 +845,17 @@ int main(int argc, char **argv)
 					break;
 				}
 			}
-			
+
 			failpass("Move assignment", passed && s_list2.empty());
 
-			
+
 			title2("Copy tests");
-			
-			
+
+
 
 			s_list2 = s_list1;
-			
-			
+
+
 			test_counter = 255;
 
 			for (plf::list<small_struct>::reverse_iterator rit = s_list2.rbegin(); rit != s_list2.rend(); ++rit)
@@ -871,8 +871,8 @@ int main(int argc, char **argv)
 
 
 			plf::list<small_struct> s_list3(s_list1);
-			
-			
+
+
 			test_counter = 255;
 
 			for (plf::list<small_struct>::reverse_iterator rit = s_list3.rbegin(); rit != s_list3.rend(); ++rit)
@@ -883,26 +883,26 @@ int main(int argc, char **argv)
 					break;
 				}
 			}
-			
+
 			failpass("Copy constructor", passed);
 
 			title2("Shared_ptr tests");
-			
+
 			plf::list<std::shared_ptr<int>> shared_ptr_list;
 			shared_ptr_list.reserve(10);
-			
+
 			failpass("Shared_ptr list reserve test", shared_ptr_list.capacity() == 10);
-			
+
 			// May crash here if shared_ptr_list destruction fails.
 		}
 		#endif
 
 
 		{
-			title2("Reorder tests");
-			
+			title2("Intra-list splice tests");
+
 			plf::list<int> list1;
-			
+
 
 			for (int counter = 0; counter != 255; ++counter)
 			{
@@ -918,44 +918,44 @@ int main(int argc, char **argv)
 			}
 
 			plf::list<int>::iterator it1 = list1.begin(), it2 = list1.begin(), it3 = list1.begin();
-			
+
 			std::advance(it1, 25);
 			std::advance(it2, 5);
-			
-			list1.reorder(it2, it1);
-			
+
+			list1.splice(it2, it1);
+
 			it1 = list1.begin();
 			std::advance(it1, 5);
-			
-			failpass("Single reorder", *it1 == 25);
-			
-			
+
+			failpass("Single splice", *it1 == 25);
+
+
 			it1 = list1.begin();
 			std::advance(it1, 152);
-			
-			list1.reorder(list1.begin(), it1);
 
-			failpass("Single reorder to begin", *(list1.begin()) == 152);
-			
-			list1.reorder(list1.end(), it2);
-			
+			list1.splice(list1.begin(), it1);
+
+			failpass("Single splice to begin", *(list1.begin()) == 152);
+
+			list1.splice(list1.end(), it2);
+
 			it1 = --(list1.end());
-			
-			failpass("Single reorder to end", *it1 == 5);
-			
+
+			failpass("Single splice to end", *it1 == 5);
+
 			it2 = it1 = list1.begin();
-			
+
 			std::advance(it1, 50);
-			std::advance(it2, 60);
+			std::advance(it2, 61);
 			std::advance(it3, 70);
-			
-			list1.reorder(it3, it1, it2);
-			
+
+			list1.splice(it3, it1, it2);
+
 			bool pass = true;
-			
+
 			it3 = list1.begin();
 			std::advance(it3, 60);
-			
+
 			for (int test = 50; test != 60; ++test)
 			{
 				if (*it3 != test)
@@ -964,23 +964,23 @@ int main(int argc, char **argv)
 				}
 				++it3;
 			}
-			
-			failpass("Range reorder", pass == true);
+
+			failpass("Range splice", pass == true);
 
 
 			it2 = it1 = list1.begin();
-			
+
 			std::advance(it1, 80);
-			std::advance(it2, 120);
+			std::advance(it2, 121);
 
 
-			list1.reorder(list1.end(), it1, it2);
-			
+			list1.splice(list1.end(), it1, it2);
+
 			pass = true;
-			
+
 			it3 = list1.end();
 			std::advance(it3, -41);
-			
+
 			for (int test = 80; test != 120; ++test)
 			{
 				if (*it3 != test)
@@ -989,22 +989,22 @@ int main(int argc, char **argv)
 				}
 				++it3;
 			}
-			
-			failpass("Range reorder to end", pass == true);
+
+			failpass("Range splice to end", pass == true);
 
 
 
 			it2 = it1 = list1.begin();
-			
-			std::advance(it1, 40);
-			std::advance(it2, 45);
 
-			list1.reorder(list1.begin(), it1, it2);
-			
+			std::advance(it1, 40);
+			std::advance(it2, 46);
+
+			list1.splice(list1.begin(), it1, it2);
+
 			pass = true;
-			
+
 			it3 = list1.begin();
-			
+
 			for (int test = 40; test != 45; ++test)
 			{
 				if (*it3 != test)
@@ -1013,57 +1013,59 @@ int main(int argc, char **argv)
 				}
 				++it3;
 			}
-			
-			failpass("Range reorder to begin", pass == true);
-			
+
+			failpass("Range splice to begin", pass == true);
+
 			int total = 0;
 			for (it1 = list1.begin(); it1 != list1.end(); ++it1)
 			{
 				total += *it1;
 			}
-			
-			failpass("Post-reordering data consistency", total == original_total);
+
+			failpass("Post-spliceing data consistency", total == original_total);
+
+
 		}
-		
+
 		{
 			title1("List");
 			title2("Test Basics");
-			
+
 			list<int *> p_list;
-			
+
 			failpass("List empty", p_list.empty());
-			
+
 			int ten = 10;
 			p_list.push_front(&ten);
-			
+
 			failpass("List not-empty", !p_list.empty());
 
 			title2("Iterator tests");
-			
+
 			failpass("Begin() working", **p_list.begin() == 10);
 			failpass("End() working", p_list.begin() != p_list.end());
-			
+
 
 			p_list.clear();
 
 			failpass("Begin = End after clear", p_list.begin() == p_list.end());
 
 			int twenty = 20;
-			
+
 			for (unsigned int temp = 0; temp != 200; ++temp)
 			{
 				p_list.push_back(&ten);
 				p_list.push_back(&twenty);
 			}
-			
+
 			int total = 0, numtotal = 0;
-			
+
 			for(list<int *>::iterator the_iterator = p_list.begin(); the_iterator != p_list.end(); ++the_iterator)
 			{
 				++total;
 				numtotal += **the_iterator;
 			}
-			
+
 			failpass("Iteration count test", total == 400);
 			failpass("Iterator access test", numtotal == 6000);
 
@@ -1071,10 +1073,10 @@ int main(int argc, char **argv)
 			std::advance(plus_twenty, 20);
 			list<int *>::iterator plus_two_hundred = p_list.begin();
 			std::advance(plus_two_hundred, 200);
-			
+
 			failpass("Iterator + distance test", std::distance(p_list.begin(), plus_twenty) == 20);
 			failpass("Iterator + distance test 2", std::distance(p_list.begin(), plus_two_hundred) == 200);
-			
+
 			#ifdef PLF_INITIALIZER_LIST_SUPPORT
 				list<int *>::iterator next_iterator = std::next(p_list.begin(), 5);
 				list<int *>::const_iterator prev_iterator = std::prev(p_list.cend(), 300);
@@ -1084,34 +1086,34 @@ int main(int argc, char **argv)
 				std::advance(next_iterator, 5);
 				std::advance(prev_iterator, -300);
 			#endif
-			
+
 			failpass("Iterator next test", std::distance(p_list.begin(), next_iterator) == 5);
 			failpass("Const iterator prev test", std::distance(prev_iterator, p_list.cend()) == 300);
-			
+
 			#if defined(__cplusplus) && __cplusplus >= 201402L
 				list<int *>::iterator prev_iterator2 = std::prev(p_list.end(), 300);
 				failpass("Iterator/Const iterator equality operator test", prev_iterator == prev_iterator2);
 			#endif
-			
-			
+
+
 			list<int *> p_list2;
 			p_list2 = p_list;
 			list<int *> p_list3(p_list);
 			list<int *> p_list4(p_list2, p_list2.get_allocator());
-			
+
 			list<int *>::iterator it1 = p_list.begin();
 			list<int *>::const_iterator cit(it1);
-			
+
 			failpass("Copy test", p_list2.size() == 400);
 			failpass("Copy construct test", p_list3.size() == 400);
 			failpass("Allocator-extended copy construct test", p_list4.size() == 400);
-		
+
 
 			failpass("Equality operator test", p_list == p_list2);
 			failpass("Equality operator test 2", p_list2 == p_list3);
-			
+
 			p_list2.push_back(&ten);
-			
+
 			failpass("Inequality operator test", p_list2 != p_list3);
 
 			numtotal = 0;
@@ -1126,10 +1128,10 @@ int main(int argc, char **argv)
 
 			failpass("Reverse iteration count test", total == 400);
 			failpass("Reverse iterator access test", numtotal == 6000);
-			
+
 			list<int *>::reverse_iterator r_iterator = p_list.rbegin();
 			std::advance(r_iterator, 50);
-			
+
 			failpass("Reverse iterator advance and distance test", std::distance(p_list.rbegin(), r_iterator) == 50);
 
 			#ifdef PLF_INITIALIZER_LIST_SUPPORT
@@ -1179,12 +1181,12 @@ int main(int argc, char **argv)
 			failpass("Const_reverse_iterator -- access test", numtotal == 5980);
 
 			total = 0;
-			
+
 			for(list<int *>::iterator the_iterator = ++list<int *>::iterator(p_list.begin()); the_iterator != p_list.end(); ++the_iterator)
 			{
 				++total;
 				the_iterator = p_list.erase(the_iterator);
-				
+
 				if (the_iterator == p_list.end())
 				{
 					break;
@@ -1193,12 +1195,12 @@ int main(int argc, char **argv)
 
 			failpass("Partial erase iteration test", total == 200);
 			failpass("Post-erase size test", p_list.size() == 200);
-			
+
 			const unsigned int temp_capacity = static_cast<unsigned int>(p_list.capacity());
 			p_list.shrink_to_fit();
 			failpass("Shrink_to_fit test", p_list.capacity() < temp_capacity);
 			failpass("Shrink_to_fit test 2", p_list.capacity() == 200);
-			
+
 			total = 0;
 
 			for(list<int *>::reverse_iterator the_iterator = p_list.rbegin(); the_iterator != p_list.rend();)
@@ -1217,7 +1219,7 @@ int main(int argc, char **argv)
 				p_list.push_back(&ten);
 				p_list.push_back(&twenty);
 			}
-			
+
 			total = 0;
 
 			for(list<int *>::iterator the_iterator = --list<int *>::iterator(p_list.end()); the_iterator != p_list.begin(); --the_iterator)
@@ -1236,23 +1238,23 @@ int main(int argc, char **argv)
 			}
 
 			failpass("Negative multiple iteration test", total == 199);
-			
+
 			#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 				p_list2 = std::move(p_list);
 				failpass("Move test", p_list2.size() == 400);
 
 				list<int *> p_list5(p_list2);
 				list<int *> p_list6(std::move(p_list5), p_list2.get_allocator());
-				
+
 				failpass("Allocator-extended move construct test", p_list6.size() == 400);
 			#else
 				p_list2 = p_list;
 			#endif
 
 			p_list3 = p_list2;
-			
+
 			failpass("Copy test 2", p_list3.size() == 400);
-			
+
 			p_list2.push_back(&ten);
 
 			p_list2.swap(p_list3);
@@ -1267,31 +1269,31 @@ int main(int argc, char **argv)
 
 		}
 
-		
+
 		{
 			title2("Insert and Erase tests");
-			
+
 			list<int> i_list;
 
 			for (int temp = 0; temp != 500000; ++temp)
 			{
 				i_list.push_back(temp);
 			}
-			
-			
+
+
 			failpass("Size after insert test", i_list.size() == 500000);
 
 
 			list<int>::iterator found_item = std::find(i_list.begin(), i_list.end(), 5000);;
-			
+
 			failpass("std::find iterator test", *found_item == 5000);
-			
-			
+
+
 			list<int>::reverse_iterator found_item2 = std::find(i_list.rbegin(), i_list.rend(), 5000);;
-			
+
 			failpass("std::find reverse_iterator test", *found_item2 == 5000);
-			
-			
+
+
 			for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != i_list.end(); ++the_iterator)
 			{
 				the_iterator = i_list.erase(the_iterator);
@@ -1312,23 +1314,23 @@ int main(int argc, char **argv)
 						++the_iterator;
 					}
 				}
-				
+
 			} while (!i_list.empty());
 
 			failpass("Erase randomly till-empty test", i_list.size() == 0);
 
 
 			i_list.clear();
-			
+
 			for (unsigned int temp = 0; temp != 30000; ++temp)
 			{
 				i_list.push_back(1);
 			}
-			
+
 			failpass("Size after reinitialize + insert test", i_list.size() == 30000);
 
 			unsigned short count2 = 0;
-			
+
 			do
 			{
 				for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != i_list.end();)
@@ -1343,16 +1345,16 @@ int main(int argc, char **argv)
 						++the_iterator;
 					}
 				}
-				
+
 			} while (count2 < 15000);
-			
+
 			failpass("Erase randomly till half-empty test", i_list.size() == 30000u - count2);
 
 			for (unsigned int temp = 0; temp != count2; ++temp)
 			{
 				i_list.push_front(1);
 			}
-			
+
 			failpass("Size after reinsert test", i_list.size() == 30000);
 
 
@@ -1373,10 +1375,10 @@ int main(int argc, char **argv)
 					++the_iterator;
 				}
 			}
-			
+
 			failpass("Alternating insert/erase test", i_list.size() == 40000);
 
-			
+
 			do
 			{
 				for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != i_list.end();)
@@ -1392,10 +1394,10 @@ int main(int argc, char **argv)
 					}
 				}
 			} while (!i_list.empty());
-			
+
 			failpass("Random insert/erase till empty test", i_list.size() == 0);
 
-			
+
 			for (unsigned int temp = 0; temp != 500000; ++temp)
 			{
 				i_list.push_back(10);
@@ -1404,24 +1406,24 @@ int main(int argc, char **argv)
 			failpass("Insert post-erase test", i_list.size() == 500000);
 			list<int>::iterator it2 = i_list.begin();
 			std::advance(it2, 250000);
-			
+
 
 			for (; it2 != i_list.end();)
 			{
 				it2 = i_list.erase(it2);
 			}
-			
+
 			failpass("Large multi-increment iterator test", i_list.size() == 250000);
 
-			
+
 			for (unsigned int temp = 0; temp != 250000; ++temp)
 			{
 				i_list.push_back(10);
 			}
-			
+
 			list<int>::iterator end_iterator = i_list.end();
 			std::advance(end_iterator, -250000);
-			
+
 			for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != end_iterator;)
 			{
 				the_iterator = i_list.erase(the_iterator);
@@ -1429,22 +1431,22 @@ int main(int argc, char **argv)
 
 			failpass("Large multi-decrement iterator test", i_list.size() == 250000);
 
-			
+
 			for (unsigned int temp = 0; temp != 250000; ++temp)
 			{
 				i_list.push_front(10);
 			}
-			
-			
+
+
 			int total = 0;
-			
+
 			for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != i_list.end(); ++the_iterator)
 			{
 				total += *the_iterator;
 			}
 
 			failpass("Re-insert post-heavy-erasure test", total == 5000000);
-			
+
 
 			end_iterator = i_list.end();
 			std::advance(end_iterator, -50001);
@@ -1457,22 +1459,22 @@ int main(int argc, char **argv)
 			}
 
 			failpass("Non-end decrement + erase test", i_list.size() == 350001);
-			
+
 
 			for (unsigned int temp = 0; temp != 100000; ++temp)
 			{
 				i_list.push_back(10);
 			}
-			
+
 			begin_iterator = i_list.begin();
 			std::advance(begin_iterator, 300001);
-			
-			
+
+
 			for (list<int>::iterator the_iterator = begin_iterator; the_iterator != i_list.end();)
 			{
 				the_iterator = i_list.erase(the_iterator);
 			}
-			
+
 			failpass("Non-beginning increment + erase test", i_list.size() == 300001);
 
 			list<int>::iterator temp_iterator = i_list.begin();
@@ -1486,10 +1488,10 @@ int main(int argc, char **argv)
 			{
 				the_iterator = i_list.erase(the_iterator);
 			}
-			
+
 			failpass("Total erase test", i_list.empty());
-			
-			
+
+
 			i_list.clear();
 			i_list.shrink_to_fit();
 
@@ -1616,12 +1618,12 @@ int main(int argc, char **argv)
 
 
 			it1 = it2 = i_list.begin();
-			
+
 			std::advance(it1, 400);
 			std::advance(it2, 500); // This should put it2 past the point of previous erasures
-			
+
 			i_list.erase(it1, it2);
-			
+
 			counter = 0;
 
 			for (list<int>::iterator it = i_list.begin(); it != i_list.end(); ++it)
@@ -1631,13 +1633,13 @@ int main(int argc, char **argv)
 
 			failpass("Simple range-erase test 2", counter == 600 && i_list.size() == 600);
 
-			
+
 
 			it2 = it1 = i_list.begin();
-			
+
 			std::advance(it1, 4);
 			std::advance(it2, 9); // This should put it2 past the point of previous erasures
-			
+
 			i_list.erase(it1, it2);
 
 			counter = 0;
@@ -1649,15 +1651,15 @@ int main(int argc, char **argv)
 
 			failpass("Simple range-erase test 3", counter == 595 && i_list.size() == 595);
 
-			
+
 
 
 			it2 = it1 = i_list.begin();
-			
-			std::advance(it2, 50); 
-			
+
+			std::advance(it2, 50);
+
 			i_list.erase(it1, it2);
-			
+
 			counter = 0;
 
 			for (list<int>::iterator it = i_list.begin(); it != i_list.end(); ++it)
@@ -1672,10 +1674,10 @@ int main(int argc, char **argv)
 
 			it1 = i_list.begin();
 			it2 = i_list.end();
-			
+
 			std::advance(it1, 345); // Test erasing and validity when it removes the final group in list
 			i_list.erase(it1, it2);
-			
+
 			counter = 0;
 
 			for (list<int>::iterator it = i_list.begin(); it != i_list.end(); ++it)
@@ -1693,23 +1695,23 @@ int main(int argc, char **argv)
 			{
 				i_list.push_back(counter);
 			}
-			
+
 			for (list<int>::iterator it = i_list.begin(); it != i_list.end(); ++it)
 			{
 				it = i_list.erase(it);
-				
+
 				if (it == i_list.end())
 				{
 					break;
 				}
 			}
-			
+
 			it2 = it1 = i_list.begin();
-			
+
 			std::advance(it1, 4);
 			std::advance(it2, 600);
 			i_list.erase(it1, it2);
-			
+
 			counter = 0;
 
 			for (list<int>::iterator it = i_list.begin(); it != i_list.end(); ++it)
@@ -1727,9 +1729,9 @@ int main(int argc, char **argv)
 			{
 				i_list.push_back(counter);
 			}
-			
+
 			test_counter = 0;
-			
+
 			for (list<int>::iterator it = i_list.begin(); it != i_list.end(); ++it)
 			{
 				if ((plf::rand() & 1) == 0)
@@ -1738,9 +1740,9 @@ int main(int argc, char **argv)
 					++test_counter;
 				}
 			}
-			
+
 			failpass("Random erasures vs size check", test_counter == static_cast<int>(3000 - i_list.size()));
-			
+
 			if (i_list.size() < 500)
 			{
 				i_list.resize(800, 1);
@@ -1748,7 +1750,7 @@ int main(int argc, char **argv)
 
 			it1 = i_list.begin();
 			it2 = i_list.end();
-			
+
 			std::advance(it1, 400);
 			i_list.erase(it1, it2);
 
@@ -1773,7 +1775,7 @@ int main(int argc, char **argv)
 				{
 					i_list.push_back(counter);
 				}
-				
+
 				internal_loop_counter = 0;
 
 				while (!i_list.empty())
@@ -1798,10 +1800,10 @@ int main(int argc, char **argv)
 					if (i_list.size() != static_cast<unsigned int>(counter))
 					{
 						std::cout << "Fail. loop counter: " << loop_counter << ", internal_loop_counter: " << internal_loop_counter << "." << std::endl;
-						std::cin.get(); 
-						abort(); 
+						std::cin.get();
+						abort();
 					}
-					
+
 					if (i_list.size() > 2)
 					{ // Test to make sure our stored erased_locations are valid
 						i_list.push_back(1);
@@ -1818,21 +1820,21 @@ int main(int argc, char **argv)
 
 		{
 			title2("Sort tests");
-			
+
 			list<int> i_list;
-			
+
 			i_list.reserve(50000);
 
 			for (unsigned int temp = 0; temp != 50000; ++temp)
 			{
 				i_list.push_back(plf::rand() & 65535);
 			}
-			
+
 			i_list.sort();
-			
+
 			bool sorted = true;
 			int previous = 0;
-			
+
 			for (list<int>::iterator current = i_list.begin(); current != i_list.end(); ++current)
 			{
 				if (previous > *current)
@@ -1840,7 +1842,7 @@ int main(int argc, char **argv)
 					sorted = false;
 					break;
 				}
-				
+
 				previous = *current;
 			}
 
@@ -1849,7 +1851,7 @@ int main(int argc, char **argv)
 			i_list.sort(std::greater<int>());
 
 			previous = 65536;
-			
+
 			for (list<int>::iterator current = i_list.begin(); current != i_list.end(); ++current)
 			{
 				if (previous < *current)
@@ -1860,9 +1862,9 @@ int main(int argc, char **argv)
 
 				previous = *current;
 			}
-			
+
 			failpass("Greater-than sort test", sorted);
-		}			
+		}
 
 
 
@@ -1876,31 +1878,31 @@ int main(int argc, char **argv)
 			#else
 				list<int> i_list(3, 1);
 			#endif
-			
+
 			list<int> i_list2(i_list.begin(), i_list.end());
-			
+
 			failpass("Range-based constructor test", i_list2.size() == 3);
-			
+
 			list<int> i_list3(5000, 2);
-			
+
 			failpass("Fill construction test", i_list3.size() == 5000);
-			
+
 			i_list2.insert(i_list2.end(), 500000, 5);
-			
+
 			failpass("Fill insertion test", i_list2.size() == 500003);
-			
+
 			std::vector<int> some_ints(500, 2);
-			
+
 			i_list2.insert(i_list2.begin(), some_ints.begin(), some_ints.end());
-			
+
 			failpass("Fill insertion test", i_list2.size() == 500503);
 
 			#ifdef PLF_INITIALIZER_LIST_SUPPORT
 				i_list = {5, 4, 3, 2, 1};
-				
+
 				failpass("Initializer-list operator = test", i_list.size() == 5 && i_list.front() == 5);
 			#endif
-			
+
 		}
 
 

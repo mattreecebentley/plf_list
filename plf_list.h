@@ -2160,7 +2160,7 @@ private:
 	void group_fill_position(const element_type &element, group_size_type number_of_elements, node_pointer_type const position)
 	{
 		position->previous->next = last_endpoint;
-		groups.last_endpoint_group->number_of_elements += number_of_elements;
+		groups.last_endpoint_group->number_of_elements = static_cast<group_size_type>(groups.last_endpoint_group->number_of_elements + number_of_elements);
 		node_pointer_type previous = position->previous;
 
 		do
@@ -2247,9 +2247,9 @@ public:
 						end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
 						group_fill_position(element, PLF_LIST_BLOCK_MIN, end_iterator.node_pointer);
 
-						groups.add_new(PLF_LIST_BLOCK_MAX - (PLF_LIST_BLOCK_MIN - remainder));
+						groups.add_new(static_cast<group_size_type>(PLF_LIST_BLOCK_MAX - (PLF_LIST_BLOCK_MIN - remainder)));
 						end_node.previous = last_endpoint = groups.last_endpoint_group->nodes;
-						group_fill_position(element, PLF_LIST_BLOCK_MAX - (PLF_LIST_BLOCK_MIN - remainder), end_iterator.node_pointer);
+						group_fill_position(element, static_cast<group_size_type>(PLF_LIST_BLOCK_MAX - (PLF_LIST_BLOCK_MIN - remainder)), end_iterator.node_pointer);
 						--multiples;
 					}
 				}
@@ -2855,21 +2855,21 @@ public:
 
 
 
-	void reorder(const iterator position, const iterator first, const iterator last) PLF_LIST_NOEXCEPT
+	void splice(const const_iterator position, const const_iterator first, const const_iterator last) PLF_LIST_NOEXCEPT
 	{
 		// To avoid pointer aliasing and subsequently increase performance via simultaneous assignments:
 		const node_pointer_type first_previous = first.node_pointer->previous;
-		const node_pointer_type last_next = last.node_pointer->next;
+		const node_pointer_type last_previous = last.node_pointer->previous;
 		const node_pointer_type position_previous = position.node_pointer->previous;
 
-		last_next->previous = first_previous;
-		first.node_pointer->previous->next = last_next;
+		last.node_pointer->previous = first_previous;
+		first.node_pointer->previous->next = last.node_pointer;
 
- 		last.node_pointer->next = position.node_pointer;
+ 		last_previous->next = position.node_pointer;
 		first.node_pointer->previous = position_previous;
 
 		position_previous->next = first.node_pointer;
-		position.node_pointer->previous = last.node_pointer;
+		position.node_pointer->previous = last_previous;
 
 		if (begin_iterator == position)
 		{
@@ -2879,9 +2879,9 @@ public:
 
 
 
-	inline void reorder(const iterator position, const iterator location) PLF_LIST_NOEXCEPT
+	inline void splice(const const_iterator position, const const_iterator location) PLF_LIST_NOEXCEPT
 	{
-		reorder(position, location, location);
+		splice(position, location, const_iterator(location.node_pointer->next));
 	}
 
 
