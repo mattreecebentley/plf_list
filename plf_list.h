@@ -59,7 +59,7 @@
 		#define PLF_CONSTEXPR
 	#endif
 
-	#if defined(_MSVC_LANG) && (_MSVC_LANG > 201703L)
+	#if defined(_MSVC_LANG) && (_MSVC_LANG > 201703L) && _MSC_VER >= 1923
 		#define PLF_CPP20_SUPPORT
 	#endif
 #elif defined(__cplusplus) && __cplusplus >= 201103L // C++11 support, at least
@@ -195,7 +195,6 @@
 #undef PLF_IS_ALWAYS_EQUAL_SUPPORT
 
 
-
 #ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
 	#ifdef PLF_VARIADICS_SUPPORT
 		#define PLF_CONSTRUCT(the_allocator, allocator_instance, location, ...)	std::allocator_traits<the_allocator>::construct(allocator_instance, location, __VA_ARGS__)
@@ -208,14 +207,14 @@
 	#define PLF_DEALLOCATE(the_allocator, allocator_instance, location, size) 	std::allocator_traits<the_allocator>::deallocate(allocator_instance, location, size)
 #else
 	#ifdef PLF_VARIADICS_SUPPORT
-		#define PLF_CONSTRUCT(the_allocator, allocator_instance, location, ...)		allocator_instance.construct(location, __VA_ARGS__)
+		#define PLF_CONSTRUCT(the_allocator, allocator_instance, location, ...)		(allocator_instance).construct(location, __VA_ARGS__)
 	#else
-		#define PLF_CONSTRUCT(the_allocator, allocator_instance, location, data)	allocator_instance.construct(location, data)
+		#define PLF_CONSTRUCT(the_allocator, allocator_instance, location, data)	(allocator_instance).construct(location, data)
 	#endif
 
-	#define PLF_DESTROY(the_allocator, allocator_instance, location) 				allocator_instance.destroy(location)
-	#define PLF_ALLOCATE(the_allocator, allocator_instance, size, hint)	 		allocator_instance.allocate(size, hint)
-	#define PLF_DEALLOCATE(the_allocator, allocator_instance, location, size)	allocator_instance.deallocate(location, size)
+	#define PLF_DESTROY(the_allocator, allocator_instance, location) 				(allocator_instance).destroy(location)
+	#define PLF_ALLOCATE(the_allocator, allocator_instance, size, hint)	 		(allocator_instance).allocate(size, hint)
+	#define PLF_DEALLOCATE(the_allocator, allocator_instance, location, size)	(allocator_instance).deallocate(location, size)
 #endif
 
 
@@ -315,10 +314,10 @@ private:
 	{
 		node_pointer_type next, previous;
 
-		node_base()
+		node_base() PLF_NOEXCEPT
 		{}
 
-		node_base(const node_pointer_type &n, const node_pointer_type &p):
+		node_base(const node_pointer_type &n, const node_pointer_type &p) PLF_NOEXCEPT:
 			next(n),
 			previous(p)
 		{}
@@ -381,7 +380,7 @@ private:
 
 		#if defined(PLF_VARIADICS_SUPPORT) || defined(PLF_MOVE_SEMANTICS_SUPPORT)
 			group(const group_size_type group_size, node_pointer_type const previous = NULL):
-				nodes(PLF_ALLOCATE(node_allocator_type, (*this), group_size, previous)),
+				nodes(PLF_ALLOCATE(node_allocator_type, *this, group_size, previous)),
 				free_list_head(NULL),
 				beyond_end(nodes + group_size),
 				number_of_elements(0)
@@ -398,7 +397,7 @@ private:
 			// Not a real copy constructor ie. actually a move constructor. Only used for allocator.construct in C++03 for reasons stated above:
 			group(const group &source):
 				node_allocator_type(source),
-				nodes(PLF_ALLOCATE(node_allocator_type, (*this), source.number_of_elements, source.free_list_head)),
+				nodes(PLF_ALLOCATE(node_allocator_type, *this, source.number_of_elements, source.free_list_head)),
 				free_list_head(NULL),
 				beyond_end(nodes + source.number_of_elements),
 				number_of_elements(0)
@@ -444,7 +443,7 @@ private:
 
 		~group() PLF_NOEXCEPT
 		{
-			PLF_DEALLOCATE(node_allocator_type, (*this), nodes, static_cast<size_type>(beyond_end - nodes));
+			PLF_DEALLOCATE(node_allocator_type, *this, nodes, static_cast<size_type>(beyond_end - nodes));
 		}
 	};
 
@@ -543,11 +542,6 @@ private:
 
 
 
-		~group_vector() PLF_NOEXCEPT
-		{}
-
-
-
 		void destroy_all_data(const node_pointer_type last_endpoint_node) PLF_NOEXCEPT
 		{
 			if (block_pointer == NULL)
@@ -605,8 +599,8 @@ private:
 								if PLF_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 							#endif
 							{
-								PLF_DESTROY(node_pointer_allocator_type, (*this), &(current_node->next));
-								PLF_DESTROY(node_pointer_allocator_type, (*this), &(current_node->previous));
+								PLF_DESTROY(node_pointer_allocator_type, *this, &(current_node->next));
+								PLF_DESTROY(node_pointer_allocator_type, *this, &(current_node->previous));
 							}
 						}
 					}
@@ -625,8 +619,8 @@ private:
 								if PLF_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 							#endif
 							{
-								PLF_DESTROY(node_pointer_allocator_type, (*this), &(current_node->next));
-								PLF_DESTROY(node_pointer_allocator_type, (*this), &(current_node->previous));
+								PLF_DESTROY(node_pointer_allocator_type, *this, &(current_node->next));
+								PLF_DESTROY(node_pointer_allocator_type, *this, &(current_node->previous));
 							}
 						}
 					}
@@ -658,8 +652,8 @@ private:
 							if PLF_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 						#endif
 						{
-							PLF_DESTROY(node_pointer_allocator_type, (*this), &(current_node->next));
-							PLF_DESTROY(node_pointer_allocator_type, (*this), &(current_node->previous));
+							PLF_DESTROY(node_pointer_allocator_type, *this, &(current_node->next));
+							PLF_DESTROY(node_pointer_allocator_type, *this, &(current_node->previous));
 						}
 					}
 				}
@@ -678,8 +672,8 @@ private:
 							if PLF_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 						#endif
 						{
-							PLF_DESTROY(node_pointer_allocator_type, (*this), &(current_node->next));
-							PLF_DESTROY(node_pointer_allocator_type, (*this), &(current_node->previous));
+							PLF_DESTROY(node_pointer_allocator_type, *this, &(current_node->next));
+							PLF_DESTROY(node_pointer_allocator_type, *this, &(current_node->previous));
 						}
 					}
 				}
@@ -2432,7 +2426,7 @@ public:
 			if PLF_CONSTEXPR (!(std::is_trivially_destructible<element_type>::value))
 		#endif
 		{
-			PLF_DESTROY(element_allocator_type, (*this), &(it.node_pointer->element)); // Destruct element
+			PLF_DESTROY(element_allocator_type, *this, &(it.node_pointer->element)); // Destruct element
 		}
 
 		--node_pointer_allocator_pair.total_number_of_elements;
@@ -2553,7 +2547,7 @@ public:
 
 	// Range-erase:
 
-	inline iterator erase(const_iterator iterator1, const const_iterator iterator2)	// if uninitialized/invalid iterator supplied, function could generate an exception
+	inline iterator erase(const_iterator iterator1, const const_iterator iterator2)
 	{
 		while (iterator1 != iterator2)
 		{
@@ -2572,7 +2566,7 @@ public:
 
 
 
-	inline void pop_front() // Exception will occur on empty list
+	inline void pop_front()
 	{
 		erase(begin_iterator);
 	}
@@ -2719,11 +2713,8 @@ private:
 	{
 		comparison_function stored_instance;
 
-		explicit sort_dereferencer(const comparison_function &function_instance):
+		explicit sort_dereferencer(const comparison_function &function_instance) PLF_NOEXCEPT:
 			stored_instance(function_instance)
-		{}
-
-		sort_dereferencer() PLF_NOEXCEPT
 		{}
 
 		inline bool operator() (const node_pointer_type first, const node_pointer_type second)
@@ -3202,9 +3193,6 @@ private:
 
 		explicit eq_to(const element_type store_value):
 			value(store_value)
-		{}
-
-		eq_to() PLF_NOEXCEPT
 		{}
 
 		inline bool operator() (const element_type compare_value) const PLF_NOEXCEPT
