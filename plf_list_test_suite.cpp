@@ -10,7 +10,7 @@
 		#define PLF_TEST_INITIALIZER_LIST_SUPPORT
 	#endif
 
-	#if defined(_MSVC_LANG) && (_MSVC_LANG > 201703L)
+	#if defined(_MSVC_LANG) && (_MSVC_LANG > 201703L) && _MSC_VER >= 1923
 		#define PLF_TEST_CPP20_SUPPORT
 	#endif
 #elif defined(__cplusplus) && __cplusplus >= 201103L // C++11 support, at least
@@ -657,6 +657,14 @@ int main()
 
 			failpass("Range-insert test", passed);
 
+			#ifdef PLF_TEST_CPP20_SUPPORT
+	 		{
+				plf::list<int> list3;
+				list3.insert(list2.begin(), list2.cend());
+
+	 			failpass("Range insertion with differing iterators test", list3.size() == list2.size());
+	 		}
+			#endif
 
 
 			list2.insert(list2.begin(), 50, 50000);

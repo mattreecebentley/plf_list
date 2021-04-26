@@ -1704,14 +1704,14 @@ public:
 
 
 
- 	inline reverse_iterator rbegin() const PLF_NOEXCEPT
+ 	inline reverse_iterator rbegin() PLF_NOEXCEPT
  	{
  		return reverse_iterator(end_node.previous);
  	}
 
 
 
- 	inline reverse_iterator rend() const PLF_NOEXCEPT
+ 	inline reverse_iterator rend() PLF_NOEXCEPT
  	{
  		return reverse_iterator(end_iterator.node_pointer);
  	}
@@ -2339,11 +2339,18 @@ public:
 
 	// Range insert
 
-	template <class iterator_type>
-	#if defined(PLF_TYPE_TRAITS_SUPPORT)
-		iterator insert(const const_iterator position, typename plf_enable_if_c<(!std::numeric_limits<iterator_type>::is_integer) && (!std::is_same<typename std::iterator_traits<iterator_type>::iterator_category, std::random_access_iterator_tag>::value), iterator_type>::type first, const iterator_type last)
+	#ifdef PLF_CPP20_SUPPORT
+		// Support for differing iterator types eg. sentinels:
+		template <class iterator_type1, class iterator_type2>
+			requires (std::equality_comparable_with<iterator_type1, iterator_type2> && !std::integral<iterator_type1> && !std::integral<iterator_type2>)
+		void insert(const const_iterator position, const iterator_type1 first, const iterator_type2 last)
 	#else
-		iterator insert(const const_iterator position, typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
+		template <class iterator_type>
+		#if defined(PLF_TYPE_TRAITS_SUPPORT)
+			iterator insert(const const_iterator position, typename plf_enable_if_c<(!std::numeric_limits<iterator_type>::is_integer) && (!std::is_same<typename std::iterator_traits<iterator_type>::iterator_category, std::random_access_iterator_tag>::value), iterator_type>::type first, const iterator_type last)
+		#else
+			iterator insert(const const_iterator position, typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
+		#endif
 	#endif
 	{
 		if (first == last)
@@ -2360,6 +2367,7 @@ public:
 
 		return return_iterator;
 	}
+
 
 
 
