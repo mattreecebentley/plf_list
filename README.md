@@ -1,4 +1,4 @@
-# plf_list
+# plf::list
 A drop-in replacement for std::list with (on average):
 
 * 293% faster insertion
@@ -16,4 +16,4 @@ A drop-in replacement for std::list with (on average):
 Insertion, erasure, and iteration percentages obtained as average of performance across 5 types from char to very large struct)
 plf::list is C++98/03/11/14/etc compatible.
 
-Documentation here: https://plflib.org/list.htm
+Documentation and function descriptions are here: https://plflib.org/list.htm
