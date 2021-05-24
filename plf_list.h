@@ -28,7 +28,7 @@
 
 // Compiler-specific defines:
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__) && !defined(__GNUC__)
 	#define PLF_FORCE_INLINE __forceinline
 
 	#if _MSC_VER >= 1600
@@ -2186,7 +2186,7 @@ public:
 
 	// Fill insert
 
-	iterator insert(const_iterator position, const size_type number_of_elements, const element_type &element)
+	iterator insert(const const_iterator position, const size_type number_of_elements, const element_type &element)
 	{
 		if (number_of_elements == 0)
 		{
