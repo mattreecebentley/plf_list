@@ -222,11 +222,11 @@
 #include <cassert>	// assert
 #include <limits>  	// std::numeric_limits
 #include <memory>		// std::uninitialized_copy, std::allocator
-#include <iterator> 	// std::bidirectional_iterator_tag
+#include <iterator> 	// std::bidirectional_iterator_tag, iterator_traits, make_move_iterator, std::distance for range insert
 #include <stdexcept> // std::length_error
 
 
-#ifndef GFX_TIMSORT_HPP
+#ifndef PLF_SORT_FUNCTION
 	#include <algorithm> // std::sort
 #endif
 
@@ -1459,7 +1459,7 @@ private:
 	// When the list is empty, the previous and next pointers of end_node both point to end_node.
 	node_pointer_type last_endpoint; // The node location which is one-past the last inserted element in the last group of the list. Is not affected by erasures to prior elements (these are handled using the group's freelist).
 	// If last_endpoint is beyond the end of a memory block it means a new group must be created upon the next insertion if prior erased nodes are not available for re-use.
-	// last_endpoint == NULL means total_number_of_elements is zero, but there may still be groups available due to calling clear(), reserve() on an empty list, or having erased all elements in the list
+	// last_endpoint == NULL means total_size is zero, but there may still be groups available due to calling clear(), reserve() on an empty list, or having erased all elements in the list
 	// groups.block_pointer == NULL means an uninitialized container ie. no groups or elements yet
 	iterator end_iterator, begin_iterator; // Returned by begin() and end().
 	// end_iterator always points to end_node. It is a convenience/optimization variable to save generating many temporary iterators from end_node during functions and during end().
@@ -1467,8 +1467,8 @@ private:
 
 	struct ebco_pair1 : node_pointer_allocator_type // Packaging the group allocator with least-used member variables, for empty-base-class optimisation
 	{
-		size_type total_number_of_elements;
-		explicit ebco_pair1(const size_type total_num_elements) PLF_NOEXCEPT: total_number_of_elements(total_num_elements) {}
+		size_type total_size;
+		explicit ebco_pair1(const size_type total_num_elements) PLF_NOEXCEPT: total_size(total_num_elements) {}
 	}		node_pointer_allocator_pair;
 
 	struct ebco_pair2 : node_allocator_type
@@ -1520,7 +1520,7 @@ public:
 		node_pointer_allocator_pair(0),
 		node_allocator_pair(0)
 	{
-	 	reserve(source.node_pointer_allocator_pair.total_number_of_elements);
+	 	reserve(source.node_pointer_allocator_pair.total_size);
 		insert(end_iterator, source.begin_iterator, source.end_iterator);
 	}
 
@@ -1537,7 +1537,7 @@ public:
 		node_pointer_allocator_pair(0),
 		node_allocator_pair(0)
 	{
-	 	reserve(source.node_pointer_allocator_pair.total_number_of_elements);
+	 	reserve(source.node_pointer_allocator_pair.total_size);
 		insert(end_iterator, source.begin_iterator, source.end_iterator);
 	}
 
@@ -1553,7 +1553,7 @@ public:
 			last_endpoint(std::move(source.last_endpoint)),
 			end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
 			begin_iterator((source.begin_iterator.node_pointer == source.end_iterator.node_pointer) ? reinterpret_cast<node_pointer_type>(&end_node) : std::move(source.begin_iterator)),
-			node_pointer_allocator_pair(source.node_pointer_allocator_pair.total_number_of_elements),
+			node_pointer_allocator_pair(source.node_pointer_allocator_pair.total_size),
 			node_allocator_pair(source.node_allocator_pair.number_of_erased_nodes)
 		{
 			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
@@ -1572,7 +1572,7 @@ public:
 			last_endpoint(std::move(source.last_endpoint)),
 			end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
 			begin_iterator((source.begin_iterator.node_pointer == source.end_iterator.node_pointer) ? reinterpret_cast<node_pointer_type>(&end_node) : std::move(source.begin_iterator)),
-			node_pointer_allocator_pair(source.node_pointer_allocator_pair.total_number_of_elements),
+			node_pointer_allocator_pair(source.node_pointer_allocator_pair.total_size),
 			node_allocator_pair(source.node_allocator_pair.number_of_erased_nodes)
 		{
 			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
@@ -1770,7 +1770,7 @@ public:
 			return;
 		}
 
-		if (node_pointer_allocator_pair.total_number_of_elements != 0)
+		if (node_pointer_allocator_pair.total_size != 0)
 		{
 			groups.clear(last_endpoint);
 		}
@@ -1779,7 +1779,7 @@ public:
 		end_node.previous = reinterpret_cast<node_pointer_type>(&end_node);
 		last_endpoint = NULL;
 		begin_iterator.node_pointer = end_iterator.node_pointer;
-		node_pointer_allocator_pair.total_number_of_elements = 0;
+		node_pointer_allocator_pair.total_size = 0;
 		node_allocator_pair.number_of_erased_nodes = 0;
 	}
 
@@ -1795,7 +1795,7 @@ private:
 		end_node.next = reinterpret_cast<node_pointer_type>(&end_node);
 		end_node.previous = reinterpret_cast<node_pointer_type>(&end_node);
 		begin_iterator.node_pointer = end_iterator.node_pointer;
-		node_pointer_allocator_pair.total_number_of_elements = 0;
+		node_pointer_allocator_pair.total_size = 0;
 		node_allocator_pair.number_of_erased_nodes = 0;
 	}
 
@@ -1807,7 +1807,7 @@ private:
 		{
 			if (static_cast<size_type>(groups.last_endpoint_group - groups.block_pointer) == groups.size - 1) // ie. there are no reusable groups available at the back of group vector
 			{
-				groups.add_new((node_pointer_allocator_pair.total_number_of_elements < PLF_BLOCK_MAX) ? static_cast<group_size_type>(node_pointer_allocator_pair.total_number_of_elements) : PLF_BLOCK_MAX);
+				groups.add_new((node_pointer_allocator_pair.total_size < PLF_BLOCK_MAX) ? static_cast<group_size_type>(node_pointer_allocator_pair.total_size) : PLF_BLOCK_MAX);
 			}
 			else
 			{
@@ -1823,7 +1823,7 @@ private:
 	inline void update_sizes_and_iterators(const const_iterator it)
 	{
 		++(groups.last_endpoint_group->number_of_elements);
-		++node_pointer_allocator_pair.total_number_of_elements;
+		++node_pointer_allocator_pair.total_size;
 
 		if (it.node_pointer == begin_iterator.node_pointer)
 		{
@@ -1845,7 +1845,7 @@ private:
 
 		groups.last_endpoint_group->number_of_elements = 1;
 		end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-		node_pointer_allocator_pair.total_number_of_elements = 1;
+		node_pointer_allocator_pair.total_size = 1;
 	}
 
 
@@ -1884,7 +1884,7 @@ public:
 
 				node_group->free_list_head = previous;
 				++(node_group->number_of_elements);
-				++node_pointer_allocator_pair.total_number_of_elements;
+				++node_pointer_allocator_pair.total_size;
 				--node_allocator_pair.number_of_erased_nodes;
 
 				it.node_pointer->previous->next = selected_node;
@@ -1981,7 +1981,7 @@ public:
 
 					node_group->free_list_head = previous;
 					++(node_group->number_of_elements);
-					++node_pointer_allocator_pair.total_number_of_elements;
+					++node_pointer_allocator_pair.total_size;
 					--node_allocator_pair.number_of_erased_nodes;
 
 					it.node_pointer->previous->next = selected_node;
@@ -2073,7 +2073,7 @@ public:
 
 					node_group->free_list_head = previous;
 					++(node_group->number_of_elements);
-					++node_pointer_allocator_pair.total_number_of_elements;
+					++node_pointer_allocator_pair.total_size;
 					--node_allocator_pair.number_of_erased_nodes;
 
 					it.node_pointer->previous->next = selected_node;
@@ -2134,9 +2134,10 @@ public:
 
 
 
+
 private:
 
-	void group_fill_position(const element_type &element, group_size_type number_of_elements, node_pointer_type const position)
+	void fill(const element_type &element, group_size_type number_of_elements, node_pointer_type const position)
 	{
 		position->previous->next = last_endpoint;
 		groups.last_endpoint_group->number_of_elements = static_cast<group_size_type>(groups.last_endpoint_group->number_of_elements + number_of_elements);
@@ -2182,6 +2183,206 @@ private:
 
 
 
+
+	template <class iterator_type>
+	iterator_type range_fill(iterator_type it, group_size_type number_of_elements, node_pointer_type const position)
+	{
+		position->previous->next = last_endpoint;
+		groups.last_endpoint_group->number_of_elements = static_cast<group_size_type>(groups.last_endpoint_group->number_of_elements + number_of_elements);
+		node_pointer_type previous = position->previous;
+
+		do
+		{
+			#ifdef PLF_TYPE_TRAITS_SUPPORT
+				if PLF_CONSTEXPR (std::is_nothrow_copy_constructible<element_type>::value)
+				{
+					#ifdef PLF_VARIADICS_SUPPORT
+						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, last_endpoint + 1, previous, *it++);
+					#else
+						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(last_endpoint + 1, previous, *it++));
+					#endif
+				}
+				else
+			#endif
+			{
+				try
+				{
+					#ifdef PLF_VARIADICS_SUPPORT
+						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, last_endpoint + 1, previous, *it++);
+					#else
+						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(last_endpoint + 1, previous, *it++));
+					#endif
+				}
+				catch (...)
+				{
+					previous->next = position;
+					position->previous = --previous;
+					groups.last_endpoint_group->number_of_elements = static_cast<group_size_type>(groups.last_endpoint_group->number_of_elements - (number_of_elements - (last_endpoint - position)));
+					throw;
+				}
+			}
+
+			previous = last_endpoint++;
+		} while (--number_of_elements != 0);
+
+		previous->next = position;
+		position->previous = previous;
+		return it;
+	}
+
+
+
+	// This function is near-identical to fill-insert, the only difference is it uses and iterates over an iterator:
+	template <class iterator_type>
+	iterator range_insert(const const_iterator position, const size_type number_of_elements, iterator_type it)
+	{
+		if (number_of_elements == 0)
+		{
+			return end_iterator;
+		}
+		else if (number_of_elements == 1)
+		{
+			return insert(position, *it);
+		}
+
+		if (node_pointer_allocator_pair.total_size == 0 && last_endpoint != NULL && (static_cast<size_type>(groups.block_pointer->beyond_end - groups.block_pointer->nodes) < number_of_elements) && (static_cast<size_type>(groups.block_pointer->beyond_end - groups.block_pointer->nodes) < PLF_BLOCK_MAX))
+		{
+			reset();
+		}
+
+		if (groups.block_pointer == NULL) // ie. Uninitialized list
+		{
+			if (number_of_elements > PLF_BLOCK_MAX)
+			{
+				size_type multiples = number_of_elements / PLF_BLOCK_MAX;
+				const group_size_type remainder = static_cast<group_size_type>(number_of_elements - (multiples++ * PLF_BLOCK_MAX)); // ++ to aid while loop below
+
+				// Create and fill first group:
+				if (remainder != 0) // make sure smallest block is first
+				{
+					if (remainder >= PLF_BLOCK_MIN)
+					{
+						groups.initialize(remainder);
+						end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
+						it = range_fill(it, remainder, end_iterator.node_pointer);
+					}
+					else
+					{ // Create first group as BLOCK_MIN size then subtract difference between BLOCK_MIN and remainder from next group:
+						groups.initialize(PLF_BLOCK_MIN);
+						end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
+						it = range_fill(it, PLF_BLOCK_MIN, end_iterator.node_pointer);
+
+						groups.add_new(static_cast<group_size_type>(PLF_BLOCK_MAX - (PLF_BLOCK_MIN - remainder)));
+						end_node.previous = last_endpoint = groups.last_endpoint_group->nodes;
+						it = range_fill(it, static_cast<group_size_type>(PLF_BLOCK_MAX - (PLF_BLOCK_MIN - remainder)), end_iterator.node_pointer);
+						--multiples;
+					}
+				}
+				else
+				{
+					groups.initialize(PLF_BLOCK_MAX);
+					end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
+					it = range_fill(it, PLF_BLOCK_MAX, end_iterator.node_pointer);
+					--multiples;
+				}
+
+				while (--multiples != 0)
+				{
+					groups.add_new(PLF_BLOCK_MAX);
+					end_node.previous = last_endpoint = groups.last_endpoint_group->nodes;
+					it = range_fill(it, PLF_BLOCK_MAX, end_iterator.node_pointer);
+				}
+
+			}
+			else
+			{
+				groups.initialize((number_of_elements < PLF_BLOCK_MIN) ? PLF_BLOCK_MIN : static_cast<group_size_type>(number_of_elements)); // Construct first group
+				end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
+				it = range_fill(it, static_cast<group_size_type>(number_of_elements), end_iterator.node_pointer);
+			}
+
+			node_pointer_allocator_pair.total_size = number_of_elements;
+			return begin_iterator;
+		}
+		else
+		{
+			// Insert first element, then use up any erased nodes:
+			size_type remainder = number_of_elements - 1;
+			const iterator return_iterator = insert(position, *it++);
+
+			while (node_allocator_pair.number_of_erased_nodes != 0)
+			{
+				insert(position, *it++);
+				--node_allocator_pair.number_of_erased_nodes;
+
+				if (--remainder == 0)
+				{
+					return return_iterator;
+				}
+			}
+
+			node_pointer_allocator_pair.total_size += remainder;
+
+			// then use up remainder of last_endpoint_group:
+			const group_size_type remaining_nodes_in_group = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - last_endpoint);
+
+			if (remaining_nodes_in_group != 0)
+			{
+				if (remaining_nodes_in_group < remainder)
+				{
+					it = range_fill(it, remaining_nodes_in_group, position.node_pointer);
+					remainder -= remaining_nodes_in_group;
+				}
+				else
+				{
+					it = range_fill(it, static_cast<group_size_type>(remainder), position.node_pointer);
+					return return_iterator;
+				}
+			}
+
+
+			// use up trailing groups:
+			while ((groups.last_endpoint_group != (groups.block_pointer + groups.size - 1)) & (remainder != 0)) // Logical or seems to be faster here
+			{
+				last_endpoint = (++groups.last_endpoint_group)->nodes;
+				const group_size_type group_size = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - groups.last_endpoint_group->nodes);
+
+				if (group_size < remainder)
+				{
+					it = range_fill(it, group_size, position.node_pointer);
+					remainder -= group_size;
+				}
+				else
+				{
+					it = range_fill(it, static_cast<group_size_type>(remainder), position.node_pointer);
+					return return_iterator;
+				}
+			}
+
+			size_type multiples = remainder / static_cast<size_type>(PLF_BLOCK_MAX);
+			remainder -= multiples * PLF_BLOCK_MAX;
+
+			while (multiples-- != 0)
+			{
+				groups.add_new(PLF_BLOCK_MAX);
+				last_endpoint = groups.last_endpoint_group->nodes;
+				it = range_fill(it, PLF_BLOCK_MAX, position.node_pointer);
+			}
+
+			if (remainder != 0) // Bit annoying to create a large block to house a lower number of elements, but beats the alternatives
+			{
+				groups.add_new(PLF_BLOCK_MAX);
+				last_endpoint = groups.last_endpoint_group->nodes;
+				it = range_fill(it, static_cast<group_size_type>(remainder), position.node_pointer);
+			}
+
+			return return_iterator;
+		}
+	}
+
+
+
+
 public:
 
 	// Fill insert
@@ -2197,9 +2398,8 @@ public:
 			return insert(position, element);
 		}
 
-
-		if (node_pointer_allocator_pair.total_number_of_elements == 0 && last_endpoint != NULL && (static_cast<size_type>(groups.block_pointer->beyond_end - groups.block_pointer->nodes) < number_of_elements) && (static_cast<size_type>(groups.block_pointer->beyond_end - groups.block_pointer->nodes) < PLF_BLOCK_MAX))
-		{
+		if (node_pointer_allocator_pair.total_size == 0 && last_endpoint != NULL && (static_cast<size_type>(groups.block_pointer->beyond_end - groups.block_pointer->nodes) < number_of_elements) && (static_cast<size_type>(groups.block_pointer->beyond_end - groups.block_pointer->nodes) < PLF_BLOCK_MAX))
+		{ // If container is empty but not uninitialized, and first block is not of sufficient capacity
 			reset();
 		}
 
@@ -2218,17 +2418,17 @@ public:
 					{
 						groups.initialize(remainder);
 						end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-						group_fill_position(element, remainder, end_iterator.node_pointer);
+						fill(element, remainder, end_iterator.node_pointer);
 					}
 					else
 					{ // Create first group as BLOCK_MIN size then subtract difference between BLOCK_MIN and remainder from next group:
 						groups.initialize(PLF_BLOCK_MIN);
 						end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-						group_fill_position(element, PLF_BLOCK_MIN, end_iterator.node_pointer);
+						fill(element, PLF_BLOCK_MIN, end_iterator.node_pointer);
 
 						groups.add_new(static_cast<group_size_type>(PLF_BLOCK_MAX - (PLF_BLOCK_MIN - remainder)));
 						end_node.previous = last_endpoint = groups.last_endpoint_group->nodes;
-						group_fill_position(element, static_cast<group_size_type>(PLF_BLOCK_MAX - (PLF_BLOCK_MIN - remainder)), end_iterator.node_pointer);
+						fill(element, static_cast<group_size_type>(PLF_BLOCK_MAX - (PLF_BLOCK_MIN - remainder)), end_iterator.node_pointer);
 						--multiples;
 					}
 				}
@@ -2236,7 +2436,7 @@ public:
 				{
 					groups.initialize(PLF_BLOCK_MAX);
 					end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-					group_fill_position(element, PLF_BLOCK_MAX, end_iterator.node_pointer);
+					fill(element, PLF_BLOCK_MAX, end_iterator.node_pointer);
 					--multiples;
 				}
 
@@ -2244,7 +2444,7 @@ public:
 				{
 					groups.add_new(PLF_BLOCK_MAX);
 					end_node.previous = last_endpoint = groups.last_endpoint_group->nodes;
-					group_fill_position(element, PLF_BLOCK_MAX, end_iterator.node_pointer);
+					fill(element, PLF_BLOCK_MAX, end_iterator.node_pointer);
 				}
 
 			}
@@ -2252,10 +2452,10 @@ public:
 			{
 				groups.initialize((number_of_elements < PLF_BLOCK_MIN) ? PLF_BLOCK_MIN : static_cast<group_size_type>(number_of_elements)); // Construct first group
 				end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-				group_fill_position(element, static_cast<group_size_type>(number_of_elements), end_iterator.node_pointer);
+				fill(element, static_cast<group_size_type>(number_of_elements), end_iterator.node_pointer);
 			}
 
-			node_pointer_allocator_pair.total_number_of_elements = number_of_elements;
+			node_pointer_allocator_pair.total_size = number_of_elements;
 			return begin_iterator;
 		}
 		else
@@ -2275,7 +2475,7 @@ public:
 				}
 			}
 
-			node_pointer_allocator_pair.total_number_of_elements += remainder;
+			node_pointer_allocator_pair.total_size += remainder;
 
 			// then use up remainder of last_endpoint_group:
 			const group_size_type remaining_nodes_in_group = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - last_endpoint);
@@ -2284,12 +2484,12 @@ public:
 			{
 				if (remaining_nodes_in_group < remainder)
 				{
-					group_fill_position(element, remaining_nodes_in_group, position.node_pointer);
+					fill(element, remaining_nodes_in_group, position.node_pointer);
 					remainder -= remaining_nodes_in_group;
 				}
 				else
 				{
-					group_fill_position(element, static_cast<group_size_type>(remainder), position.node_pointer);
+					fill(element, static_cast<group_size_type>(remainder), position.node_pointer);
 					return return_iterator;
 				}
 			}
@@ -2303,12 +2503,12 @@ public:
 
 				if (group_size < remainder)
 				{
-					group_fill_position(element, group_size, position.node_pointer);
+					fill(element, group_size, position.node_pointer);
 					remainder -= group_size;
 				}
 				else
 				{
-					group_fill_position(element, static_cast<group_size_type>(remainder), position.node_pointer);
+					fill(element, static_cast<group_size_type>(remainder), position.node_pointer);
 					return return_iterator;
 				}
 			}
@@ -2320,75 +2520,56 @@ public:
 			{
 				groups.add_new(PLF_BLOCK_MAX);
 				last_endpoint = groups.last_endpoint_group->nodes;
-				group_fill_position(element, PLF_BLOCK_MAX, position.node_pointer);
+				fill(element, PLF_BLOCK_MAX, position.node_pointer);
 			}
 
 			if (remainder != 0) // Bit annoying to create a large block to house a lower number of elements, but beats the alternatives
 			{
 				groups.add_new(PLF_BLOCK_MAX);
 				last_endpoint = groups.last_endpoint_group->nodes;
-				group_fill_position(element, static_cast<group_size_type>(remainder), position.node_pointer);
+				fill(element, static_cast<group_size_type>(remainder), position.node_pointer);
 			}
 
 			return return_iterator;
 		}
 	}
+
 
 
 
 	// Range insert
 
-	#ifdef PLF_CPP20_SUPPORT
-		// Support for differing iterator types eg. sentinels:
-		template <class iterator_type1, class iterator_type2>
-			requires (std::equality_comparable_with<iterator_type1, iterator_type2> && !std::integral<iterator_type1> && !std::integral<iterator_type2>)
-		void insert(const const_iterator position, const iterator_type1 first, const iterator_type2 last)
-	#else
-		template <class iterator_type>
-		#if defined(PLF_TYPE_TRAITS_SUPPORT)
-			iterator insert(const const_iterator position, typename plf_enable_if_c<(!std::numeric_limits<iterator_type>::is_integer) && (!std::is_same<typename std::iterator_traits<iterator_type>::iterator_category, std::random_access_iterator_tag>::value), iterator_type>::type first, const iterator_type last)
-		#else
-			iterator insert(const const_iterator position, typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
-		#endif
-	#endif
+	template <class iterator_type>
+	inline iterator insert(const const_iterator position, typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
 	{
-		if (first == last)
-		{
-			return end_iterator;
-		}
-
-		const iterator return_iterator = insert(position, *first);
-
-		while(++first != last)
-		{
-			insert(position, *first);
-		}
-
-		return return_iterator;
+		using std::distance;
+		return range_insert(position, static_cast<size_type>(distance(first, last)), first);
 	}
 
 
 
+	// Range insert, move_iterator overload:
 
-	#if defined(PLF_TYPE_TRAITS_SUPPORT)
+	#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 		template <class iterator_type>
-		iterator insert(const const_iterator position, typename plf_enable_if_c<(!std::numeric_limits<iterator_type>::is_integer) && std::is_same<typename std::iterator_traits<iterator_type>::iterator_category, std::random_access_iterator_tag>::value, iterator_type>::type first, const iterator_type last)
+		inline iterator insert (const const_iterator position, const std::move_iterator<iterator_type> first, const std::move_iterator<iterator_type> last)
 		{
-			reserve(node_pointer_allocator_pair.total_number_of_elements + static_cast<size_type>(last - first));
+			using std::distance;
+			return range_insert(position, static_cast<size_type>(distance(first.base(),last.base())), first);
+		}
+	#endif
 
-			if (first == last)
-			{
-				return end_iterator;
-			}
 
-			const iterator return_iterator = insert(position, *first);
 
-			while(++first != last)
-			{
-				insert(position, *first);
-			}
-
-			return return_iterator;
+	#ifdef PLF_CPP20_SUPPORT
+		// Support for differing iterator types eg. sentinels:
+		template <class iterator_type1, class iterator_type2>
+			requires (std::equality_comparable_with<iterator_type1, iterator_type2> && !std::integral<iterator_type1> && !std::integral<iterator_type2>)
+		inline iterator insert(const const_iterator position, const iterator_type1 first, const iterator_type2 last)
+		{
+			size_type distance = 0;
+			for(iterator_type1 current = first; current != last; ++current, ++distance) {};
+			return range_insert(position, distance, first);
 		}
 	#endif
 
@@ -2398,8 +2579,8 @@ public:
 
 	#ifdef PLF_INITIALIZER_LIST_SUPPORT
 		inline iterator insert(const const_iterator it, const std::initializer_list<element_type> &element_list)
-		{ // use range insert:
-			return insert(it, element_list.begin(), element_list.end());
+		{
+			return range_insert(it, static_cast<size_type>(element_list.size()), element_list.begin());
 		}
 	#endif
 
@@ -2425,7 +2606,7 @@ public:
 
 	iterator erase(const const_iterator it) // if uninitialized/invalid iterator supplied, function could generate an exception, hence no noexcept
 	{
-		assert(node_pointer_allocator_pair.total_number_of_elements != 0);
+		assert(node_pointer_allocator_pair.total_size != 0);
 		assert(it.node_pointer != NULL);
 		assert(it.node_pointer != end_iterator.node_pointer);
 
@@ -2436,7 +2617,7 @@ public:
 			PLF_DESTROY(element_allocator_type, *this, &(it.node_pointer->element)); // Destruct element
 		}
 
-		--node_pointer_allocator_pair.total_number_of_elements;
+		--node_pointer_allocator_pair.total_size;
 		++node_allocator_pair.number_of_erased_nodes;
 
 
@@ -2535,7 +2716,7 @@ public:
 
 			node_group->free_list_head = NULL;
 
-			if (node_pointer_allocator_pair.total_number_of_elements != 0)
+			if (node_pointer_allocator_pair.total_size != 0)
 			{
 				node_allocator_pair.number_of_erased_nodes -= static_cast<group_size_type>(last_endpoint - node_group->nodes);
 	  			last_endpoint = groups.last_endpoint_group->beyond_end;
@@ -2585,7 +2766,7 @@ public:
 		assert (&source != this);
 
 		clear();
-	 	reserve(source.node_pointer_allocator_pair.total_number_of_elements);
+	 	reserve(source.node_pointer_allocator_pair.total_size);
 		insert(end_iterator, source.begin_iterator, source.end_iterator);
 
 		return *this;
@@ -2606,7 +2787,7 @@ public:
 			end_node = std::move(source.end_node);
 			last_endpoint = std::move(source.last_endpoint);
 			begin_iterator.node_pointer = (source.begin_iterator.node_pointer == source.end_iterator.node_pointer) ? end_iterator.node_pointer : std::move(source.begin_iterator.node_pointer);
-			node_pointer_allocator_pair.total_number_of_elements = source.node_pointer_allocator_pair.total_number_of_elements;
+			node_pointer_allocator_pair.total_size = source.node_pointer_allocator_pair.total_size;
 			node_allocator_pair.number_of_erased_nodes = source.node_allocator_pair.number_of_erased_nodes;
 
 			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
@@ -2634,7 +2815,7 @@ public:
 	{
 		assert (this != &rh);
 
-		if (node_pointer_allocator_pair.total_number_of_elements != rh.node_pointer_allocator_pair.total_number_of_elements)
+		if (node_pointer_allocator_pair.total_size != rh.node_pointer_allocator_pair.total_size)
 		{
 			return false;
 		}
@@ -2664,14 +2845,14 @@ public:
 	#endif
 	inline bool empty() const PLF_NOEXCEPT
 	{
-		return node_pointer_allocator_pair.total_number_of_elements == 0;
+		return node_pointer_allocator_pair.total_size == 0;
 	}
 
 
 
 	inline size_type size() const PLF_NOEXCEPT
 	{
-		return node_pointer_allocator_pair.total_number_of_elements;
+		return node_pointer_allocator_pair.total_size;
 	}
 
 
@@ -2738,12 +2919,12 @@ public:
 	template <class comparison_function>
 	void sort(comparison_function compare)
 	{
-		if (node_pointer_allocator_pair.total_number_of_elements < 2)
+		if (node_pointer_allocator_pair.total_size < 2)
 		{
 			return;
 		}
 
-		node_pointer_type * const node_pointers = PLF_ALLOCATE(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointer_allocator_pair.total_number_of_elements, NULL);
+		node_pointer_type * const node_pointers = PLF_ALLOCATE(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointer_allocator_pair.total_size, NULL);
 		node_pointer_type *node_pointer = node_pointers;
 
 
@@ -2790,22 +2971,23 @@ public:
 		}
 
 
-		#ifdef GFX_TIMSORT_HPP
-			gfx::timsort(node_pointers, node_pointers + node_pointer_allocator_pair.total_number_of_elements, sort_dereferencer<comparison_function>(compare));
+		#ifndef PLF_SORT_FUNCTION
+			std::sort(node_pointers, node_pointers + node_pointer_allocator_pair.total_size, sort_dereferencer<comparison_function>(compare));
 		#else
-			std::sort(node_pointers, node_pointers + node_pointer_allocator_pair.total_number_of_elements, sort_dereferencer<comparison_function>(compare));
+			PLF_SORT_FUNCTION(node_pointers, node_pointers + node_pointer_allocator_pair.total_size, sort_dereferencer<comparison_function>(compare));
 		#endif
+
 
 		begin_iterator.node_pointer = node_pointers[0];
 		begin_iterator.node_pointer->next = node_pointers[1];
 		begin_iterator.node_pointer->previous = end_iterator.node_pointer;
 
 		end_node.next = node_pointers[0];
-		end_node.previous = node_pointers[node_pointer_allocator_pair.total_number_of_elements - 1];
+		end_node.previous = node_pointers[node_pointer_allocator_pair.total_size - 1];
 		end_node.previous->next = end_iterator.node_pointer;
-		end_node.previous->previous = node_pointers[node_pointer_allocator_pair.total_number_of_elements - 2];
+		end_node.previous->previous = node_pointers[node_pointer_allocator_pair.total_size - 2];
 
-		node_pointer_type * const back = node_pointers + node_pointer_allocator_pair.total_number_of_elements - 1;
+		node_pointer_type * const back = node_pointers + node_pointer_allocator_pair.total_size - 1;
 
 		for(node_pointer = node_pointers + 1; node_pointer != back; ++node_pointer)
 		{
@@ -2827,7 +3009,7 @@ public:
 			PLF_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, back);
 		}
 
-		PLF_DEALLOCATE(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointers, node_pointer_allocator_pair.total_number_of_elements);
+		PLF_DEALLOCATE(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointers, node_pointer_allocator_pair.total_size);
 	}
 
 
@@ -2886,7 +3068,7 @@ public:
 		}
 
 
-		if (groups.block_pointer != NULL && node_pointer_allocator_pair.total_number_of_elements == 0)
+		if (groups.block_pointer != NULL && node_pointer_allocator_pair.total_size == 0)
 		{ // edge case: has been filled with elements then clear()'d - some groups may be smaller than would be desired, should be replaced
 			group_size_type end_group_size = static_cast<group_size_type>((groups.block_pointer + groups.size - 1)->beyond_end - (groups.block_pointer + groups.size - 1)->nodes);
 
@@ -2969,11 +3151,11 @@ public:
 
 	void shrink_to_fit()
 	{
-		if ((groups.block_pointer == NULL) | (node_pointer_allocator_pair.total_number_of_elements == groups.element_allocator_pair.capacity)) // if list is uninitialized or full
+		if ((groups.block_pointer == NULL) | (node_pointer_allocator_pair.total_size == groups.element_allocator_pair.capacity)) // if list is uninitialized or full
 		{
 			return;
 		}
-		else if (node_pointer_allocator_pair.total_number_of_elements == 0) // Edge case
+		else if (node_pointer_allocator_pair.total_size == 0) // Edge case
 		{
 			reset();
 			return;
@@ -2986,7 +3168,7 @@ public:
 
 		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 			list temp;
-		 	temp.reserve(node_pointer_allocator_pair.total_number_of_elements);
+		 	temp.reserve(node_pointer_allocator_pair.total_size);
 
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_move_assignable<element_type>::value && std::is_move_constructible<element_type>::value) // move elements if possible, otherwise copy them
@@ -3028,7 +3210,7 @@ private:
 
 		groups.append(source.groups);
 		last_endpoint = source.last_endpoint;
-		node_pointer_allocator_pair.total_number_of_elements += source.node_pointer_allocator_pair.total_number_of_elements;
+		node_pointer_allocator_pair.total_size += source.node_pointer_allocator_pair.total_size;
 		source.reset();
 	}
 
@@ -3041,11 +3223,11 @@ public:
 	{
 		assert(&source != this);
 
-		if (source.node_pointer_allocator_pair.total_number_of_elements == 0)
+		if (source.node_pointer_allocator_pair.total_size == 0)
 		{
 			return;
 		}
-		else if (node_pointer_allocator_pair.total_number_of_elements == 0)
+		else if (node_pointer_allocator_pair.total_size == 0)
 		{
 			#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 				*this = std::move(source);
@@ -3076,7 +3258,7 @@ public:
 	template <class comparison_function>
 	void merge(list &source, comparison_function compare)
 	{
-		splice((source.node_pointer_allocator_pair.total_number_of_elements >= node_pointer_allocator_pair.total_number_of_elements) ? end_iterator : begin_iterator, source);
+		splice((source.node_pointer_allocator_pair.total_size >= node_pointer_allocator_pair.total_size) ? end_iterator : begin_iterator, source);
 		sort(compare);
 	}
 
@@ -3086,11 +3268,11 @@ public:
 	{
 		assert(&source != this);
 
-		if (source.node_pointer_allocator_pair.total_number_of_elements == 0)
+		if (source.node_pointer_allocator_pair.total_size == 0)
 		{
 			return;
 		}
-		else if (node_pointer_allocator_pair.total_number_of_elements == 0)
+		else if (node_pointer_allocator_pair.total_size == 0)
 		{
 			#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 				*this = std::move(source);
@@ -3142,7 +3324,7 @@ public:
 	void reverse() PLF_NOEXCEPT
 	{
 		// Note: Because current_node->next has to be read during swapping in this process anyway, including a test to figure out whether or not a given group has erased elements within it, and thus avoid per-node tests, is actually detrimental to performance according to benchmarks. This is unlike sort() where current_node->next is not used in the rest of the process and avoiding per-node tests of it's value is therefore beneficial in benchmarks.
-		if (node_pointer_allocator_pair.total_number_of_elements > 1)
+		if (node_pointer_allocator_pair.total_size > 1)
 		{
 			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 			{
@@ -3215,7 +3397,7 @@ public:
 	template <class comparison_function>
 	size_type unique(comparison_function compare)
 	{
-  		const size_type original_number_of_elements = node_pointer_allocator_pair.total_number_of_elements;
+  		const size_type original_number_of_elements = node_pointer_allocator_pair.total_size;
 
 		if (original_number_of_elements > 1)
 		{
@@ -3234,7 +3416,7 @@ public:
 			}
 		}
 
-		return original_number_of_elements - node_pointer_allocator_pair.total_number_of_elements;
+		return original_number_of_elements - node_pointer_allocator_pair.total_size;
 	}
 
 
@@ -3249,7 +3431,7 @@ public:
 	template <class predicate_function>
 	size_type remove_if(predicate_function predicate)
 	{
-  		const size_type original_number_of_elements = node_pointer_allocator_pair.total_number_of_elements;
+  		const size_type original_number_of_elements = node_pointer_allocator_pair.total_size;
 
 		if (original_number_of_elements != 0)
 		{
@@ -3326,7 +3508,7 @@ public:
 			}
 		}
 
-		return original_number_of_elements - node_pointer_allocator_pair.total_number_of_elements;
+		return original_number_of_elements - node_pointer_allocator_pair.total_size;
 	}
 
 
@@ -3340,7 +3522,7 @@ public:
 
 	void resize(const size_type number_of_elements, const element_type &value = element_type())
 	{
-		if (node_pointer_allocator_pair.total_number_of_elements == number_of_elements)
+		if (node_pointer_allocator_pair.total_size == number_of_elements)
 		{
 			return;
 		}
@@ -3349,15 +3531,15 @@ public:
 			clear();
 			return;
 		}
-		else if (node_pointer_allocator_pair.total_number_of_elements < number_of_elements)
+		else if (node_pointer_allocator_pair.total_size < number_of_elements)
 		{
-			insert(end_iterator, number_of_elements - node_pointer_allocator_pair.total_number_of_elements, value);
+			insert(end_iterator, number_of_elements - node_pointer_allocator_pair.total_size, value);
 		}
-		else // ie. node_pointer_allocator_pair.total_number_of_elements > number_of_elements
+		else // ie. node_pointer_allocator_pair.total_size > number_of_elements
 		{
 			const_iterator current(end_node.previous);
 
-			for (size_type number_to_remove = node_pointer_allocator_pair.total_number_of_elements - number_of_elements; number_to_remove != 0; --number_to_remove)
+			for (size_type number_to_remove = node_pointer_allocator_pair.total_size - number_of_elements; number_to_remove != 0; --number_to_remove)
 			{
 				const node_pointer_type temp = current.node_pointer->previous;
 				erase(current);
@@ -3369,6 +3551,7 @@ public:
 
 
 	// Range assign:
+
  	template <class iterator_type>
  	inline void assign(const typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
 	{
@@ -3379,23 +3562,53 @@ public:
 
 
 
+	// Range assign, move_iterator overload:
+
+	#ifdef PLF_MOVE_SEMANTICS_SUPPORT
+		template <class iterator_type>
+		inline void assign (const std::move_iterator<iterator_type> first, const std::move_iterator<iterator_type> last)
+		{
+			clear();
+			insert(end_iterator, first, last);
+			groups.trim_unused_groups();
+		}
+	#endif
+
+
+
+	#ifdef PLF_CPP20_SUPPORT
+		// Support for differing iterator types eg. sentinels:
+		template <class iterator_type1, class iterator_type2>
+			requires (std::equality_comparable_with<iterator_type1, iterator_type2> && !std::integral<iterator_type1> && !std::integral<iterator_type2>)
+		inline void assign(const iterator_type1 first, const iterator_type2 last)
+		{
+			clear();
+			insert(end_iterator, first, last);
+			groups.trim_unused_groups();
+		}
+	#endif
+
+
+
 	// Fill assign:
+
 	inline void assign(const size_type number_of_elements, const element_type &value)
 	{
 		clear();
-		reserve(number_of_elements); // Will return anyway if capacity already > number_of_elements
 		insert(end_iterator, number_of_elements, value);
+		groups.trim_unused_groups();
 	}
 
 
 
 	#ifdef PLF_INITIALIZER_LIST_SUPPORT
 		// Initializer-list assign:
+
 		inline void assign(const std::initializer_list<element_type> &element_list)
 		{
 			clear();
-			reserve(element_list.size());
 			insert(end_iterator, element_list);
+			groups.trim_unused_groups();
 		}
 	#endif
 
@@ -3410,7 +3623,7 @@ public:
 
 	iterator unordered_find_single(const element_type &element_to_match) const PLF_NOEXCEPT
 	{
-		if (node_pointer_allocator_pair.total_number_of_elements != 0)
+		if (node_pointer_allocator_pair.total_size != 0)
 		{
 			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 			{
@@ -3469,7 +3682,7 @@ public:
 	{
 		list<iterator> return_list;
 
-		if (node_pointer_allocator_pair.total_number_of_elements != 0)
+		if (node_pointer_allocator_pair.total_size != 0)
 		{
 			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 			{
@@ -3548,7 +3761,7 @@ public:
 	{
 		list<iterator> return_list;
 
-		if (node_pointer_allocator_pair.total_number_of_elements != 0)
+		if (node_pointer_allocator_pair.total_size != 0)
 		{
 			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 			{
@@ -3614,20 +3827,20 @@ public:
 
 			const node_pointer_type swap_end_node_previous = end_node.previous, swap_last_endpoint = last_endpoint;
 			const iterator swap_begin_iterator = begin_iterator;
-			const size_type swap_total_number_of_elements = node_pointer_allocator_pair.total_number_of_elements, swap_number_of_erased_nodes = node_allocator_pair.number_of_erased_nodes;
+			const size_type swap_total_size = node_pointer_allocator_pair.total_size, swap_number_of_erased_nodes = node_allocator_pair.number_of_erased_nodes;
 
 			last_endpoint = source.last_endpoint;
 			end_node.next = begin_iterator.node_pointer = (source.begin_iterator.node_pointer != source.end_iterator.node_pointer) ? source.begin_iterator.node_pointer : end_iterator.node_pointer;
 			end_node.previous = (source.begin_iterator.node_pointer != source.end_iterator.node_pointer) ? source.end_node.previous : end_iterator.node_pointer;
 			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
-			node_pointer_allocator_pair.total_number_of_elements = source.node_pointer_allocator_pair.total_number_of_elements;
+			node_pointer_allocator_pair.total_size = source.node_pointer_allocator_pair.total_size;
 			node_allocator_pair.number_of_erased_nodes = source.node_allocator_pair.number_of_erased_nodes;
 
 			source.last_endpoint = swap_last_endpoint;
 			source.end_node.next = source.begin_iterator.node_pointer = (swap_begin_iterator.node_pointer != end_iterator.node_pointer) ? swap_begin_iterator.node_pointer : source.end_iterator.node_pointer;
 			source.end_node.previous = (swap_begin_iterator.node_pointer != end_iterator.node_pointer) ? swap_end_node_previous : source.end_iterator.node_pointer;
 			source.end_node.previous->next = source.begin_iterator.node_pointer->previous = source.end_iterator.node_pointer;
-			source.node_pointer_allocator_pair.total_number_of_elements = swap_total_number_of_elements;
+			source.node_pointer_allocator_pair.total_size = swap_total_size;
 			source.node_allocator_pair.number_of_erased_nodes = swap_number_of_erased_nodes;
 		#endif
 	}

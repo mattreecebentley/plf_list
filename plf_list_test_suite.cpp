@@ -659,10 +659,10 @@ int main()
 
 			#ifdef PLF_TEST_CPP20_SUPPORT
 	 		{
-				plf::list<int> list3;
-				list3.insert(list2.begin(), list2.cend());
+				plf::list<int> list5;
+				list5.insert(list5.end(), list2.begin(), list2.cend());
 
-	 			failpass("Range insertion with differing iterators test", list3.size() == list2.size());
+	 			failpass("Range insertion with differing iterators test", list5.size() == list2.size());
 	 		}
 			#endif
 
