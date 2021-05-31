@@ -1941,6 +1941,16 @@ int main()
 			failpass("Basic emplace test 2", ss_list.size() == 100);
 		}
 		#endif
+
+
+		{
+			title2("Shrink_to_fit when empty test");
+
+			list<int> bug;
+			bug.shrink_to_fit(); // Shouldn't crash here
+		}
+
+
 	}
 
 

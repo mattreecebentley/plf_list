@@ -2313,7 +2313,6 @@ private:
 			while (node_allocator_pair.number_of_erased_nodes != 0)
 			{
 				insert(position, *it++);
-				--node_allocator_pair.number_of_erased_nodes;
 
 				if (--remainder == 0)
 				{
@@ -2467,7 +2466,6 @@ public:
 			while (node_allocator_pair.number_of_erased_nodes != 0)
 			{
 				insert(position, element);
-				--node_allocator_pair.number_of_erased_nodes;
 
 				if (--remainder == 0)
 				{
