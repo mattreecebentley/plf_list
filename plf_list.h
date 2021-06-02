@@ -1520,8 +1520,7 @@ public:
 		node_pointer_allocator_pair(0),
 		node_allocator_pair(0)
 	{
-	 	reserve(source.node_pointer_allocator_pair.total_size);
-		insert(end_iterator, source.begin_iterator, source.end_iterator);
+		range_insert(end_iterator, source.node_pointer_allocator_pair.total_size, source.begin_iterator);
 	}
 
 
@@ -1537,8 +1536,7 @@ public:
 		node_pointer_allocator_pair(0),
 		node_allocator_pair(0)
 	{
-	 	reserve(source.node_pointer_allocator_pair.total_size);
-		insert(end_iterator, source.begin_iterator, source.end_iterator);
+		range_insert(end_iterator, source.node_pointer_allocator_pair.total_size, source.begin_iterator);
 	}
 
 
@@ -1594,7 +1592,6 @@ public:
 		node_pointer_allocator_pair(0),
 		node_allocator_pair(0)
 	{
-		reserve(fill_number);
 		insert(end_iterator, fill_number, element);
 	}
 
@@ -1611,7 +1608,6 @@ public:
 		node_pointer_allocator_pair(0),
 		node_allocator_pair(0)
 	{
-		reserve(fill_number);
 		insert(end_iterator, fill_number, element_type());
 	}
 
@@ -1646,8 +1642,7 @@ public:
 			node_pointer_allocator_pair(0),
 			node_allocator_pair(0)
 		{
-			reserve(element_list.size());
-			insert(end_iterator, element_list);
+			range_insert(end_iterator, static_cast<size_type>(element_list.size()), element_list.begin());
 		}
 
 	#endif
@@ -2245,138 +2240,61 @@ private:
 			return insert(position, *it);
 		}
 
-		if (node_pointer_allocator_pair.total_size == 0 && last_endpoint != NULL && (static_cast<size_type>(groups.block_pointer->beyond_end - groups.block_pointer->nodes) < number_of_elements) && (static_cast<size_type>(groups.block_pointer->beyond_end - groups.block_pointer->nodes) < PLF_BLOCK_MAX))
+		reserve(node_pointer_allocator_pair.total_size + number_of_elements);
+
+		// Insert first element, then use up any erased nodes:
+		size_type remainder = number_of_elements - 1;
+		const iterator return_iterator = insert(position, *it++);
+
+		while (node_allocator_pair.number_of_erased_nodes != 0)
 		{
-			reset();
+			insert(position, *it++);
+
+			if (--remainder == 0)
+			{
+				return return_iterator;
+			}
 		}
 
-		if (groups.block_pointer == NULL) // ie. Uninitialized list
+		node_pointer_allocator_pair.total_size += remainder;
+
+		// then use up remainder of last_endpoint_group:
+		const group_size_type remaining_nodes_in_group = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - last_endpoint);
+
+		if (remaining_nodes_in_group != 0)
 		{
-			if (number_of_elements > PLF_BLOCK_MAX)
+			if (remaining_nodes_in_group < remainder)
 			{
-				size_type multiples = number_of_elements / PLF_BLOCK_MAX;
-				const group_size_type remainder = static_cast<group_size_type>(number_of_elements - (multiples++ * PLF_BLOCK_MAX)); // ++ to aid while loop below
-
-				// Create and fill first group:
-				if (remainder != 0) // make sure smallest block is first
-				{
-					if (remainder >= PLF_BLOCK_MIN)
-					{
-						groups.initialize(remainder);
-						end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-						it = range_fill(it, remainder, end_iterator.node_pointer);
-					}
-					else
-					{ // Create first group as BLOCK_MIN size then subtract difference between BLOCK_MIN and remainder from next group:
-						groups.initialize(PLF_BLOCK_MIN);
-						end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-						it = range_fill(it, PLF_BLOCK_MIN, end_iterator.node_pointer);
-
-						groups.add_new(static_cast<group_size_type>(PLF_BLOCK_MAX - (PLF_BLOCK_MIN - remainder)));
-						end_node.previous = last_endpoint = groups.last_endpoint_group->nodes;
-						it = range_fill(it, static_cast<group_size_type>(PLF_BLOCK_MAX - (PLF_BLOCK_MIN - remainder)), end_iterator.node_pointer);
-						--multiples;
-					}
-				}
-				else
-				{
-					groups.initialize(PLF_BLOCK_MAX);
-					end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-					it = range_fill(it, PLF_BLOCK_MAX, end_iterator.node_pointer);
-					--multiples;
-				}
-
-				while (--multiples != 0)
-				{
-					groups.add_new(PLF_BLOCK_MAX);
-					end_node.previous = last_endpoint = groups.last_endpoint_group->nodes;
-					it = range_fill(it, PLF_BLOCK_MAX, end_iterator.node_pointer);
-				}
-
+				it = range_fill(it, remaining_nodes_in_group, position.node_pointer);
+				remainder -= remaining_nodes_in_group;
 			}
 			else
 			{
-				groups.initialize((number_of_elements < PLF_BLOCK_MIN) ? PLF_BLOCK_MIN : static_cast<group_size_type>(number_of_elements)); // Construct first group
-				end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-				it = range_fill(it, static_cast<group_size_type>(number_of_elements), end_iterator.node_pointer);
-			}
-
-			node_pointer_allocator_pair.total_size = number_of_elements;
-			return begin_iterator;
-		}
-		else
-		{
-			// Insert first element, then use up any erased nodes:
-			size_type remainder = number_of_elements - 1;
-			const iterator return_iterator = insert(position, *it++);
-
-			while (node_allocator_pair.number_of_erased_nodes != 0)
-			{
-				insert(position, *it++);
-
-				if (--remainder == 0)
-				{
-					return return_iterator;
-				}
-			}
-
-			node_pointer_allocator_pair.total_size += remainder;
-
-			// then use up remainder of last_endpoint_group:
-			const group_size_type remaining_nodes_in_group = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - last_endpoint);
-
-			if (remaining_nodes_in_group != 0)
-			{
-				if (remaining_nodes_in_group < remainder)
-				{
-					it = range_fill(it, remaining_nodes_in_group, position.node_pointer);
-					remainder -= remaining_nodes_in_group;
-				}
-				else
-				{
-					it = range_fill(it, static_cast<group_size_type>(remainder), position.node_pointer);
-					return return_iterator;
-				}
-			}
-
-
-			// use up trailing groups:
-			while ((groups.last_endpoint_group != (groups.block_pointer + groups.size - 1)) & (remainder != 0)) // Logical or seems to be faster here
-			{
-				last_endpoint = (++groups.last_endpoint_group)->nodes;
-				const group_size_type group_size = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - groups.last_endpoint_group->nodes);
-
-				if (group_size < remainder)
-				{
-					it = range_fill(it, group_size, position.node_pointer);
-					remainder -= group_size;
-				}
-				else
-				{
-					it = range_fill(it, static_cast<group_size_type>(remainder), position.node_pointer);
-					return return_iterator;
-				}
-			}
-
-			size_type multiples = remainder / static_cast<size_type>(PLF_BLOCK_MAX);
-			remainder -= multiples * PLF_BLOCK_MAX;
-
-			while (multiples-- != 0)
-			{
-				groups.add_new(PLF_BLOCK_MAX);
-				last_endpoint = groups.last_endpoint_group->nodes;
-				it = range_fill(it, PLF_BLOCK_MAX, position.node_pointer);
-			}
-
-			if (remainder != 0) // Bit annoying to create a large block to house a lower number of elements, but beats the alternatives
-			{
-				groups.add_new(PLF_BLOCK_MAX);
-				last_endpoint = groups.last_endpoint_group->nodes;
 				it = range_fill(it, static_cast<group_size_type>(remainder), position.node_pointer);
+				return return_iterator;
 			}
-
-			return return_iterator;
 		}
+
+
+		// Then start using trailing (reserved) groups:
+		while (true)
+		{
+			last_endpoint = (++groups.last_endpoint_group)->nodes;
+			const group_size_type group_size = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - groups.last_endpoint_group->nodes);
+
+			if (group_size < remainder)
+			{
+				it = range_fill(it, group_size, position.node_pointer);
+				remainder -= group_size;
+			}
+			else
+			{
+				it = range_fill(it, static_cast<group_size_type>(remainder), position.node_pointer);
+				break;
+			}
+		}
+
+		return return_iterator;
 	}
 
 
@@ -2397,139 +2315,61 @@ public:
 			return insert(position, element);
 		}
 
-		if (node_pointer_allocator_pair.total_size == 0 && last_endpoint != NULL && (static_cast<size_type>(groups.block_pointer->beyond_end - groups.block_pointer->nodes) < number_of_elements) && (static_cast<size_type>(groups.block_pointer->beyond_end - groups.block_pointer->nodes) < PLF_BLOCK_MAX))
-		{ // If container is empty but not uninitialized, and first block is not of sufficient capacity
-			reset();
+		reserve(node_pointer_allocator_pair.total_size + number_of_elements);
+
+		// Insert first element, then use up any erased nodes:
+		size_type remainder = number_of_elements - 1;
+		const iterator return_iterator = insert(position, element);
+
+		while (node_allocator_pair.number_of_erased_nodes != 0)
+		{
+			insert(position, element);
+
+			if (--remainder == 0)
+			{
+				return return_iterator;
+			}
 		}
 
+		node_pointer_allocator_pair.total_size += remainder;
 
-		if (groups.block_pointer == NULL) // ie. Uninitialized list
+		// then use up remainder of last_endpoint_group:
+		const group_size_type remaining_nodes_in_group = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - last_endpoint);
+
+		if (remaining_nodes_in_group != 0)
 		{
-			if (number_of_elements > PLF_BLOCK_MAX)
+			if (remaining_nodes_in_group < remainder)
 			{
-				size_type multiples = number_of_elements / PLF_BLOCK_MAX;
-				const group_size_type remainder = static_cast<group_size_type>(number_of_elements - (multiples++ * PLF_BLOCK_MAX)); // ++ to aid while loop below
-
-				// Create and fill first group:
-				if (remainder != 0) // make sure smallest block is first
-				{
-					if (remainder >= PLF_BLOCK_MIN)
-					{
-						groups.initialize(remainder);
-						end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-						fill(element, remainder, end_iterator.node_pointer);
-					}
-					else
-					{ // Create first group as BLOCK_MIN size then subtract difference between BLOCK_MIN and remainder from next group:
-						groups.initialize(PLF_BLOCK_MIN);
-						end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-						fill(element, PLF_BLOCK_MIN, end_iterator.node_pointer);
-
-						groups.add_new(static_cast<group_size_type>(PLF_BLOCK_MAX - (PLF_BLOCK_MIN - remainder)));
-						end_node.previous = last_endpoint = groups.last_endpoint_group->nodes;
-						fill(element, static_cast<group_size_type>(PLF_BLOCK_MAX - (PLF_BLOCK_MIN - remainder)), end_iterator.node_pointer);
-						--multiples;
-					}
-				}
-				else
-				{
-					groups.initialize(PLF_BLOCK_MAX);
-					end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-					fill(element, PLF_BLOCK_MAX, end_iterator.node_pointer);
-					--multiples;
-				}
-
-				while (--multiples != 0)
-				{
-					groups.add_new(PLF_BLOCK_MAX);
-					end_node.previous = last_endpoint = groups.last_endpoint_group->nodes;
-					fill(element, PLF_BLOCK_MAX, end_iterator.node_pointer);
-				}
-
+				fill(element, remaining_nodes_in_group, position.node_pointer);
+				remainder -= remaining_nodes_in_group;
 			}
 			else
 			{
-				groups.initialize((number_of_elements < PLF_BLOCK_MIN) ? PLF_BLOCK_MIN : static_cast<group_size_type>(number_of_elements)); // Construct first group
-				end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-				fill(element, static_cast<group_size_type>(number_of_elements), end_iterator.node_pointer);
-			}
-
-			node_pointer_allocator_pair.total_size = number_of_elements;
-			return begin_iterator;
-		}
-		else
-		{
-			// Insert first element, then use up any erased nodes:
-			size_type remainder = number_of_elements - 1;
-			const iterator return_iterator = insert(position, element);
-
-			while (node_allocator_pair.number_of_erased_nodes != 0)
-			{
-				insert(position, element);
-
-				if (--remainder == 0)
-				{
-					return return_iterator;
-				}
-			}
-
-			node_pointer_allocator_pair.total_size += remainder;
-
-			// then use up remainder of last_endpoint_group:
-			const group_size_type remaining_nodes_in_group = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - last_endpoint);
-
-			if (remaining_nodes_in_group != 0)
-			{
-				if (remaining_nodes_in_group < remainder)
-				{
-					fill(element, remaining_nodes_in_group, position.node_pointer);
-					remainder -= remaining_nodes_in_group;
-				}
-				else
-				{
-					fill(element, static_cast<group_size_type>(remainder), position.node_pointer);
-					return return_iterator;
-				}
-			}
-
-
-			// use up trailing groups:
-			while ((groups.last_endpoint_group != (groups.block_pointer + groups.size - 1)) & (remainder != 0)) // Logical or seems to be faster here
-			{
-				last_endpoint = (++groups.last_endpoint_group)->nodes;
-				const group_size_type group_size = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - groups.last_endpoint_group->nodes);
-
-				if (group_size < remainder)
-				{
-					fill(element, group_size, position.node_pointer);
-					remainder -= group_size;
-				}
-				else
-				{
-					fill(element, static_cast<group_size_type>(remainder), position.node_pointer);
-					return return_iterator;
-				}
-			}
-
-			size_type multiples = remainder / static_cast<size_type>(PLF_BLOCK_MAX);
-			remainder -= multiples * PLF_BLOCK_MAX;
-
-			while (multiples-- != 0)
-			{
-				groups.add_new(PLF_BLOCK_MAX);
-				last_endpoint = groups.last_endpoint_group->nodes;
-				fill(element, PLF_BLOCK_MAX, position.node_pointer);
-			}
-
-			if (remainder != 0) // Bit annoying to create a large block to house a lower number of elements, but beats the alternatives
-			{
-				groups.add_new(PLF_BLOCK_MAX);
-				last_endpoint = groups.last_endpoint_group->nodes;
 				fill(element, static_cast<group_size_type>(remainder), position.node_pointer);
+				return return_iterator;
 			}
-
-			return return_iterator;
 		}
+
+
+		// Then start using trailing (reserved) groups:
+		while (true)
+		{
+			last_endpoint = (++groups.last_endpoint_group)->nodes;
+			const group_size_type group_size = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - groups.last_endpoint_group->nodes);
+
+			if (group_size < remainder)
+			{
+				fill(element, group_size, position.node_pointer);
+				remainder -= group_size;
+			}
+			else
+			{
+				fill(element, static_cast<group_size_type>(remainder), position.node_pointer);
+				break;
+			}
+		}
+
+		return return_iterator;
 	}
 
 
@@ -2764,8 +2604,7 @@ public:
 		assert (&source != this);
 
 		clear();
-	 	reserve(source.node_pointer_allocator_pair.total_size);
-		insert(end_iterator, source.begin_iterator, source.end_iterator);
+		range_insert(end_iterator, source.node_pointer_allocator_pair.total_size, source.begin_iterator);
 
 		return *this;
 	}
@@ -2802,7 +2641,7 @@ public:
 		inline list & operator = (const std::initializer_list<element_type> &element_list)
 		{
 			clear();
-			insert(begin_iterator, element_list);
+			range_insert(end_iterator, static_cast<size_type>(element_list.size()), element_list.begin());
 			return *this;
 		}
 	#endif
@@ -3166,17 +3005,16 @@ public:
 
 		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 			list temp;
-		 	temp.reserve(node_pointer_allocator_pair.total_size);
 
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_move_assignable<element_type>::value && std::is_move_constructible<element_type>::value) // move elements if possible, otherwise copy them
 				{
-					temp.insert(temp.end_iterator, std::make_move_iterator(begin_iterator), std::make_move_iterator(end_iterator));
+					temp.range_insert(temp.end_iterator, node_allocator_pair.number_of_erased_nodes, std::make_move_iterator(begin_iterator));
 				}
 				else
 			#endif
 			{
-				temp.insert(temp.end_iterator, begin_iterator, end_iterator);
+				temp.range_insert(temp.end_iterator, node_allocator_pair.number_of_erased_nodes, begin_iterator);
 			}
 
 			*this = std::move(temp);
@@ -3560,19 +3398,6 @@ public:
 
 
 
-	// Range assign, move_iterator overload:
-
-	#ifdef PLF_MOVE_SEMANTICS_SUPPORT
-		template <class iterator_type>
-		inline void assign (const std::move_iterator<iterator_type> first, const std::move_iterator<iterator_type> last)
-		{
-			clear();
-			insert(end_iterator, first, last);
-			groups.trim_unused_groups();
-		}
-	#endif
-
-
 
 	#ifdef PLF_CPP20_SUPPORT
 		// Support for differing iterator types eg. sentinels:
@@ -3605,7 +3430,7 @@ public:
 		inline void assign(const std::initializer_list<element_type> &element_list)
 		{
 			clear();
-			insert(end_iterator, element_list);
+			range_insert(end_iterator, static_cast<size_type>(element_list.size()), element_list.begin());
 			groups.trim_unused_groups();
 		}
 	#endif
