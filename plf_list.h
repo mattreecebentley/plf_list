@@ -2860,6 +2860,11 @@ public:
 
 	void splice(const const_iterator position, const const_iterator first, const const_iterator last) PLF_NOEXCEPT
 	{
+		if (begin_iterator == first)
+		{
+			begin_iterator = last;
+		}
+
 		// To avoid pointer aliasing and subsequently increase performance via simultaneous assignments:
 		const node_pointer_type first_previous = first.node_pointer->previous;
 		const node_pointer_type last_previous = last.node_pointer->previous;
