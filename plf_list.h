@@ -3014,12 +3014,12 @@ public:
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_move_assignable<element_type>::value && std::is_move_constructible<element_type>::value) // move elements if possible, otherwise copy them
 				{
-					temp.range_insert(temp.end_iterator, node_allocator_pair.number_of_erased_nodes, std::make_move_iterator(begin_iterator));
+					temp.range_insert(temp.end_iterator, node_pointer_allocator_pair.total_size, std::make_move_iterator(begin_iterator));
 				}
 				else
 			#endif
 			{
-				temp.range_insert(temp.end_iterator, node_allocator_pair.number_of_erased_nodes, begin_iterator);
+				temp.range_insert(temp.end_iterator, node_pointer_allocator_pair.total_size, begin_iterator);
 			}
 
 			*this = std::move(temp);

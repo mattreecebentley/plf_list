@@ -1199,6 +1199,24 @@ int main()
 			failpass("Shrink_to_fit test", p_list.capacity() < temp_capacity);
 			failpass("Shrink_to_fit test 2", p_list.capacity() == 200);
 
+			{
+				plf::list<int> p_list_s;
+				p_list_s.push_back(1);
+				p_list_s.push_back(7);
+				p_list_s.push_back(3);
+				p_list_s.push_back(5);
+				p_list_s.push_back(4);
+
+				p_list_s.shrink_to_fit();
+				failpass("Shrink_to_fit test 3", p_list_s.size() == 5);
+
+				p_list_s.resize(4);
+				failpass("Resize post-shrink-to-fit test", p_list_s.size() == 4);
+
+				p_list_s.shrink_to_fit();
+				failpass("Shrink_to_fit test 4", p_list_s.size() == 4);
+			}
+
 			total = 0;
 
 			for(list<int *>::reverse_iterator the_iterator = p_list.rbegin(); the_iterator != p_list.rend();)
