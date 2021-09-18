@@ -10,7 +10,7 @@
 		#define PLF_TEST_INITIALIZER_LIST_SUPPORT
 	#endif
 
-	#if defined(_MSVC_LANG) && (_MSVC_LANG > 201703L) && _MSC_VER >= 1923
+	#if defined(_MSVC_LANG) && (_MSVC_LANG >= 202002L) && _MSC_VER >= 1929
 		#define PLF_TEST_CPP20_SUPPORT
 	#endif
 #elif defined(__cplusplus) && __cplusplus >= 201103L // C++11 support, at least
@@ -60,7 +60,7 @@
 		#define PLF_TEST_INITIALIZER_LIST_SUPPORT
 	#endif
 
-	#if __cplusplus > 201703L && ((defined(__clang__) && (__clang_major__ >= 13)) || (defined(__GNUC__) && __GNUC__ >= 10) || (!defined(__clang__) && !defined(__GNUC__))) // assume correct C++20 implementation for other compilers
+	#if __cplusplus > 201704L && ((defined(__clang__) && (__clang_major__ >= 13)) || (defined(__GNUC__) && __GNUC__ >= 10) || (!defined(__clang__) && !defined(__GNUC__))) // assume correct C++20 implementation for other compilers
 		#define PLF_TEST_CPP20_SUPPORT
 	#endif
 #endif
@@ -659,10 +659,14 @@ int main()
 
 			#ifdef PLF_TEST_CPP20_SUPPORT
 	 		{
-				plf::list<int> list5;
-				list5.insert(list5.end(), list2.begin(), list2.cend());
+				plf::list<int> list5(list2.begin(), list2.cend());
 
-	 			failpass("Range insertion with differing iterators test", list5.size() == list2.size());
+				failpass("Range construction with differing iterators test", list5.size() == list2.size());
+
+				plf::list<int> list6;
+				list6.insert(list6.end(), list2.begin(), list2.cend());
+
+	 			failpass("Range insertion with differing iterators test", list6.size() == list2.size());
 	 		}
 			#endif
 
@@ -1198,24 +1202,6 @@ int main()
 			p_list.shrink_to_fit();
 			failpass("Shrink_to_fit test", p_list.capacity() < temp_capacity);
 			failpass("Shrink_to_fit test 2", p_list.capacity() == 200);
-
-			{
-				plf::list<int> p_list_s;
-				p_list_s.push_back(1);
-				p_list_s.push_back(7);
-				p_list_s.push_back(3);
-				p_list_s.push_back(5);
-				p_list_s.push_back(4);
-
-				p_list_s.shrink_to_fit();
-				failpass("Shrink_to_fit test 3", p_list_s.size() == 5);
-
-				p_list_s.resize(4);
-				failpass("Resize post-shrink-to-fit test", p_list_s.size() == 4);
-
-				p_list_s.shrink_to_fit();
-				failpass("Shrink_to_fit test 4", p_list_s.size() == 4);
-			}
 
 			total = 0;
 

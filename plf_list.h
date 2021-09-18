@@ -59,7 +59,7 @@
 		#define PLF_CONSTEXPR
 	#endif
 
-	#if defined(_MSVC_LANG) && (_MSVC_LANG > 201703L) && _MSC_VER >= 1923
+	#if defined(_MSVC_LANG) && (_MSVC_LANG >= 202002L) && _MSC_VER >= 1929
 		#define PLF_CPP20_SUPPORT
 	#endif
 #elif defined(__cplusplus) && __cplusplus >= 201103L // C++11 support, at least
@@ -172,7 +172,7 @@
 		#define PLF_CONSTEXPR
 	#endif
 
-	#if __cplusplus > 201703L && ((defined(__clang__) && (__clang_major__ >= 13)) || (defined(__GNUC__) && __GNUC__ >= 10) || (!defined(__clang__) && !defined(__GNUC__)))
+	#if __cplusplus > 201704L && ((defined(__clang__) && (__clang_major__ >= 13)) || (defined(__GNUC__) && __GNUC__ >= 10) || (!defined(__clang__) && !defined(__GNUC__)))
 		#define PLF_CPP20_SUPPORT
 	#endif
 #else
@@ -247,6 +247,34 @@
 
 namespace plf
 {
+
+
+#if defined(PLF_CPP20_SUPPORT) && !defined(PLF_CONCEPTS_DEFINED)
+	#define PLF_CONCEPTS_DEFINED
+	template<class type1>
+	concept convertable_to_bool = std::convertible_to<type1, bool>;
+
+
+
+	template<class type1>
+	concept boolean_testable = convertable_to_bool<type1> &&
+	   requires (type1 &&b)
+	{
+		{ !std::forward<type1>(b) } -> convertable_to_bool;
+	};
+
+
+
+	template<class type1, class type2>
+	concept actually_equality_comparable_with =
+		requires(const std::remove_reference_t<type1> &t1, const std::remove_reference_t<type2> &t2)
+	{
+		{ t1 == t2 } -> boolean_testable;
+		{ t1 != t2 } -> boolean_testable;
+		{ t2 == t1 } -> boolean_testable;
+		{ t2 != t1 } -> boolean_testable;
+	};
+#endif
 
 
 
@@ -1630,6 +1658,26 @@ public:
 
 
 
+	// Range constructor - differing iterators:
+
+	#ifdef PLF_CPP20_SUPPORT
+		template <class iterator_type1, class iterator_type2>
+			requires (!std::same_as<iterator_type1, iterator_type2> && plf::actually_equality_comparable_with<iterator_type1, iterator_type2> && !std::integral<iterator_type1> && !std::integral<iterator_type2>)
+		list(const iterator_type1 &first, const iterator_type2 &last, const element_allocator_type &alloc = element_allocator_type()):
+			element_allocator_type(alloc),
+			end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+			last_endpoint(NULL),
+			end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+			begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+			node_pointer_allocator_pair(0),
+			node_allocator_pair(0)
+		{
+			insert<iterator_type1, iterator_type2>(end_iterator, first, last);
+		}
+	#endif
+
+
+
 	// Initializer-list constructor:
 
 	#ifdef PLF_INITIALIZER_LIST_SUPPORT
@@ -2402,7 +2450,7 @@ public:
 	#ifdef PLF_CPP20_SUPPORT
 		// Support for differing iterator types eg. sentinels:
 		template <class iterator_type1, class iterator_type2>
-			requires (std::equality_comparable_with<iterator_type1, iterator_type2> && !std::integral<iterator_type1> && !std::integral<iterator_type2>)
+			requires (plf::actually_equality_comparable_with<iterator_type1, iterator_type2> && !std::integral<iterator_type1> && !std::integral<iterator_type2>)
 		inline iterator insert(const const_iterator position, const iterator_type1 first, const iterator_type2 last)
 		{
 			size_type distance = 0;
@@ -3014,12 +3062,12 @@ public:
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_move_assignable<element_type>::value && std::is_move_constructible<element_type>::value) // move elements if possible, otherwise copy them
 				{
-					temp.range_insert(temp.end_iterator, node_pointer_allocator_pair.total_size, std::make_move_iterator(begin_iterator));
+					temp.range_insert(temp.end_iterator, node_allocator_pair.number_of_erased_nodes, std::make_move_iterator(begin_iterator));
 				}
 				else
 			#endif
 			{
-				temp.range_insert(temp.end_iterator, node_pointer_allocator_pair.total_size, begin_iterator);
+				temp.range_insert(temp.end_iterator, node_allocator_pair.number_of_erased_nodes, begin_iterator);
 			}
 
 			*this = std::move(temp);
@@ -3407,7 +3455,7 @@ public:
 	#ifdef PLF_CPP20_SUPPORT
 		// Support for differing iterator types eg. sentinels:
 		template <class iterator_type1, class iterator_type2>
-			requires (std::equality_comparable_with<iterator_type1, iterator_type2> && !std::integral<iterator_type1> && !std::integral<iterator_type2>)
+			requires (plf::actually_equality_comparable_with<iterator_type1, iterator_type2> && !std::integral<iterator_type1> && !std::integral<iterator_type2>)
 		inline void assign(const iterator_type1 first, const iterator_type2 last)
 		{
 			clear();
