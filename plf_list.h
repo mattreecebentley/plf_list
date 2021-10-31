@@ -248,36 +248,6 @@
 namespace plf
 {
 
-
-#if defined(PLF_CPP20_SUPPORT) && !defined(PLF_CONCEPTS_DEFINED)
-	#define PLF_CONCEPTS_DEFINED
-	template<class type1>
-	concept convertable_to_bool = std::convertible_to<type1, bool>;
-
-
-
-	template<class type1>
-	concept boolean_testable = convertable_to_bool<type1> &&
-	   requires (type1 &&b)
-	{
-		{ !std::forward<type1>(b) } -> convertable_to_bool;
-	};
-
-
-
-	template<class type1, class type2>
-	concept actually_equality_comparable_with =
-		requires(const std::remove_reference_t<type1> &t1, const std::remove_reference_t<type2> &t2)
-	{
-		{ t1 == t2 } -> boolean_testable;
-		{ t1 != t2 } -> boolean_testable;
-		{ t2 == t1 } -> boolean_testable;
-		{ t2 != t1 } -> boolean_testable;
-	};
-#endif
-
-
-
 template <class element_type, class element_allocator_type = std::allocator<element_type> > class list : private element_allocator_type
 {
 public:
@@ -721,7 +691,7 @@ private:
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
-					std::memcpy(static_cast<void *>(&*block_pointer), static_cast<void *>(&*old_block), sizeof(group) * size); // static_cast or reinterpret_cast necessary to deal with GCC 8 warnings
+					std::memcpy(static_cast<void *>(&*block_pointer), static_cast<void *>(&*old_block), sizeof(group) * size); // static_cast or static_cast necessary to deal with GCC 8 warnings
 				}
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 					else if PLF_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
@@ -1513,10 +1483,10 @@ public:
 
 	list() PLF_NOEXCEPT:
 		element_allocator_type(element_allocator_type()),
-		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+		end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
-		end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-		begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+		end_iterator(static_cast<node_pointer_type>(&end_node)),
+		begin_iterator(static_cast<node_pointer_type>(&end_node)),
 		node_pointer_allocator_pair(0),
 		node_allocator_pair(0)
 	{}
@@ -1527,10 +1497,10 @@ public:
 
 	explicit list(const element_allocator_type &alloc):
 		element_allocator_type(alloc),
-		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+		end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
-		end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-		begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+		end_iterator(static_cast<node_pointer_type>(&end_node)),
+		begin_iterator(static_cast<node_pointer_type>(&end_node)),
 		node_pointer_allocator_pair(0),
 		node_allocator_pair(0)
 	{}
@@ -1541,10 +1511,10 @@ public:
 
 	list(const list &source):
 		element_allocator_type(source),
-		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+		end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
-		end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-		begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+		end_iterator(static_cast<node_pointer_type>(&end_node)),
+		begin_iterator(static_cast<node_pointer_type>(&end_node)),
 		node_pointer_allocator_pair(0),
 		node_allocator_pair(0)
 	{
@@ -1557,10 +1527,10 @@ public:
 
 	list(const list &source, const allocator_type &alloc):
 		element_allocator_type(alloc),
-		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+		end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
-		end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-		begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+		end_iterator(static_cast<node_pointer_type>(&end_node)),
+		begin_iterator(static_cast<node_pointer_type>(&end_node)),
 		node_pointer_allocator_pair(0),
 		node_allocator_pair(0)
 	{
@@ -1577,8 +1547,8 @@ public:
 			groups(std::move(source.groups)),
 			end_node(std::move(source.end_node)),
 			last_endpoint(std::move(source.last_endpoint)),
-			end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-			begin_iterator((source.begin_iterator.node_pointer == source.end_iterator.node_pointer) ? reinterpret_cast<node_pointer_type>(&end_node) : std::move(source.begin_iterator)),
+			end_iterator(static_cast<node_pointer_type>(&end_node)),
+			begin_iterator((source.begin_iterator.node_pointer == source.end_iterator.node_pointer) ? static_cast<node_pointer_type>(&end_node) : std::move(source.begin_iterator)),
 			node_pointer_allocator_pair(source.node_pointer_allocator_pair.total_size),
 			node_allocator_pair(source.node_allocator_pair.number_of_erased_nodes)
 		{
@@ -1596,8 +1566,8 @@ public:
 			groups(std::move(source.groups)),
 			end_node(std::move(source.end_node)),
 			last_endpoint(std::move(source.last_endpoint)),
-			end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-			begin_iterator((source.begin_iterator.node_pointer == source.end_iterator.node_pointer) ? reinterpret_cast<node_pointer_type>(&end_node) : std::move(source.begin_iterator)),
+			end_iterator(static_cast<node_pointer_type>(&end_node)),
+			begin_iterator((source.begin_iterator.node_pointer == source.end_iterator.node_pointer) ? static_cast<node_pointer_type>(&end_node) : std::move(source.begin_iterator)),
 			node_pointer_allocator_pair(source.node_pointer_allocator_pair.total_size),
 			node_allocator_pair(source.node_allocator_pair.number_of_erased_nodes)
 		{
@@ -1613,10 +1583,10 @@ public:
 
 	list(const size_type fill_number, const element_type &element, const element_allocator_type &alloc = element_allocator_type()):
 		element_allocator_type(alloc),
-		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+		end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
-		end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-		begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+		end_iterator(static_cast<node_pointer_type>(&end_node)),
+		begin_iterator(static_cast<node_pointer_type>(&end_node)),
 		node_pointer_allocator_pair(0),
 		node_allocator_pair(0)
 	{
@@ -1629,10 +1599,10 @@ public:
 
 	explicit list(const size_type fill_number, const element_allocator_type &alloc = element_allocator_type()):
 		element_allocator_type(alloc),
-		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+		end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
-		end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-		begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+		end_iterator(static_cast<node_pointer_type>(&end_node)),
+		begin_iterator(static_cast<node_pointer_type>(&end_node)),
 		node_pointer_allocator_pair(0),
 		node_allocator_pair(0)
 	{
@@ -1646,10 +1616,10 @@ public:
 	template<typename iterator_type>
 	list(const typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type &first, const iterator_type &last, const element_allocator_type &alloc = element_allocator_type()):
 		element_allocator_type(alloc),
-		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+		end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
-		end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-		begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+		end_iterator(static_cast<node_pointer_type>(&end_node)),
+		begin_iterator(static_cast<node_pointer_type>(&end_node)),
 		node_pointer_allocator_pair(0),
 		node_allocator_pair(0)
 	{
@@ -1658,21 +1628,21 @@ public:
 
 
 
-	// Range constructor - differing iterators:
+	// Range constructor with sentinel support:
 
 	#ifdef PLF_CPP20_SUPPORT
-		template <class iterator_type1, class iterator_type2>
-			requires (!std::same_as<iterator_type1, iterator_type2> && plf::actually_equality_comparable_with<iterator_type1, iterator_type2> && !std::integral<iterator_type1> && !std::integral<iterator_type2>)
-		list(const iterator_type1 &first, const iterator_type2 &last, const element_allocator_type &alloc = element_allocator_type()):
+		template <class iterator_type, class sentinel>
+			requires (!(std::convertible_to<sentinel, iterator_type> || std::convertible_to<iterator_type, sentinel> || std::integral<iterator_type> || std::integral<sentinel>) && std::sentinel_for<sentinel, iterator_type>)
+		list(const iterator_type &first, const sentinel &last, const element_allocator_type &alloc = element_allocator_type()):
 			element_allocator_type(alloc),
-			end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+			end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 			last_endpoint(NULL),
-			end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-			begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+			end_iterator(static_cast<node_pointer_type>(&end_node)),
+			begin_iterator(static_cast<node_pointer_type>(&end_node)),
 			node_pointer_allocator_pair(0),
 			node_allocator_pair(0)
 		{
-			insert<iterator_type1, iterator_type2>(end_iterator, first, last);
+			insert<iterator_type, sentinel>(end_iterator, first, last);
 		}
 	#endif
 
@@ -1683,10 +1653,10 @@ public:
 	#ifdef PLF_INITIALIZER_LIST_SUPPORT
 		list(const std::initializer_list<element_type> &element_list, const element_allocator_type &alloc = element_allocator_type()):
 			element_allocator_type(alloc),
-			end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+			end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 			last_endpoint(NULL),
-			end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-			begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+			end_iterator(static_cast<node_pointer_type>(&end_node)),
+			begin_iterator(static_cast<node_pointer_type>(&end_node)),
 			node_pointer_allocator_pair(0),
 			node_allocator_pair(0)
 		{
@@ -1818,8 +1788,8 @@ public:
 			groups.clear(last_endpoint);
 		}
 
-		end_node.next = reinterpret_cast<node_pointer_type>(&end_node);
-		end_node.previous = reinterpret_cast<node_pointer_type>(&end_node);
+		end_node.next = static_cast<node_pointer_type>(&end_node);
+		end_node.previous = static_cast<node_pointer_type>(&end_node);
 		last_endpoint = NULL;
 		begin_iterator.node_pointer = end_iterator.node_pointer;
 		node_pointer_allocator_pair.total_size = 0;
@@ -1835,8 +1805,8 @@ private:
 	{
 		groups.destroy_all_data(last_endpoint);
 		last_endpoint = NULL;
-		end_node.next = reinterpret_cast<node_pointer_type>(&end_node);
-		end_node.previous = reinterpret_cast<node_pointer_type>(&end_node);
+		end_node.next = static_cast<node_pointer_type>(&end_node);
+		end_node.previous = static_cast<node_pointer_type>(&end_node);
 		begin_iterator.node_pointer = end_iterator.node_pointer;
 		node_pointer_allocator_pair.total_size = 0;
 		node_allocator_pair.number_of_erased_nodes = 0;
@@ -2448,13 +2418,13 @@ public:
 
 
 	#ifdef PLF_CPP20_SUPPORT
-		// Support for differing iterator types eg. sentinels:
-		template <class iterator_type1, class iterator_type2>
-			requires (plf::actually_equality_comparable_with<iterator_type1, iterator_type2> && !std::integral<iterator_type1> && !std::integral<iterator_type2>)
-		inline iterator insert(const const_iterator position, const iterator_type1 first, const iterator_type2 last)
+		// Support for sentinels:
+		template <class iterator_type, class sentinel>
+			requires (!(std::convertible_to<sentinel, iterator_type> || std::convertible_to<iterator_type, sentinel> || std::integral<iterator_type> || std::integral<sentinel>) && std::sentinel_for<sentinel, iterator_type>)
+		inline iterator insert(const const_iterator position, const iterator_type first, const sentinel last)
 		{
 			size_type distance = 0;
-			for(iterator_type1 current = first; current != last; ++current, ++distance) {};
+			for(iterator_type current = first; current != last; ++current, ++distance) {};
 			return range_insert(position, distance, first);
 		}
 	#endif
@@ -3453,10 +3423,10 @@ public:
 
 
 	#ifdef PLF_CPP20_SUPPORT
-		// Support for differing iterator types eg. sentinels:
-		template <class iterator_type1, class iterator_type2>
-			requires (plf::actually_equality_comparable_with<iterator_type1, iterator_type2> && !std::integral<iterator_type1> && !std::integral<iterator_type2>)
-		inline void assign(const iterator_type1 first, const iterator_type2 last)
+		// Support for sentinels:
+		template <class iterator_type, class sentinel>
+			requires (!(std::convertible_to<sentinel, iterator_type> || std::convertible_to<iterator_type, sentinel> || std::integral<iterator_type> || std::integral<sentinel>) && std::sentinel_for<sentinel, iterator_type>)
+		inline void assign(const iterator_type first, const sentinel last)
 		{
 			clear();
 			insert(end_iterator, first, last);
