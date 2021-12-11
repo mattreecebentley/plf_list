@@ -226,8 +226,8 @@
 #include <stdexcept> // std::length_error
 
 
-#ifndef PLF_SORT_FUNCTION
-	#include <algorithm> // std::sort
+#if !defined(PLF_SORT_FUNCTION) || defined(PLF_CPP20_SUPPORT)
+	#include <algorithm> // std::sort, lexicographical_three_way_compare
 #endif
 
 #ifdef PLF_TYPE_TRAITS_SUPPORT
@@ -2696,6 +2696,13 @@ public:
 
 
 	#ifdef PLF_CPP20_SUPPORT
+		friend auto operator <=> (const list &lh, const list &rh)
+		{
+			return std::lexicographical_compare_three_way(lh.begin(), lh.end(), rh.begin(), rh.end());
+		}
+
+
+
 		[[nodiscard]]
 	#endif
 	inline bool empty() const PLF_NOEXCEPT
