@@ -14,6 +14,6 @@ A drop-in replacement for std::list with (on average):
 
 (Benchmarks performed on a haswell-based CPU under GCC 8.1: http://www.plflib.org/benchmarks_haswell_gcc.htm
 Insertion, erasure, and iteration percentages obtained as average of performance across 5 types from char to very large struct)
-plf::list is C++98/03/11/14/etc compatible.
 
 Documentation and function descriptions are here: https://plflib.org/list.htm
+plf::list is C++98/03/11/14/17/20/23/etc compatible.
