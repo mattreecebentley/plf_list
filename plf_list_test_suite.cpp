@@ -80,7 +80,6 @@
 #endif
 
 
-#include "plf_rand.h"
 #include "plf_list.h"
 
 
@@ -199,6 +198,7 @@ int main()
 		{
 			title2("Merge tests");
 			plf::list<int> list1;
+
 			list1.insert(list1.end(), {1, 3, 5, 7, 9});
 			plf::list<int> list2 = {2, 4, 6, 8, 10};
 
@@ -691,12 +691,12 @@ int main()
 			{
 				for (plf::list<int>::iterator it = list2.begin(); it != list2.end();)
 				{
-					if ((plf::rand() & 15) == 0)
+					if ((rand() & 15) == 0)
 					{
 						list2.insert(it, 13);
 					}
 
-					if ((plf::rand() & 7) == 0)
+					if ((rand() & 7) == 0)
 					{
 						it = list2.erase(it);
 					}
@@ -891,9 +891,9 @@ int main()
 			title2("Shared_ptr tests");
 
 			plf::list<std::shared_ptr<int>> shared_ptr_list;
-			shared_ptr_list.reserve(10);
+			shared_ptr_list.reserve(20);
 
-			failpass("Shared_ptr list reserve test", shared_ptr_list.capacity() == 10);
+			failpass("Shared_ptr list reserve test", shared_ptr_list.capacity() == 20);
 
 			// May crash here if shared_ptr_list destruction fails.
 		}
@@ -1119,7 +1119,7 @@ int main()
 			failpass("Inequality operator test", p_list2 != p_list3);
 
 			#ifdef PLF_TEST_CPP20_SUPPORT
-				failpass("Spaceship operator test", (p_list2 <=> p_list3) != 0);
+				failpass("Spaceship operator test", (p_list2 <=> p_list3) != std::strong_ordering::equal);
 			#endif
 
 			numtotal = 0;
@@ -1329,7 +1329,7 @@ int main()
 			{
 				for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != i_list.end();)
 				{
-					if ((plf::rand() & 7) == 0)
+					if ((rand() & 7) == 0)
 					{
 						the_iterator = i_list.erase(the_iterator);
 					}
@@ -1359,7 +1359,7 @@ int main()
 			{
 				for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != i_list.end();)
 				{
-					if ((plf::rand() & 7) == 0)
+					if ((rand() & 7) == 0)
 					{
 						the_iterator = i_list.erase(the_iterator);
 						++count2;
@@ -1407,7 +1407,7 @@ int main()
 			{
 				for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != i_list.end();)
 				{
-					if ((plf::rand() & 3) == 0)
+					if ((rand() & 3) == 0)
 					{
 						++the_iterator;
 						i_list.push_front(1);
@@ -1530,7 +1530,7 @@ int main()
 			{
 				for (unsigned int loop = 0; loop != 10; ++loop)
 				{
-					if ((plf::rand() & 7) == 0)
+					if ((rand() & 7) == 0)
 					{
 						i_list.push_back(1);
 						++count;
@@ -1539,7 +1539,7 @@ int main()
 
 				for (list<int>::iterator the_iterator = i_list.begin(); the_iterator != i_list.end();)
 				{
-					if ((plf::rand() & 7) == 0)
+					if ((rand() & 7) == 0)
 					{
 						the_iterator = i_list.erase(the_iterator);
 						--count;
@@ -1758,7 +1758,7 @@ int main()
 
 			for (list<int>::iterator it = i_list.begin(); it != i_list.end(); ++it)
 			{
-				if ((plf::rand() & 1) == 0)
+				if ((rand() & 1) == 0)
 				{
 					it = i_list.erase(it);
 					++test_counter;
@@ -1807,8 +1807,8 @@ int main()
 					it2 = it1 = i_list.begin();
 
 					size = static_cast<unsigned int>(i_list.size());
-					range1 = plf::rand() % size;
-					range2 = range1 + 1 + (plf::rand() % (size - range1));
+					range1 = static_cast<unsigned int>(rand()) % size;
+					range2 = range1 + 1 + (static_cast<unsigned int>(rand()) % (size - range1));
 					std::advance(it1, range1);
 					std::advance(it2, range2);
 
@@ -1851,7 +1851,7 @@ int main()
 
 			for (unsigned int temp = 0; temp != 50000; ++temp)
 			{
-				i_list.push_back(plf::rand() & 65535);
+				i_list.push_back(rand() & 65535);
 			}
 
 			i_list.sort();

@@ -1,4 +1,4 @@
-// Copyright (c) 2021, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
+// Copyright (c) 2022, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
 
 // zLib license (https://www.zlib.net/zlib_license.html):
 // This software is provided 'as-is', without any express or implied
@@ -22,20 +22,21 @@
 #define PLF_LIST_H
 
 
-#define PLF_BLOCK_MIN static_cast<group_size_type>((sizeof(node) * 8 > (sizeof(*this) + sizeof(group)) * 2) ? 8 : (((sizeof(*this) + sizeof(group)) * 2) / sizeof(node)) + 1)
-#define PLF_BLOCK_MAX 2048
+#define PLF_MIN_BLOCK_CAPACITY static_cast<group_size_type>((sizeof(node) * 8 > (sizeof(*this) + sizeof(group)) * 2) ? 8 : (((sizeof(*this) + sizeof(group)) * 2) / sizeof(node)) + 1)
+#define PLF_MAX_BLOCK_CAPACITY 2048
 
 
 // Compiler-specific defines:
 
-#if defined(_MSC_VER) && !defined(__clang__) && !defined(__GNUC__)
-	#define PLF_FORCE_INLINE __forceinline
+// Define default cases before possibly redefining:
+#define PLF_NOEXCEPT throw()
+#define PLF_NOEXCEPT_ALLOCATOR
+#define PLF_CONSTEXPR
+#define PLF_CONSTFUNC
 
+#if defined(_MSC_VER) && !defined(__clang__) && !defined(__GNUC__)
 	#if _MSC_VER >= 1600
 		#define PLF_MOVE_SEMANTICS_SUPPORT
-		#define PLF_STATIC_ASSERT(check, message) static_assert(check, message)
-	#else
-		#define PLF_STATIC_ASSERT(check, message) assert(check)
 	#endif
 	#if _MSC_VER >= 1700
 		#define PLF_TYPE_TRAITS_SUPPORT
@@ -43,43 +44,43 @@
 	#endif
 	#if _MSC_VER >= 1800
 		#define PLF_VARIADICS_SUPPORT // Variadics, in this context, means both variadic templates and variadic macros are supported
+		#define PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
 		#define PLF_INITIALIZER_LIST_SUPPORT
 	#endif
 	#if _MSC_VER >= 1900
 		#define PLF_ALIGNMENT_SUPPORT
+		#undef PLF_NOEXCEPT
+		#undef PLF_NOEXCEPT_ALLOCATOR
 		#define PLF_NOEXCEPT noexcept
+		#define PLF_NOEXCEPT_ALLOCATOR noexcept(noexcept(allocator_type()))
 		#define PLF_IS_ALWAYS_EQUAL_SUPPORT
-	#else
-		#define PLF_NOEXCEPT throw()
 	#endif
 
 	#if defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L)
+		#undef PLF_CONSTEXPR
 		#define PLF_CONSTEXPR constexpr
-	#else
-		#define PLF_CONSTEXPR
 	#endif
 
 	#if defined(_MSVC_LANG) && (_MSVC_LANG >= 202002L) && _MSC_VER >= 1929
 		#define PLF_CPP20_SUPPORT
+		#undef PLF_CONSTFUNC
+		#define PLF_CONSTFUNC constexpr
 	#endif
 #elif defined(__cplusplus) && __cplusplus >= 201103L // C++11 support, at least
-	#define PLF_FORCE_INLINE // note: GCC and clang create faster code without forcing inline
-
 	#if defined(__GNUC__) && defined(__GNUC_MINOR__) && !defined(__clang__) // If compiler is GCC/G++
-		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 3) || __GNUC__ > 4 // 4.2 and below do not support variadic templates
+		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 3) || __GNUC__ > 4
 			#define PLF_MOVE_SEMANTICS_SUPPORT
 			#define PLF_VARIADICS_SUPPORT
-			#define PLF_STATIC_ASSERT(check, message) static_assert(check, message)
-		#else
-			#define PLF_STATIC_ASSERT(check, message) assert(check)
 		#endif
-		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 4) || __GNUC__ > 4 // 4.3 and below do not support initializer lists
+		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 4) || __GNUC__ > 4
+			#define PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
 			#define PLF_INITIALIZER_LIST_SUPPORT
 		#endif
 		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 6) || __GNUC__ > 4
+			#undef PLF_NOEXCEPT
+			#undef PLF_NOEXCEPT_ALLOCATOR
 			#define PLF_NOEXCEPT noexcept
-		#else
-			#define PLF_NOEXCEPT throw()
+			#define PLF_NOEXCEPT_ALLOCATOR noexcept(noexcept(allocator_type()))
 		#endif
 		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 7) || __GNUC__ > 4
 			#define PLF_ALLOCATOR_TRAITS_SUPPORT
@@ -93,51 +94,46 @@
 		#if __GNUC__ > 6
 			#define PLF_IS_ALWAYS_EQUAL_SUPPORT
 		#endif
-	#elif defined(__clang__) && !defined(__GLIBCXX__) && !defined(_LIBCPP_CXX03_LANG)
-		#if __clang_major__ >= 3 // clang versions < 3 don't support __has_feature() or traits
-			#define PLF_ALLOCATOR_TRAITS_SUPPORT
-			#define PLF_TYPE_TRAITS_SUPPORT
+	#elif defined(__clang__) && !defined(__GLIBCXX__) && !defined(_LIBCPP_CXX03_LANG) && __clang_major__ >= 3
+		#define PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+		#define PLF_ALLOCATOR_TRAITS_SUPPORT
+		#define PLF_TYPE_TRAITS_SUPPORT
 
-			#if __has_feature(cxx_alignas) && __has_feature(cxx_alignof)
-				#define PLF_ALIGNMENT_SUPPORT
-			#endif
-			#if __has_feature(cxx_noexcept)
-				#define PLF_NOEXCEPT noexcept
-				#define PLF_IS_ALWAYS_EQUAL_SUPPORT
-			#else
-				#define PLF_NOEXCEPT throw()
-			#endif
-			#if __has_feature(cxx_rvalue_references) && !defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES)
-				#define PLF_MOVE_SEMANTICS_SUPPORT
-			#endif
-			#if __has_feature(cxx_static_assert)
-				#define PLF_STATIC_ASSERT(check, message) static_assert(check, message)
-			#else
-				#define PLF_STATIC_ASSERT(check, message) assert(check)
-			#endif
-			#if __has_feature(cxx_variadic_templates) && !defined(_LIBCPP_HAS_NO_VARIADICS)
-				#define PLF_VARIADICS_SUPPORT
-			#endif
-			#if (__clang_major__ == 3 && __clang_minor__ >= 1) || __clang_major__ > 3
-				#define PLF_INITIALIZER_LIST_SUPPORT
-			#endif
+		#if __has_feature(cxx_alignas) && __has_feature(cxx_alignof)
+			#define PLF_ALIGNMENT_SUPPORT
+		#endif
+		#if __has_feature(cxx_noexcept)
+			#undef PLF_NOEXCEPT
+			#undef PLF_NOEXCEPT_ALLOCATOR
+			#define PLF_NOEXCEPT noexcept
+			#define PLF_NOEXCEPT_ALLOCATOR noexcept(noexcept(allocator_type()))
+			#define PLF_IS_ALWAYS_EQUAL_SUPPORT
+		#endif
+		#if __has_feature(cxx_rvalue_references) && !defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES)
+			#define PLF_MOVE_SEMANTICS_SUPPORT
+		#endif
+		#if __has_feature(cxx_variadic_templates) && !defined(_LIBCPP_HAS_NO_VARIADICS)
+			#define PLF_VARIADICS_SUPPORT
+		#endif
+		#if (__clang_major__ == 3 && __clang_minor__ >= 1) || __clang_major__ > 3
+			#define PLF_INITIALIZER_LIST_SUPPORT
 		#endif
 	#elif defined(__GLIBCXX__) // Using another compiler type with libstdc++ - we are assuming full c++11 compliance for compiler - which may not be true
+		#define PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+
 		#if __GLIBCXX__ >= 20080606
 			#define PLF_MOVE_SEMANTICS_SUPPORT
 			#define PLF_VARIADICS_SUPPORT
-			#define PLF_STATIC_ASSERT(check, message) static_assert(check, message)
-		#else
-			#define PLF_STATIC_ASSERT(check, message) assert(check)
 		#endif
 		#if __GLIBCXX__ >= 20090421
 			#define PLF_INITIALIZER_LIST_SUPPORT
 		#endif
 		#if __GLIBCXX__ >= 20120322
 			#define PLF_ALLOCATOR_TRAITS_SUPPORT
+			#undef PLF_NOEXCEPT
+			#undef PLF_NOEXCEPT_ALLOCATOR
 			#define PLF_NOEXCEPT noexcept
-		#else
-			#define PLF_NOEXCEPT throw()
+			#define PLF_NOEXCEPT_ALLOCATOR noexcept(noexcept(allocator_type()))
 		#endif
 		#if __GLIBCXX__ >= 20130322
 			#define PLF_ALIGNMENT_SUPPORT
@@ -149,37 +145,34 @@
 			#define PLF_IS_ALWAYS_EQUAL_SUPPORT
 		#endif
 	#elif defined(_LIBCPP_CXX03_LANG) || defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES) // Special case for checking C++11 support with libCPP
-		#define PLF_STATIC_ASSERT(check, message) assert(check)
-		#define PLF_NOEXCEPT throw()
 		#if !defined(_LIBCPP_HAS_NO_VARIADICS)
 			#define PLF_VARIADICS_SUPPORT
 		#endif
 	#else // Assume type traits and initializer support for other compilers and standard library implementations
+		#define PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
 		#define PLF_MOVE_SEMANTICS_SUPPORT
-		#define PLF_STATIC_ASSERT(check, message) static_assert(check, message)
 		#define PLF_VARIADICS_SUPPORT
 		#define PLF_TYPE_TRAITS_SUPPORT
 		#define PLF_ALLOCATOR_TRAITS_SUPPORT
 		#define PLF_ALIGNMENT_SUPPORT
 		#define PLF_INITIALIZER_LIST_SUPPORT
+		#undef PLF_NOEXCEPT
+		#undef PLF_NOEXCEPT_ALLOCATOR
 		#define PLF_NOEXCEPT noexcept
+		#define PLF_NOEXCEPT_ALLOCATOR noexcept(noexcept(allocator_type()))
 		#define PLF_IS_ALWAYS_EQUAL_SUPPORT
 	#endif
 
 	#if __cplusplus >= 201703L && ((defined(__clang__) && ((__clang_major__ == 3 && __clang_minor__ == 9) || __clang_major__ > 3)) || (defined(__GNUC__) && __GNUC__ >= 7) || (!defined(__clang__) && !defined(__GNUC__))) // assume correct C++17 implementation for non-gcc/clang compilers
+		#undef PLF_CONSTEXPR
 		#define PLF_CONSTEXPR constexpr
-	#else
-		#define PLF_CONSTEXPR
 	#endif
 
-	#if __cplusplus > 201704L && ((defined(__clang__) && (__clang_major__ >= 13)) || (defined(__GNUC__) && __GNUC__ >= 10) || (!defined(__clang__) && !defined(__GNUC__)))
+	#if __cplusplus > 201704L && ((defined(_LIBCPP_VERSION) && _LIBCPP_VERSION >= 13) || !defined(_LIBCPP_VERSION)) && ((defined(__clang__) && (__clang_major__ >= 13)) || (defined(__GNUC__) && __GNUC__ >= 10) || (!defined(__clang__) && !defined(__GNUC__)))
 		#define PLF_CPP20_SUPPORT
+		#undef PLF_CONSTFUNC
+		#define PLF_CONSTFUNC constexpr
 	#endif
-#else
-	#define PLF_FORCE_INLINE
-	#define PLF_STATIC_ASSERT(check, message) assert(check)
-	#define PLF_NOEXCEPT throw()
-	#define PLF_CONSTEXPR
 #endif
 
 #if defined(PLF_IS_ALWAYS_EQUAL_SUPPORT) && defined(PLF_MOVE_SEMANTICS_SUPPORT) && defined(PLF_ALLOCATOR_TRAITS_SUPPORT) && (__cplusplus >= 201703L || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L)))
@@ -195,34 +188,34 @@
 
 #ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
 	#ifdef PLF_VARIADICS_SUPPORT
-		#define PLF_CONSTRUCT(the_allocator, allocator_instance, location, ...)	std::allocator_traits<the_allocator>::construct(allocator_instance, location, __VA_ARGS__)
+		#define PLF_CONSTRUCT(the_allocator, allocator_instance, location, ...) std::allocator_traits<the_allocator>::construct(allocator_instance, location, __VA_ARGS__)
 	#else
 		#define PLF_CONSTRUCT(the_allocator, allocator_instance, location, data)	std::allocator_traits<the_allocator>::construct(allocator_instance, location, data)
 	#endif
 
-	#define PLF_DESTROY(the_allocator, allocator_instance, location) 				std::allocator_traits<the_allocator>::destroy(allocator_instance, location)
-	#define PLF_ALLOCATE(the_allocator, allocator_instance, size, hint) 			std::allocator_traits<the_allocator>::allocate(allocator_instance, size, hint)
-	#define PLF_DEALLOCATE(the_allocator, allocator_instance, location, size) 	std::allocator_traits<the_allocator>::deallocate(allocator_instance, location, size)
+	#define PLF_DESTROY(the_allocator, allocator_instance, location)				std::allocator_traits<the_allocator>::destroy(allocator_instance, location)
+	#define PLF_ALLOCATE(the_allocator, allocator_instance, size, hint)			std::allocator_traits<the_allocator>::allocate(allocator_instance, size, hint)
+	#define PLF_DEALLOCATE(the_allocator, allocator_instance, location, size)	std::allocator_traits<the_allocator>::deallocate(allocator_instance, location, size)
 #else
 	#ifdef PLF_VARIADICS_SUPPORT
-		#define PLF_CONSTRUCT(the_allocator, allocator_instance, location, ...)		(allocator_instance).construct(location, __VA_ARGS__)
+		#define PLF_CONSTRUCT(the_allocator, allocator_instance, location, ...) 	(allocator_instance).construct(location, __VA_ARGS__)
 	#else
 		#define PLF_CONSTRUCT(the_allocator, allocator_instance, location, data)	(allocator_instance).construct(location, data)
 	#endif
 
-	#define PLF_DESTROY(the_allocator, allocator_instance, location) 				(allocator_instance).destroy(location)
-	#define PLF_ALLOCATE(the_allocator, allocator_instance, size, hint)	 		(allocator_instance).allocate(size, hint)
+	#define PLF_DESTROY(the_allocator, allocator_instance, location)				(allocator_instance).destroy(location)
+	#define PLF_ALLOCATE(the_allocator, allocator_instance, size, hint)			(allocator_instance).allocate(size, hint)
 	#define PLF_DEALLOCATE(the_allocator, allocator_instance, location, size)	(allocator_instance).deallocate(location, size)
 #endif
 
 
 
 
-#include <cstring>	// memmove, memcpy
-#include <cassert>	// assert
-#include <limits>  	// std::numeric_limits
-#include <memory>		// std::uninitialized_copy, std::allocator
-#include <iterator> 	// std::bidirectional_iterator_tag, iterator_traits, make_move_iterator, std::distance for range insert
+#include <cstring> // memmove, memcpy
+#include <cassert> // assert
+#include <limits>   // std::numeric_limits
+#include <memory>  // std::uninitialized_copy, std::allocator
+#include <iterator>	// std::bidirectional_iterator_tag, iterator_traits, make_move_iterator, std::distance for range insert
 #include <stdexcept> // std::length_error
 
 
@@ -242,34 +235,100 @@
 	#include <initializer_list>
 #endif
 
+#ifdef PLF_CPP20_SUPPORT
+	#include <concepts>
+	#include <compare> // std::strong_ordering
+	#include <ranges>
+
+	namespace plf
+	{
+		// For getting std:: overload for reverse_iterator to match plf::list iterators specifically (see bottom of header):
+		template <class T>
+		concept list_iterator_concept = requires { typename T::list_iterator_tag; };
+
+		#ifndef PLF_FROM_RANGE
+			#define PLF_FROM_RANGE
+
+			// Until such point as standard libraries include std::ranges::from_range_t, including this so the rangesv3 constructor overloads will work unambiguously:
+			namespace ranges
+			{
+				struct from_range_t {};
+				constexpr from_range_t from_range;
+			}
+		#endif
+	}
+#endif
 
 
 
 namespace plf
 {
 
-template <class element_type, class element_allocator_type = std::allocator<element_type> > class list : private element_allocator_type
+
+#ifndef PLF_TOOLS
+	#define PLF_TOOLS
+	// std:: tool replacements for C++03/98 support:
+
+	template <bool condition, class T = void>
+	struct enable_if
+	{
+		typedef T type;
+	};
+
+	template <class T>
+	struct enable_if<false, T>
+	{};
+
+
+
+	template <bool flag, class is_true, class is_false> struct conditional;
+
+	template <class is_true, class is_false> struct conditional<true, is_true, is_false>
+	{
+		typedef is_true type;
+	};
+
+	template <class is_true, class is_false> struct conditional<false, is_true, is_false>
+	{
+		typedef is_false type;
+	};
+
+
+
+	template <class element_type>
+	struct less
+	{
+		bool operator() (const element_type &a, const element_type &b) const PLF_NOEXCEPT
+		{
+			return a < b;
+		}
+	};
+
+#endif
+
+
+
+template <class element_type, class allocator_type = std::allocator<element_type> > class list : private allocator_type
 {
 public:
 	// Standard container typedefs:
 	typedef element_type															value_type;
-	typedef element_allocator_type											allocator_type;
 	typedef unsigned short														group_size_type;
 
 	#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT // >= C++11
-		typedef typename std::allocator_traits<element_allocator_type>::size_type			size_type;
-		typedef typename std::allocator_traits<element_allocator_type>::difference_type 	difference_type;
-		typedef element_type &																				reference;
-		typedef const element_type &																		const_reference;
-		typedef typename std::allocator_traits<element_allocator_type>::pointer 			pointer;
-		typedef typename std::allocator_traits<element_allocator_type>::const_pointer		const_pointer;
+		typedef typename std::allocator_traits<allocator_type>::size_type				size_type;
+		typedef typename std::allocator_traits<allocator_type>::difference_type 	difference_type;
+		typedef element_type &																		reference;
+		typedef const element_type &																const_reference;
+		typedef typename std::allocator_traits<allocator_type>::pointer 				pointer;
+		typedef typename std::allocator_traits<allocator_type>::const_pointer		const_pointer;
 	#else
-		typedef typename element_allocator_type::size_type			size_type;
-		typedef typename element_allocator_type::difference_type	difference_type;
-		typedef typename element_allocator_type::reference			reference;
-		typedef typename element_allocator_type::const_reference	const_reference;
-		typedef typename element_allocator_type::pointer			pointer;
-		typedef typename element_allocator_type::const_pointer	const_pointer;
+		typedef typename allocator_type::size_type			size_type;
+		typedef typename allocator_type::difference_type	difference_type;
+		typedef typename allocator_type::reference			reference;
+		typedef typename allocator_type::const_reference	const_reference;
+		typedef typename allocator_type::pointer				pointer;
+		typedef typename allocator_type::const_pointer		const_pointer;
 	#endif
 
 
@@ -292,17 +351,17 @@ private:
 	struct node;
 
 	#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT // >= C++11
-		typedef typename std::allocator_traits<element_allocator_type>::template rebind_alloc<group>				group_allocator_type;
-		typedef typename std::allocator_traits<element_allocator_type>::template rebind_alloc<node>					node_allocator_type;
+		typedef typename std::allocator_traits<allocator_type>::template rebind_alloc<group>				group_allocator_type;
+		typedef typename std::allocator_traits<allocator_type>::template rebind_alloc<node>					node_allocator_type;
 		typedef typename std::allocator_traits<group_allocator_type>::pointer 				group_pointer_type;
-		typedef typename std::allocator_traits<node_allocator_type>::pointer				node_pointer_type;
-		typedef typename std::allocator_traits<element_allocator_type>::template rebind_alloc<node_pointer_type>	node_pointer_allocator_type;
+		typedef typename std::allocator_traits<node_allocator_type>::pointer					node_pointer_type;
+		typedef typename std::allocator_traits<allocator_type>::template rebind_alloc<node_pointer_type>	node_pointer_allocator_type;
 	#else
-		typedef typename element_allocator_type::template rebind<group>::other				group_allocator_type;
-		typedef typename element_allocator_type::template rebind<node>::other				node_allocator_type;
+		typedef typename allocator_type::template rebind<group>::other				group_allocator_type;
+		typedef typename allocator_type::template rebind<node>::other				node_allocator_type;
 		typedef typename group_allocator_type::pointer 				group_pointer_type;
 		typedef typename node_allocator_type::pointer				node_pointer_type;
-		typedef typename element_allocator_type::template rebind<node_pointer_type>::other	node_pointer_allocator_type;
+		typedef typename allocator_type::template rebind<node_pointer_type>::other	node_pointer_allocator_type;
 	#endif
 
 
@@ -447,40 +506,45 @@ private:
 
 
 
-	class group_vector : private node_pointer_allocator_type // Simple vector of groups + associated functions
+	class group_vector : private allocator_type // Simple vector of groups + associated functions
 	{
 	public:
 		group_pointer_type last_endpoint_group, block_pointer, last_searched_group; // last_endpoint_group is the last -active- group in the block. Other -inactive- (previously used, now empty of elements) groups may be stored after this group for future usage (to reduce deallocation/reallocation of nodes). block_pointer + size - 1 == the last group in the block, regardless of whether or not the group is active.
 		size_type size;
 
-
-		struct ebco_pair2 : allocator_type // empty-base-class optimisation
+		struct ebco_pair2 : node_pointer_allocator_type // empty-base-class optimisation
 		{
 			size_type capacity; // Total element capacity of all initialized groups
-			explicit ebco_pair2(const size_type number_of_elements) PLF_NOEXCEPT: capacity(number_of_elements) {};
-		}		element_allocator_pair;
+			ebco_pair2(const size_type number_of_elements, const allocator_type &alloc) PLF_NOEXCEPT:
+				node_pointer_allocator_type(alloc),
+				capacity(number_of_elements)
+			{};
+		}		node_pointer_allocator_pair;
 
 		struct ebco_pair : group_allocator_type
 		{
-			size_type capacity; // Total group capacity
-			explicit ebco_pair(const size_type number_of_groups) PLF_NOEXCEPT: capacity(number_of_groups) {};
+			size_type capacity; // Total number of groups
+			ebco_pair(const size_type number_of_groups, const allocator_type &alloc) PLF_NOEXCEPT:
+				group_allocator_type(alloc),
+				capacity(number_of_groups)
+			{};
 		}		group_allocator_pair;
 
 
 
-		group_vector() PLF_NOEXCEPT:
-			node_pointer_allocator_type(node_pointer_allocator_type()),
+		group_vector(const allocator_type &alloc) PLF_NOEXCEPT:
+			allocator_type(alloc),
 			last_endpoint_group(NULL),
 			block_pointer(NULL),
 			last_searched_group(NULL),
 			size(0),
-			element_allocator_pair(0),
-			group_allocator_pair(0)
+			node_pointer_allocator_pair(0, alloc),
+			group_allocator_pair(0, alloc)
 		{}
 
 
 
-		inline PLF_FORCE_INLINE void blank() PLF_NOEXCEPT
+		void blank() PLF_NOEXCEPT
 		{
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_trivial<group_pointer_type>::value)
@@ -494,7 +558,7 @@ private:
 				block_pointer = NULL;
 				last_searched_group = NULL;
 				size = 0;
-				element_allocator_pair.capacity = 0;
+				node_pointer_allocator_pair.capacity = 0;
 				group_allocator_pair.capacity = 0;
 			}
 		}
@@ -503,21 +567,23 @@ private:
 
 		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 			group_vector(group_vector &&source) PLF_NOEXCEPT:
+				allocator_type(source),
 				last_endpoint_group(std::move(source.last_endpoint_group)),
 				block_pointer(std::move(source.block_pointer)),
 				last_searched_group(std::move(source.last_searched_group)),
 				size(source.size),
-				element_allocator_pair(source.element_allocator_pair.capacity),
-				group_allocator_pair(source.group_allocator_pair.capacity)
+				node_pointer_allocator_pair(source.node_pointer_allocator_pair.capacity, source),
+				group_allocator_pair(source.group_allocator_pair.capacity, source)
 			{
 				source.blank();
 			}
 
 
+
 			group_vector & operator = (group_vector &&source) PLF_NOEXCEPT
 			{
-				#ifdef PLF_TYPE_TRAITS_SUPPORT
-					if PLF_CONSTEXPR (std::is_trivial<group_pointer_type>::value)
+				#if defined(PLF_TYPE_TRAITS_SUPPORT) && defined(PLF_ALLOCATOR_TRAITS_SUPPORT)
+					if PLF_CONSTEXPR ((std::is_trivially_copyable<allocator_type>::value || std::allocator_traits<allocator_type>::is_always_equal::value) && std::is_trivial<group_pointer_type>::value)
 					{
 						std::memcpy(static_cast<void *>(this), &source, sizeof(group_vector));
 					}
@@ -528,8 +594,16 @@ private:
 					block_pointer = std::move(source.block_pointer);
 					last_searched_group = std::move(source.last_searched_group);
 					size = source.size;
-					element_allocator_pair.capacity = source.element_allocator_pair.capacity;
+					node_pointer_allocator_pair.capacity = source.node_pointer_allocator_pair.capacity;
 					group_allocator_pair.capacity = source.group_allocator_pair.capacity;
+
+					if PLF_CONSTEXPR(std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value)
+					{
+						static_cast<allocator_type &>(*this) = std::move(static_cast<allocator_type &>(source));
+						// Reconstruct rebinds:
+        				static_cast<node_pointer_allocator_type &>(node_pointer_allocator_pair) = node_allocator_type(*this);
+						static_cast<group_allocator_type &>(group_allocator_pair) = group_allocator_type(*this);
+					}
 				}
 
 				source.blank();
@@ -588,7 +662,7 @@ private:
 							{
 								if (current_node->next != NULL) // ie. is not part of free list
 								{
-									PLF_DESTROY(element_allocator_type, element_allocator_pair, &(current_node->element));
+									PLF_DESTROY(allocator_type, *this, &(current_node->element));
 								}
 							}
 
@@ -596,8 +670,8 @@ private:
 								if PLF_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 							#endif
 							{
-								PLF_DESTROY(node_pointer_allocator_type, *this, &(current_node->next));
-								PLF_DESTROY(node_pointer_allocator_type, *this, &(current_node->previous));
+								PLF_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->next));
+								PLF_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->previous));
 							}
 						}
 					}
@@ -609,15 +683,15 @@ private:
 								if PLF_CONSTEXPR (!std::is_trivially_destructible<element_type>::value)
 							#endif
 							{
-								PLF_DESTROY(element_allocator_type, element_allocator_pair, &(current_node->element));
+								PLF_DESTROY(allocator_type, *this, &(current_node->element));
 							}
 
 							#ifdef PLF_TYPE_TRAITS_SUPPORT
 								if PLF_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 							#endif
 							{
-								PLF_DESTROY(node_pointer_allocator_type, *this, &(current_node->next));
-								PLF_DESTROY(node_pointer_allocator_type, *this, &(current_node->previous));
+								PLF_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->next));
+								PLF_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->previous));
 							}
 						}
 					}
@@ -641,7 +715,7 @@ private:
 						{
 							if (current_node->next != NULL) // is not part of free list ie. element has not already had it's destructor called
 							{
-								PLF_DESTROY(element_allocator_type, element_allocator_pair, &(current_node->element));
+								PLF_DESTROY(allocator_type, *this, &(current_node->element));
 							}
 						}
 
@@ -649,8 +723,8 @@ private:
 							if PLF_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 						#endif
 						{
-							PLF_DESTROY(node_pointer_allocator_type, *this, &(current_node->next));
-							PLF_DESTROY(node_pointer_allocator_type, *this, &(current_node->previous));
+							PLF_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->next));
+							PLF_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->previous));
 						}
 					}
 				}
@@ -662,15 +736,15 @@ private:
 							if PLF_CONSTEXPR (!std::is_trivially_destructible<element_type>::value)
 						#endif
 						{
-							PLF_DESTROY(element_allocator_type, element_allocator_pair, &(current_node->element));
+							PLF_DESTROY(allocator_type, *this, &(current_node->element));
 						}
 
 						#ifdef PLF_TYPE_TRAITS_SUPPORT
 							if PLF_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 						#endif
 						{
-							PLF_DESTROY(node_pointer_allocator_type, *this, &(current_node->next));
-							PLF_DESTROY(node_pointer_allocator_type, *this, &(current_node->previous));
+							PLF_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->next));
+							PLF_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->previous));
 						}
 					}
 				}
@@ -739,25 +813,25 @@ private:
 			#endif
 
 			++last_endpoint_group; // Doing this here instead of pre-construct to avoid need for a try-catch block
-			element_allocator_pair.capacity += group_size;
+			node_pointer_allocator_pair.capacity += group_size;
 			++size;
 		}
 
 
 
-		void initialize(const group_size_type group_size) // For adding first group *only* when group vector is completely empty and block_pointer is NULL
+		void initialize(const group_size_type first_group_capacity) // For adding first group *only* when group vector is completely empty and block_pointer is NULL
 		{
 			last_endpoint_group = block_pointer = last_searched_group = PLF_ALLOCATE(group_allocator_type, group_allocator_pair, 1, 0);
 			group_allocator_pair.capacity = 1;
 
 			#ifdef PLF_VARIADICS_SUPPORT
-				PLF_CONSTRUCT(group_allocator_type, group_allocator_pair, last_endpoint_group, group_size);
+				PLF_CONSTRUCT(group_allocator_type, group_allocator_pair, last_endpoint_group, first_group_capacity);
 			#else
-				PLF_CONSTRUCT(group_allocator_type, group_allocator_pair, last_endpoint_group, group(group_size));
+				PLF_CONSTRUCT(group_allocator_type, group_allocator_pair, last_endpoint_group, group(first_group_capacity));
 			#endif
 
 			size = 1; // Doing these here instead of pre-construct to avoid need for a try-catch block
-			element_allocator_pair.capacity = group_size;
+			node_pointer_allocator_pair.capacity = first_group_capacity;
 		}
 
 
@@ -769,7 +843,7 @@ private:
 				--last_searched_group;
 			}
 
-			element_allocator_pair.capacity -= static_cast<size_type>(group_to_erase->beyond_end - group_to_erase->nodes);
+			node_pointer_allocator_pair.capacity -= static_cast<size_type>(group_to_erase->beyond_end - group_to_erase->nodes);
 
 			PLF_DESTROY(group_allocator_type, group_allocator_pair, group_to_erase);
 
@@ -1028,8 +1102,8 @@ private:
 
 		void swap(group_vector &source) PLF_NOEXCEPT_SWAP(group_allocator_type)
 		{
-			#ifdef PLF_TYPE_TRAITS_SUPPORT
-				if PLF_CONSTEXPR (std::is_trivial<group_pointer_type>::value) // if pointer type is trivial we can just copy using memcpy - faster - avoids constructors/destructors etc
+			#if defined(PLF_TYPE_TRAITS_SUPPORT) && defined(PLF_ALLOCATOR_TRAITS_SUPPORT)
+				if PLF_CONSTEXPR (std::allocator_traits<allocator_type>::is_always_equal::value && std::is_trivial<group_pointer_type>::value) // if all pointer types are trivial we can just copy using memcpy - avoids constructors/destructors etc and is faster
 				{
 					char temp[sizeof(group_vector)];
 					std::memcpy(static_cast<void *>(&temp), static_cast<void *>(this), sizeof(group_vector));
@@ -1040,21 +1114,42 @@ private:
 			#endif
 			{
 				const group_pointer_type swap_last_endpoint_group = last_endpoint_group, swap_block_pointer = block_pointer, swap_last_searched_group = last_searched_group;
-				const size_type swap_size = size, swap_element_capacity = element_allocator_pair.capacity, swap_capacity = group_allocator_pair.capacity;
+				const size_type swap_size = size, swap_element_capacity = node_pointer_allocator_pair.capacity, swap_capacity = group_allocator_pair.capacity;
 
 				last_endpoint_group = source.last_endpoint_group;
 				block_pointer = source.block_pointer;
 				last_searched_group = source.last_searched_group;
 				size = source.size;
-				element_allocator_pair.capacity = source.element_allocator_pair.capacity;
+				node_pointer_allocator_pair.capacity = source.node_pointer_allocator_pair.capacity;
 				group_allocator_pair.capacity = source.group_allocator_pair.capacity;
 
 				source.last_endpoint_group = swap_last_endpoint_group;
 				source.block_pointer = swap_block_pointer;
 				source.last_searched_group = swap_last_searched_group;
 				source.size = swap_size;
-				source.element_allocator_pair.capacity = swap_element_capacity;
+				source.node_pointer_allocator_pair.capacity = swap_element_capacity;
 				source.group_allocator_pair.capacity = swap_capacity;
+
+				#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
+					if PLF_CONSTEXPR (std::allocator_traits<allocator_type>::propagate_on_container_swap::value && !std::allocator_traits<allocator_type>::is_always_equal::value)
+				#endif
+				{
+					#ifdef PLF_MOVE_SEMANTICS_SUPPORT
+						allocator_type swap_allocator = std::move(static_cast<allocator_type &>(source));
+						static_cast<allocator_type &>(source) = std::move(static_cast<allocator_type &>(*this));
+						static_cast<allocator_type &>(*this) = std::move(swap_allocator);
+					#else
+						const allocator_type swap_allocator = static_cast<allocator_type &>(source);
+						static_cast<allocator_type &>(source) = static_cast<allocator_type &>(*this);
+						static_cast<allocator_type &>(*this) = swap_allocator;
+					#endif
+
+					// Reconstruct rebinds for swapped allocators:
+					static_cast<node_pointer_allocator_type &>(node_pointer_allocator_pair) = node_pointer_allocator_type(*this);
+					static_cast<group_allocator_type &>(group_allocator_pair) = group_allocator_type(*this);
+					static_cast<node_pointer_allocator_type &>(source.node_pointer_allocator_pair) = node_pointer_allocator_type(source);
+					static_cast<group_allocator_type &>(source.group_allocator_pair) = group_allocator_type(source);
+				} // else: undefined behaviour, as per standard
 			}
 		}
 
@@ -1066,7 +1161,7 @@ private:
 
 			for (group_pointer_type current_group = last_endpoint_group + 1; current_group != beyond_last; ++current_group)
 			{
-				element_allocator_pair.capacity -= static_cast<size_type>(current_group->beyond_end - current_group->nodes);
+				node_pointer_allocator_pair.capacity -= static_cast<size_type>(current_group->beyond_end - current_group->nodes);
 				PLF_DESTROY(group_allocator_type, group_allocator_pair, current_group);
 			}
 
@@ -1115,342 +1210,14 @@ private:
 			PLF_DEALLOCATE(group_allocator_type, source.group_allocator_pair, source.block_pointer, source.group_allocator_pair.capacity);
 			size += source.size;
 			last_endpoint_group = block_pointer + size - 1;
-			element_allocator_pair.capacity += source.element_allocator_pair.capacity;
+			node_pointer_allocator_pair.capacity += source.node_pointer_allocator_pair.capacity;
 			source.blank();
 		}
 	};
 
 
 
-	// Implement const/non-const iterator switching pattern:
-	template <bool flag, class IsTrue, class IsFalse> struct choose;
-
-	template <class IsTrue, class IsFalse> struct choose<true, IsTrue, IsFalse>
-	{
-		typedef IsTrue type;
-	};
-
-	template <class IsTrue, class IsFalse> struct choose<false, IsTrue, IsFalse>
-	{
-		typedef IsFalse type;
-	};
-
-
-public:
-
-	template <bool is_const> class list_iterator
-	{
-	private:
-		node_pointer_type node_pointer;
-
-	public:
-		typedef std::bidirectional_iterator_tag 	iterator_category;
-		typedef typename list::value_type 			value_type;
-		typedef typename list::difference_type 		difference_type;
-		typedef typename choose<is_const, typename list::const_pointer, typename list::pointer>::type		pointer;
-		typedef typename choose<is_const, typename list::const_reference, typename list::reference>::type	reference;
-
-		friend class list;
-
-
-
-		inline PLF_FORCE_INLINE bool operator == (const list_iterator rh) const PLF_NOEXCEPT
-		{
-			return (node_pointer == rh.node_pointer);
-		}
-
-
-
-		inline PLF_FORCE_INLINE bool operator == (const list_iterator<!is_const> rh) const PLF_NOEXCEPT
-		{
-			return (node_pointer == rh.node_pointer);
-		}
-
-
-
-		inline PLF_FORCE_INLINE bool operator != (const list_iterator rh) const PLF_NOEXCEPT
-		{
-			return (node_pointer != rh.node_pointer);
-		}
-
-
-
-		inline PLF_FORCE_INLINE bool operator != (const list_iterator<!is_const> rh) const PLF_NOEXCEPT
-		{
-			return (node_pointer != rh.node_pointer);
-		}
-
-
-
-		inline PLF_FORCE_INLINE reference operator * () const
-		{
-			return node_pointer->element;
-		}
-
-
-
-		inline PLF_FORCE_INLINE pointer operator -> () const
-		{
-			return &(node_pointer->element);
-		}
-
-
-
-		inline PLF_FORCE_INLINE list_iterator & operator ++ () PLF_NOEXCEPT
-		{
-			assert(node_pointer != NULL); // covers uninitialised list_iterator
-			node_pointer = node_pointer->next;
-			return *this;
-		}
-
-
-
-		inline list_iterator operator ++(int) PLF_NOEXCEPT
-		{
-			const list_iterator copy(*this);
-			++*this;
-			return copy;
-		}
-
-
-
-		inline PLF_FORCE_INLINE list_iterator & operator -- () PLF_NOEXCEPT
-		{
-			assert(node_pointer != NULL); // covers uninitialised list_iterator
-			node_pointer = node_pointer->previous;
-			return *this;
-		}
-
-
-
-		inline list_iterator operator -- (int) PLF_NOEXCEPT
-		{
-			const list_iterator copy(*this);
-			--*this;
-			return copy;
-		}
-
-
-
-		inline list_iterator & operator = (const list_iterator &rh) PLF_NOEXCEPT
-		{
-			node_pointer = rh.node_pointer;
-			return *this;
-		}
-
-
-
-		inline list_iterator & operator = (const list_iterator<!is_const> &rh) PLF_NOEXCEPT
-		{
-			node_pointer = rh.node_pointer;
-			return *this;
-		}
-
-
-
-		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
-			inline list_iterator & operator = (const list_iterator &&rh) PLF_NOEXCEPT
-			{
-				assert (&rh != this);
-				node_pointer = std::move(rh.node_pointer);
-				return *this;
-			}
-
-
-			inline list_iterator & operator = (const list_iterator<!is_const> &&rh) PLF_NOEXCEPT
-			{
-				node_pointer = std::move(rh.node_pointer);
-				return *this;
-			}
-		#endif
-
-
-
-		list_iterator() PLF_NOEXCEPT: node_pointer(NULL) {}
-
-		list_iterator(const list_iterator &source) PLF_NOEXCEPT: node_pointer(source.node_pointer) {}
-
-		list_iterator(const list_iterator<!is_const> &source) PLF_NOEXCEPT: node_pointer(source.node_pointer) {}
-
-		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
-			list_iterator (const list_iterator &&source) PLF_NOEXCEPT: node_pointer(std::move(source.node_pointer)) {}
-
-			list_iterator(const list_iterator<!is_const> &&source) PLF_NOEXCEPT: node_pointer(std::move(source.node_pointer)) {}
-		#endif
-
-	private:
-
-		list_iterator (const node_pointer_type node_p) PLF_NOEXCEPT: node_pointer(node_p) {}
-	};
-
-
-
-
-	template <bool is_const> class list_reverse_iterator
-	{
-	private:
-		node_pointer_type node_pointer;
-
-	public:
-		typedef std::bidirectional_iterator_tag 	iterator_category;
-		typedef typename list::value_type 		value_type;
-		typedef typename list::difference_type 		difference_type;
-		typedef typename choose<is_const, typename list::const_pointer, typename list::pointer>::type		pointer;
-		typedef typename choose<is_const, typename list::const_reference, typename list::reference>::type	reference;
-
-		friend class list;
-
-
-		inline PLF_FORCE_INLINE bool operator == (const list_reverse_iterator rh) const PLF_NOEXCEPT
-		{
-			return (node_pointer == rh.node_pointer);
-		}
-
-
-
-		inline PLF_FORCE_INLINE bool operator == (const list_reverse_iterator<!is_const> rh) const PLF_NOEXCEPT
-		{
-			return (node_pointer == rh.node_pointer);
-		}
-
-
-
-		inline PLF_FORCE_INLINE bool operator != (const list_reverse_iterator rh) const PLF_NOEXCEPT
-		{
-			return (node_pointer != rh.node_pointer);
-		}
-
-
-
-		inline PLF_FORCE_INLINE bool operator != (const list_reverse_iterator<!is_const> rh) const PLF_NOEXCEPT
-		{
-			return (node_pointer != rh.node_pointer);
-		}
-
-
-
-		inline PLF_FORCE_INLINE reference operator * () const
-		{
-			return node_pointer->element;
-		}
-
-
-
-		inline PLF_FORCE_INLINE pointer operator -> () const
-		{
-			return &(node_pointer->element);
-		}
-
-
-
-		inline PLF_FORCE_INLINE list_reverse_iterator & operator ++ () PLF_NOEXCEPT
-		{
-			assert(node_pointer != NULL); // covers uninitialised list_reverse_iterator
-			node_pointer = node_pointer->previous;
-			return *this;
-		}
-
-
-
-		inline list_reverse_iterator operator ++(int) PLF_NOEXCEPT
-		{
-			const list_reverse_iterator copy(*this);
-			++*this;
-			return copy;
-		}
-
-
-
-		inline PLF_FORCE_INLINE list_reverse_iterator & operator -- () PLF_NOEXCEPT
-		{
-			assert(node_pointer != NULL);
-			node_pointer = node_pointer->next;
-			return *this;
-		}
-
-
-
-		inline list_reverse_iterator operator -- (int) PLF_NOEXCEPT
-		{
-			const list_reverse_iterator copy(*this);
-			--*this;
-			return copy;
-		}
-
-
-
-		inline list_reverse_iterator & operator = (const list_reverse_iterator &rh) PLF_NOEXCEPT
-		{
-			node_pointer = rh.node_pointer;
-			return *this;
-		}
-
-
-
-		inline list_reverse_iterator & operator = (const list_reverse_iterator<!is_const> &rh) PLF_NOEXCEPT
-		{
-			node_pointer = rh.node_pointer;
-			return *this;
-		}
-
-
-
-		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
-			inline list_reverse_iterator & operator = (const list_reverse_iterator &&rh) PLF_NOEXCEPT
-			{
-				assert (&rh != this);
-				node_pointer = std::move(rh.node_pointer);
-				return *this;
-			}
-
-
-			inline list_reverse_iterator & operator = (const list_reverse_iterator<!is_const> &&rh) PLF_NOEXCEPT
-			{
-				node_pointer = std::move(rh.node_pointer);
-				return *this;
-			}
-		#endif
-
-
-
-		inline typename list::iterator base() const PLF_NOEXCEPT
-		{
-			return typename list::iterator(node_pointer->next);
-		}
-
-
-
-		list_reverse_iterator() PLF_NOEXCEPT: node_pointer(NULL) {}
-
-		list_reverse_iterator(const list_reverse_iterator &source) PLF_NOEXCEPT: node_pointer(source.node_pointer) {}
-
-		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
-			list_reverse_iterator (const list_reverse_iterator &&source) PLF_NOEXCEPT: node_pointer(std::move(source.node_pointer)) {}
-
-			list_reverse_iterator (const list_reverse_iterator<!is_const> &&source) PLF_NOEXCEPT: node_pointer(std::move(source.node_pointer)) {}
-		#endif
-
-	private:
-
-		list_reverse_iterator (const node_pointer_type node_p) PLF_NOEXCEPT: node_pointer(node_p) {}
-	};
-
-
-
 private:
-
-	// Used by range-insert and range-constructor to prevent fill-insert and fill-constructor function calls mistakenly resolving to the range insert/constructor
-	template <bool condition, class T = void>
-	struct plf_enable_if_c
-	{
-		typedef T type;
-	};
-
-	template <class T>
-	struct plf_enable_if_c<false, T>
-	{};
-
-
 
 	group_vector groups; // Structure which contains all groups (structures containing node memory blocks + block metadata)
 	node_base end_node; // The independent, content-less node which is returned by end()
@@ -1462,17 +1229,15 @@ private:
 	iterator end_iterator, begin_iterator; // Returned by begin() and end().
 	// end_iterator always points to end_node. It is a convenience/optimization variable to save generating many temporary iterators from end_node during functions and during end().
 	// When the list is empty of elements, begin_iterator == end_iterator so that program loops iterating from begin() to end() will function as expected.
+	size_type total_size;
 
-	struct ebco_pair1 : node_pointer_allocator_type // Packaging the group allocator with least-used member variables, for empty-base-class optimisation
-	{
-		size_type total_size;
-		explicit ebco_pair1(const size_type total_num_elements) PLF_NOEXCEPT: total_size(total_num_elements) {}
-	}		node_pointer_allocator_pair;
-
-	struct ebco_pair2 : node_allocator_type
+	struct ebco_pair3 : node_allocator_type
 	{
 		size_type number_of_erased_nodes;
-		explicit ebco_pair2(const size_type num_erased_nodes) PLF_NOEXCEPT: number_of_erased_nodes(num_erased_nodes) {}
+		ebco_pair3(const size_type num_nodes, const allocator_type &alloc) PLF_NOEXCEPT:
+			node_allocator_type(alloc),
+			number_of_erased_nodes(num_nodes)
+		{};
 	}		node_allocator_pair;
 
 
@@ -1481,28 +1246,29 @@ public:
 
 	// Default constructor:
 
-	list() PLF_NOEXCEPT:
-		element_allocator_type(element_allocator_type()),
+	PLF_CONSTFUNC list() PLF_NOEXCEPT_ALLOCATOR:
+		groups(*this),
 		end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
 		end_iterator(static_cast<node_pointer_type>(&end_node)),
 		begin_iterator(static_cast<node_pointer_type>(&end_node)),
-		node_pointer_allocator_pair(0),
-		node_allocator_pair(0)
+		total_size(0),
+		node_allocator_pair(0, *this)
 	{}
 
 
 
 	// Allocator-extended constructor:
 
-	explicit list(const element_allocator_type &alloc):
-		element_allocator_type(alloc),
+	explicit list(const allocator_type &alloc):
+		allocator_type(alloc),
+		groups(alloc),
 		end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
 		end_iterator(static_cast<node_pointer_type>(&end_node)),
 		begin_iterator(static_cast<node_pointer_type>(&end_node)),
-		node_pointer_allocator_pair(0),
-		node_allocator_pair(0)
+		total_size(0),
+		node_allocator_pair(0, alloc)
 	{}
 
 
@@ -1510,31 +1276,41 @@ public:
 	// Copy constructor:
 
 	list(const list &source):
-		element_allocator_type(source),
+		#if defined(__cplusplus) && __cplusplus >= 201103L
+			allocator_type(std::allocator_traits<allocator_type>::select_on_container_copy_construction(source)),
+		#else
+			allocator_type(source),
+		#endif
+		groups(*this),
 		end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
 		end_iterator(static_cast<node_pointer_type>(&end_node)),
 		begin_iterator(static_cast<node_pointer_type>(&end_node)),
-		node_pointer_allocator_pair(0),
-		node_allocator_pair(0)
+		total_size(0),
+		node_allocator_pair(0, *this)
 	{
-		range_insert(end_iterator, source.node_pointer_allocator_pair.total_size, source.begin_iterator);
+		range_insert(end_iterator, source.total_size, source.begin_iterator);
 	}
 
 
 
 	// Allocator-extended copy constructor:
 
-	list(const list &source, const allocator_type &alloc):
-		element_allocator_type(alloc),
+	#ifdef PLF_CPP20_SUPPORT
+		list(const list &source, const std::type_identity_t<allocator_type> &alloc):
+	#else
+		list(const list &source, const allocator_type &alloc):
+	#endif
+		allocator_type(alloc),
+		groups(alloc),
 		end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
 		end_iterator(static_cast<node_pointer_type>(&end_node)),
 		begin_iterator(static_cast<node_pointer_type>(&end_node)),
-		node_pointer_allocator_pair(0),
-		node_allocator_pair(0)
+		total_size(0),
+		node_allocator_pair(0, alloc)
 	{
-		range_insert(end_iterator, source.node_pointer_allocator_pair.total_size, source.begin_iterator);
+		range_insert(end_iterator, source.total_size, source.begin_iterator);
 	}
 
 
@@ -1543,14 +1319,14 @@ public:
 		// Move constructor:
 
 		list(list &&source) PLF_NOEXCEPT:
-			element_allocator_type(source),
+			allocator_type(source),
 			groups(std::move(source.groups)),
 			end_node(std::move(source.end_node)),
 			last_endpoint(std::move(source.last_endpoint)),
 			end_iterator(static_cast<node_pointer_type>(&end_node)),
 			begin_iterator((source.begin_iterator.node_pointer == source.end_iterator.node_pointer) ? static_cast<node_pointer_type>(&end_node) : std::move(source.begin_iterator)),
-			node_pointer_allocator_pair(source.node_pointer_allocator_pair.total_size),
-			node_allocator_pair(source.node_allocator_pair.number_of_erased_nodes)
+			total_size(source.total_size),
+			node_allocator_pair(source.node_allocator_pair.number_of_erased_nodes, source)
 		{
 			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
 			source.groups.blank();
@@ -1561,15 +1337,19 @@ public:
 
 		// Allocator-extended move constructor:
 
-		list(list &&source, const allocator_type &alloc):
-			element_allocator_type(alloc),
+		#ifdef PLF_CPP20_SUPPORT
+			list(list &&source, const std::type_identity_t<allocator_type> &alloc):
+		#else
+			list(list &&source, const allocator_type &alloc):
+		#endif
+			allocator_type(alloc),
 			groups(std::move(source.groups)),
 			end_node(std::move(source.end_node)),
 			last_endpoint(std::move(source.last_endpoint)),
 			end_iterator(static_cast<node_pointer_type>(&end_node)),
 			begin_iterator((source.begin_iterator.node_pointer == source.end_iterator.node_pointer) ? static_cast<node_pointer_type>(&end_node) : std::move(source.begin_iterator)),
-			node_pointer_allocator_pair(source.node_pointer_allocator_pair.total_size),
-			node_allocator_pair(source.node_allocator_pair.number_of_erased_nodes)
+			total_size(source.total_size),
+			node_allocator_pair(source.node_allocator_pair.number_of_erased_nodes, alloc)
 		{
 			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
 			source.groups.blank();
@@ -1581,14 +1361,15 @@ public:
 
 	// Fill constructor:
 
-	list(const size_type fill_number, const element_type &element, const element_allocator_type &alloc = element_allocator_type()):
-		element_allocator_type(alloc),
+	list(const size_type fill_number, const element_type &element, const allocator_type &alloc = allocator_type()):
+		allocator_type(alloc),
+		groups(alloc),
 		end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
 		end_iterator(static_cast<node_pointer_type>(&end_node)),
 		begin_iterator(static_cast<node_pointer_type>(&end_node)),
-		node_pointer_allocator_pair(0),
-		node_allocator_pair(0)
+		total_size(0),
+		node_allocator_pair(0, alloc)
 	{
 		insert(end_iterator, fill_number, element);
 	}
@@ -1597,14 +1378,15 @@ public:
 
 	// Default element value fill constructor:
 
-	explicit list(const size_type fill_number, const element_allocator_type &alloc = element_allocator_type()):
-		element_allocator_type(alloc),
+	list(const size_type fill_number, const allocator_type &alloc = allocator_type()):
+		allocator_type(alloc),
+		groups(alloc),
 		end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
 		end_iterator(static_cast<node_pointer_type>(&end_node)),
 		begin_iterator(static_cast<node_pointer_type>(&end_node)),
-		node_pointer_allocator_pair(0),
-		node_allocator_pair(0)
+		total_size(0),
+		node_allocator_pair(0, alloc)
 	{
 		insert(end_iterator, fill_number, element_type());
 	}
@@ -1614,55 +1396,57 @@ public:
 	// Range constructor:
 
 	template<typename iterator_type>
-	list(const typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type &first, const iterator_type &last, const element_allocator_type &alloc = element_allocator_type()):
-		element_allocator_type(alloc),
+	list(const typename plf::enable_if<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type &first, const iterator_type &last, const allocator_type &alloc = allocator_type()):
+		allocator_type(alloc),
+		groups(alloc),
 		end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 		last_endpoint(NULL),
 		end_iterator(static_cast<node_pointer_type>(&end_node)),
 		begin_iterator(static_cast<node_pointer_type>(&end_node)),
-		node_pointer_allocator_pair(0),
-		node_allocator_pair(0)
+		total_size(0),
+		node_allocator_pair(0, alloc)
 	{
 		insert<iterator_type>(end_iterator, first, last);
 	}
 
 
 
-	// Range constructor with sentinel support:
-
-	#ifdef PLF_CPP20_SUPPORT
-		template <class iterator_type, class sentinel>
-			requires (!(std::convertible_to<sentinel, iterator_type> || std::convertible_to<iterator_type, sentinel> || std::integral<iterator_type> || std::integral<sentinel>) && std::sentinel_for<sentinel, iterator_type>)
-		list(const iterator_type &first, const sentinel &last, const element_allocator_type &alloc = element_allocator_type()):
-			element_allocator_type(alloc),
-			end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
-			last_endpoint(NULL),
-			end_iterator(static_cast<node_pointer_type>(&end_node)),
-			begin_iterator(static_cast<node_pointer_type>(&end_node)),
-			node_pointer_allocator_pair(0),
-			node_allocator_pair(0)
-		{
-			insert<iterator_type, sentinel>(end_iterator, first, last);
-		}
-	#endif
-
-
-
 	// Initializer-list constructor:
 
 	#ifdef PLF_INITIALIZER_LIST_SUPPORT
-		list(const std::initializer_list<element_type> &element_list, const element_allocator_type &alloc = element_allocator_type()):
-			element_allocator_type(alloc),
+		list(const std::initializer_list<element_type> &element_list, const allocator_type &alloc = allocator_type()):
+			allocator_type(alloc),
+			groups(alloc),
 			end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 			last_endpoint(NULL),
 			end_iterator(static_cast<node_pointer_type>(&end_node)),
 			begin_iterator(static_cast<node_pointer_type>(&end_node)),
-			node_pointer_allocator_pair(0),
-			node_allocator_pair(0)
+			total_size(0),
+			node_allocator_pair(0, alloc)
 		{
 			range_insert(end_iterator, static_cast<size_type>(element_list.size()), element_list.begin());
 		}
 
+	#endif
+
+
+
+	#ifdef PLF_CPP20_SUPPORT
+		// Ranges v3 constructor:
+
+		template<class range_type>
+			requires std::ranges::range<range_type>
+		list(plf::ranges::from_range_t, range_type &&rg, const allocator_type &alloc = allocator_type()):
+			allocator_type(alloc),
+			end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
+			last_endpoint(NULL),
+			end_iterator(static_cast<node_pointer_type>(&end_node)),
+			begin_iterator(static_cast<node_pointer_type>(&end_node)),
+			total_size(0),
+			node_allocator_pair(0, alloc)
+		{
+			range_insert(end_iterator, static_cast<size_type>(std::ranges::distance(rg)), std::ranges::begin(rg));
+		}
 	#endif
 
 
@@ -1674,77 +1458,77 @@ public:
 
 
 
-	inline iterator begin() PLF_NOEXCEPT
+	iterator begin() PLF_NOEXCEPT
 	{
 		return begin_iterator;
 	}
 
 
 
-	inline const_iterator begin() const PLF_NOEXCEPT
+	const_iterator begin() const PLF_NOEXCEPT
 	{
 		return begin_iterator;
 	}
 
 
 
-	inline iterator end() PLF_NOEXCEPT
+	iterator end() PLF_NOEXCEPT
 	{
 		return end_iterator;
 	}
 
 
 
-	inline const_iterator end() const PLF_NOEXCEPT
+	const_iterator end() const PLF_NOEXCEPT
 	{
 		return end_iterator;
 	}
 
 
 
-	inline const_iterator cbegin() const PLF_NOEXCEPT
+	const_iterator cbegin() const PLF_NOEXCEPT
 	{
 		return const_iterator(begin_iterator.node_pointer);
 	}
 
 
 
-	inline const_iterator cend() const PLF_NOEXCEPT
+	const_iterator cend() const PLF_NOEXCEPT
 	{
 		return const_iterator(end_iterator.node_pointer);
 	}
 
 
 
- 	inline reverse_iterator rbegin() PLF_NOEXCEPT
+ 	reverse_iterator rbegin() PLF_NOEXCEPT
  	{
  		return reverse_iterator(end_node.previous);
  	}
 
 
 
- 	inline reverse_iterator rend() PLF_NOEXCEPT
+ 	reverse_iterator rend() PLF_NOEXCEPT
  	{
  		return reverse_iterator(end_iterator.node_pointer);
  	}
 
 
 
- 	inline const_reverse_iterator crbegin() const PLF_NOEXCEPT
+ 	const_reverse_iterator crbegin() const PLF_NOEXCEPT
  	{
  		return const_reverse_iterator(end_node.previous);
  	}
 
 
 
- 	inline const_reverse_iterator crend() const PLF_NOEXCEPT
+ 	const_reverse_iterator crend() const PLF_NOEXCEPT
  	{
  		return const_reverse_iterator(end_iterator.node_pointer);
  	}
 
 
 
-	inline reference front()
+	reference front()
 	{
 		assert(begin_iterator.node_pointer != &end_node);
 		return begin_iterator.node_pointer->element;
@@ -1752,7 +1536,7 @@ public:
 
 
 
-	inline const_reference front() const
+	const_reference front() const
 	{
 		assert(begin_iterator.node_pointer != &end_node);
 		return begin_iterator.node_pointer->element;
@@ -1760,7 +1544,7 @@ public:
 
 
 
-	inline reference back()
+	reference back()
 	{
 		assert(end_node.previous != &end_node);
 		return end_node.previous->element;
@@ -1768,7 +1552,7 @@ public:
 
 
 
-	inline const_reference back() const
+	const_reference back() const
 	{
 		assert(end_node.previous != &end_node);
 		return end_node.previous->element;
@@ -1783,7 +1567,7 @@ public:
 			return;
 		}
 
-		if (node_pointer_allocator_pair.total_size != 0)
+		if (total_size != 0)
 		{
 			groups.clear(last_endpoint);
 		}
@@ -1792,7 +1576,7 @@ public:
 		end_node.previous = static_cast<node_pointer_type>(&end_node);
 		last_endpoint = NULL;
 		begin_iterator.node_pointer = end_iterator.node_pointer;
-		node_pointer_allocator_pair.total_size = 0;
+		total_size = 0;
 		node_allocator_pair.number_of_erased_nodes = 0;
 	}
 
@@ -1808,19 +1592,19 @@ private:
 		end_node.next = static_cast<node_pointer_type>(&end_node);
 		end_node.previous = static_cast<node_pointer_type>(&end_node);
 		begin_iterator.node_pointer = end_iterator.node_pointer;
-		node_pointer_allocator_pair.total_size = 0;
+		total_size = 0;
 		node_allocator_pair.number_of_erased_nodes = 0;
 	}
 
 
 
-	inline void add_group_if_necessary()
+	void add_group_if_necessary()
 	{
 		if (last_endpoint == groups.last_endpoint_group->beyond_end) // last_endpoint is beyond the end of a group
 		{
 			if (static_cast<size_type>(groups.last_endpoint_group - groups.block_pointer) == groups.size - 1) // ie. there are no reusable groups available at the back of group vector
 			{
-				groups.add_new((node_pointer_allocator_pair.total_size < PLF_BLOCK_MAX) ? static_cast<group_size_type>(node_pointer_allocator_pair.total_size) : PLF_BLOCK_MAX);
+				groups.add_new((total_size < PLF_MAX_BLOCK_CAPACITY) ? static_cast<group_size_type>(total_size) : PLF_MAX_BLOCK_CAPACITY);
 			}
 			else
 			{
@@ -1833,10 +1617,10 @@ private:
 
 
 
-	inline void update_sizes_and_iterators(const const_iterator it)
+	void update_sizes_and_iterators(const const_iterator it)
 	{
 		++(groups.last_endpoint_group->number_of_elements);
-		++node_pointer_allocator_pair.total_size;
+		++total_size;
 
 		if (it.node_pointer == begin_iterator.node_pointer)
 		{
@@ -1849,16 +1633,16 @@ private:
 
 
 
-	inline void insert_initialize()
+	void insert_initialize()
 	{
 		if (groups.block_pointer == NULL) // In case of prior reserve/clear call as opposed to being uninitialized
 		{
-			groups.initialize(PLF_BLOCK_MIN);
+			groups.initialize(PLF_MIN_BLOCK_CAPACITY);
 		}
 
 		groups.last_endpoint_group->number_of_elements = 1;
 		end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
-		node_pointer_allocator_pair.total_size = 1;
+		total_size = 1;
 	}
 
 
@@ -1897,7 +1681,7 @@ public:
 
 				node_group->free_list_head = previous;
 				++(node_group->number_of_elements);
-				++node_pointer_allocator_pair.total_size;
+				++total_size;
 				--node_allocator_pair.number_of_erased_nodes;
 
 				it.node_pointer->previous->next = selected_node;
@@ -1948,14 +1732,14 @@ public:
 
 
 
-	inline PLF_FORCE_INLINE void push_back(const element_type &element)
+	void push_back(const element_type &element)
 	{
 		insert(end_iterator, element);
 	}
 
 
 
-	inline PLF_FORCE_INLINE void push_front(const element_type &element)
+	void push_front(const element_type &element)
 	{
 		insert(begin_iterator, element);
 	}
@@ -1994,7 +1778,7 @@ public:
 
 					node_group->free_list_head = previous;
 					++(node_group->number_of_elements);
-					++node_pointer_allocator_pair.total_size;
+					++total_size;
 					--node_allocator_pair.number_of_erased_nodes;
 
 					it.node_pointer->previous->next = selected_node;
@@ -2045,14 +1829,14 @@ public:
 
 
 
-		inline PLF_FORCE_INLINE void push_back(element_type &&element)
+		void push_back(element_type &&element)
 		{
 			insert(end_iterator, std::move(element));
 		}
 
 
 
-		inline PLF_FORCE_INLINE void push_front(element_type &&element)
+		void push_front(element_type &&element)
 		{
 			insert(begin_iterator, std::move(element));
 		}
@@ -2086,7 +1870,7 @@ public:
 
 					node_group->free_list_head = previous;
 					++(node_group->number_of_elements);
-					++node_pointer_allocator_pair.total_size;
+					++total_size;
 					--node_allocator_pair.number_of_erased_nodes;
 
 					it.node_pointer->previous->next = selected_node;
@@ -2129,7 +1913,7 @@ public:
 
 
 		template<typename... arguments>
-		inline PLF_FORCE_INLINE reference emplace_back(arguments &&... parameters)
+		reference emplace_back(arguments &&... parameters)
 		{
 			return (emplace(end_iterator, std::forward<arguments>(parameters)...)).node_pointer->element;
 		}
@@ -2137,7 +1921,7 @@ public:
 
 
 		template<typename... arguments>
-		inline PLF_FORCE_INLINE reference emplace_front(arguments &&... parameters)
+		reference emplace_front(arguments &&... parameters)
 		{
 			return (emplace(begin_iterator, std::forward<arguments>(parameters)...)).node_pointer->element;
 		}
@@ -2258,7 +2042,7 @@ private:
 			return insert(position, *it);
 		}
 
-		reserve(node_pointer_allocator_pair.total_size + number_of_elements);
+		reserve(total_size + number_of_elements);
 
 		// Insert first element, then use up any erased nodes:
 		size_type remainder = number_of_elements - 1;
@@ -2274,7 +2058,7 @@ private:
 			}
 		}
 
-		node_pointer_allocator_pair.total_size += remainder;
+		total_size += remainder;
 
 		// then use up remainder of last_endpoint_group:
 		const group_size_type remaining_nodes_in_group = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - last_endpoint);
@@ -2333,7 +2117,7 @@ public:
 			return insert(position, element);
 		}
 
-		reserve(node_pointer_allocator_pair.total_size + number_of_elements);
+		reserve(total_size + number_of_elements);
 
 		// Insert first element, then use up any erased nodes:
 		size_type remainder = number_of_elements - 1;
@@ -2349,7 +2133,7 @@ public:
 			}
 		}
 
-		node_pointer_allocator_pair.total_size += remainder;
+		total_size += remainder;
 
 		// then use up remainder of last_endpoint_group:
 		const group_size_type remaining_nodes_in_group = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - last_endpoint);
@@ -2392,11 +2176,10 @@ public:
 
 
 
-
 	// Range insert
 
 	template <class iterator_type>
-	inline iterator insert(const const_iterator position, typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
+	iterator insert(const const_iterator position, typename plf::enable_if<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
 	{
 		using std::distance;
 		return range_insert(position, static_cast<size_type>(distance(first, last)), first);
@@ -2404,11 +2187,11 @@ public:
 
 
 
-	// Range insert, move_iterator overload:
+	// Range insert, move_iterator overload
 
 	#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 		template <class iterator_type>
-		inline iterator insert (const const_iterator position, const std::move_iterator<iterator_type> first, const std::move_iterator<iterator_type> last)
+		iterator insert (const const_iterator position, const std::move_iterator<iterator_type> first, const std::move_iterator<iterator_type> last)
 		{
 			using std::distance;
 			return range_insert(position, static_cast<size_type>(distance(first.base(),last.base())), first);
@@ -2417,24 +2200,10 @@ public:
 
 
 
-	#ifdef PLF_CPP20_SUPPORT
-		// Support for sentinels:
-		template <class iterator_type, class sentinel>
-			requires (!(std::convertible_to<sentinel, iterator_type> || std::convertible_to<iterator_type, sentinel> || std::integral<iterator_type> || std::integral<sentinel>) && std::sentinel_for<sentinel, iterator_type>)
-		inline iterator insert(const const_iterator position, const iterator_type first, const sentinel last)
-		{
-			size_type distance = 0;
-			for(iterator_type current = first; current != last; ++current, ++distance) {};
-			return range_insert(position, distance, first);
-		}
-	#endif
-
-
-
 	// Initializer-list insert
 
 	#ifdef PLF_INITIALIZER_LIST_SUPPORT
-		inline iterator insert(const const_iterator it, const std::initializer_list<element_type> &element_list)
+		iterator insert(const const_iterator it, const std::initializer_list<element_type> &element_list)
 		{
 			return range_insert(it, static_cast<size_type>(element_list.size()), element_list.begin());
 		}
@@ -2442,14 +2211,25 @@ public:
 
 
 
+	#ifdef PLF_CPP20_SUPPORT
+		template<class range_type>
+			requires std::ranges::range<range_type>
+		iterator insert_range(const const_iterator it, range_type &&the_range)
+		{
+			return range_insert(it, static_cast<size_type>(std::ranges::distance(the_range)), std::ranges::begin(the_range));
+		}
+	#endif
+
+
+
 private:
 
-	inline PLF_FORCE_INLINE void destroy_all_node_pointers(group_pointer_type const group_to_process, const node_pointer_type beyond_end_node) PLF_NOEXCEPT
+	void destroy_all_node_pointers(group_pointer_type const group_to_process, const node_pointer_type beyond_end_node) PLF_NOEXCEPT
 	{
 		for (node_pointer_type current_node = group_to_process->nodes; current_node != beyond_end_node; ++current_node)
 		{
-			PLF_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->next));
-			PLF_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, &(current_node->previous));
+			PLF_DESTROY(node_pointer_allocator_type, groups.node_pointer_allocator_pair, &(current_node->next));
+			PLF_DESTROY(node_pointer_allocator_type, groups.node_pointer_allocator_pair, &(current_node->previous));
 		}
 	}
 
@@ -2462,7 +2242,7 @@ public:
 
 	iterator erase(const const_iterator it) // if uninitialized/invalid iterator supplied, function could generate an exception, hence no noexcept
 	{
-		assert(node_pointer_allocator_pair.total_size != 0);
+		assert(total_size != 0);
 		assert(it.node_pointer != NULL);
 		assert(it.node_pointer != end_iterator.node_pointer);
 
@@ -2470,10 +2250,10 @@ public:
 			if PLF_CONSTEXPR (!(std::is_trivially_destructible<element_type>::value))
 		#endif
 		{
-			PLF_DESTROY(element_allocator_type, *this, &(it.node_pointer->element)); // Destruct element
+			PLF_DESTROY(allocator_type, *this, &(it.node_pointer->element)); // Destruct element
 		}
 
-		--node_pointer_allocator_pair.total_size;
+		--total_size;
 		++node_allocator_pair.number_of_erased_nodes;
 
 
@@ -2550,7 +2330,7 @@ public:
 
 			node_group->free_list_head = NULL;
 
-			if ((group_size == PLF_BLOCK_MAX) | (node_group >= groups.last_endpoint_group - 1)) // Preserve only groups which are at the maximum possible size, or first/second/third-to-last active groups - seems to be best for performance under high-modification benchmarks
+			if ((group_size == PLF_MAX_BLOCK_CAPACITY) | (node_group >= groups.last_endpoint_group - 1)) // Preserve only groups which are at the maximum possible size, or first/second/third-to-last active groups - seems to be best for performance under high-modification benchmarks
 			{
 				groups.move_to_back(node_group);
 			}
@@ -2572,7 +2352,7 @@ public:
 
 			node_group->free_list_head = NULL;
 
-			if (node_pointer_allocator_pair.total_size != 0)
+			if (total_size != 0)
 			{
 				node_allocator_pair.number_of_erased_nodes -= static_cast<group_size_type>(last_endpoint - node_group->nodes);
 	  			last_endpoint = groups.last_endpoint_group->beyond_end;
@@ -2591,38 +2371,60 @@ public:
 
 	// Range-erase:
 
-	inline iterator erase(const_iterator iterator1, const const_iterator iterator2)
+	iterator erase(const_iterator iterator1, const const_iterator iterator2)
 	{
 		while (iterator1 != iterator2)
 		{
 			iterator1 = erase(iterator1);
 		}
 
-		return iterator2;
+		return iterator(iterator2.node_pointer);
 	}
 
 
 
-	inline void pop_back() // Exception will occur on empty list
+	void pop_back() // Exception will occur on empty list
 	{
 		erase(iterator(end_node.previous));
 	}
 
 
 
-	inline void pop_front()
+	void pop_front()
 	{
 		erase(begin_iterator);
 	}
 
 
 
-	inline list & operator = (const list &source)
+	list & operator = (const list &source)
 	{
 		assert (&source != this);
 
 		clear();
-		range_insert(end_iterator, source.node_pointer_allocator_pair.total_size, source.begin_iterator);
+
+		#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
+			if PLF_CONSTEXPR (std::allocator_traits<allocator_type>::propagate_on_container_copy_assignment::value)
+		#endif
+		{
+			allocator_type source_allocator(source);
+
+			#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
+				if(!std::allocator_traits<allocator_type>::is_always_equal::value && static_cast<allocator_type &>(*this) != source_allocator)
+			#else
+				if(static_cast<allocator_type &>(*this) != source_allocator)
+			#endif
+			{ // Deallocate existing blocks as source allocator is not necessarily able to do so
+				reset();
+			}
+
+			static_cast<allocator_type &>(*this) = source_allocator;
+
+			// Reconstruct rebinds:
+			static_cast<node_allocator_type &>(node_allocator_pair) = node_allocator_type(*this);
+		}
+
+		range_insert(end_iterator, source.total_size, source.begin_iterator);
 
 		return *this;
 	}
@@ -2636,18 +2438,36 @@ public:
 			assert (&source != this);
 
 			// Move source values across:
-			groups.destroy_all_data(last_endpoint);
+			#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
+				if (std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value || std::allocator_traits<allocator_type>::is_always_equal::value || static_cast<allocator_type &>(*this) == static_cast<allocator_type &>(source))
+			#else
+				if (static_cast<allocator_type &>(*this) == static_cast<allocator_type &>(source))
+			#endif
+			{
+				groups.destroy_all_data(last_endpoint);
 
-			groups = std::move(source.groups);
-			end_node = std::move(source.end_node);
-			last_endpoint = std::move(source.last_endpoint);
-			begin_iterator.node_pointer = (source.begin_iterator.node_pointer == source.end_iterator.node_pointer) ? end_iterator.node_pointer : std::move(source.begin_iterator.node_pointer);
-			node_pointer_allocator_pair.total_size = source.node_pointer_allocator_pair.total_size;
-			node_allocator_pair.number_of_erased_nodes = source.node_allocator_pair.number_of_erased_nodes;
+				groups = std::move(source.groups);
+				end_node = std::move(source.end_node);
+				last_endpoint = std::move(source.last_endpoint);
+				begin_iterator.node_pointer = (source.begin_iterator.node_pointer == source.end_iterator.node_pointer) ? end_iterator.node_pointer : std::move(source.begin_iterator.node_pointer);
+				total_size = source.total_size;
+				node_allocator_pair.number_of_erased_nodes = source.node_allocator_pair.number_of_erased_nodes;
 
-			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
+				end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
+				source.groups.blank();
 
-			source.groups.blank();
+				if PLF_CONSTEXPR(std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value)
+				{
+					static_cast<allocator_type &>(*this) = source;
+					static_cast<node_allocator_type &>(node_allocator_pair) = node_allocator_type(*this);
+				}
+			}
+			else // Allocator isn't movable so move elements from source and deallocate the source's blocks:
+			{
+				clear();
+				range_insert(end_iterator, source.total_size, std::make_move_iterator(source.begin_iterator));
+			}
+
 			source.reset();
 			return *this;
 		}
@@ -2656,7 +2476,7 @@ public:
 
 
 	#ifdef PLF_INITIALIZER_LIST_SUPPORT
-		inline list & operator = (const std::initializer_list<element_type> &element_list)
+		list & operator = (const std::initializer_list<element_type> &element_list)
 		{
 			clear();
 			range_insert(end_iterator, static_cast<size_type>(element_list.size()), element_list.begin());
@@ -2670,7 +2490,7 @@ public:
 	{
 		assert (this != &rh);
 
-		if (node_pointer_allocator_pair.total_size != rh.node_pointer_allocator_pair.total_size)
+		if (total_size != rh.total_size)
 		{
 			return false;
 		}
@@ -2688,7 +2508,7 @@ public:
 
 
 
-	inline bool operator != (const list &rh) const PLF_NOEXCEPT
+	bool operator != (const list &rh) const PLF_NOEXCEPT
 	{
 		return !(*this == rh);
 	}
@@ -2696,7 +2516,7 @@ public:
 
 
 	#ifdef PLF_CPP20_SUPPORT
-		friend auto operator <=> (const list &lh, const list &rh)
+		friend constexpr std::strong_ordering operator <=> (const list &lh, const list &rh)
 		{
 			return std::lexicographical_compare_three_way(lh.begin(), lh.end(), rh.begin(), rh.end());
 		}
@@ -2705,56 +2525,46 @@ public:
 
 		[[nodiscard]]
 	#endif
-	inline bool empty() const PLF_NOEXCEPT
+	bool empty() const PLF_NOEXCEPT
 	{
-		return node_pointer_allocator_pair.total_size == 0;
+		return total_size == 0;
 	}
 
 
 
-	inline size_type size() const PLF_NOEXCEPT
+	size_type size() const PLF_NOEXCEPT
 	{
-		return node_pointer_allocator_pair.total_size;
+		return total_size;
 	}
 
 
 
-	inline size_type max_size() const PLF_NOEXCEPT
+	size_type max_size() const PLF_NOEXCEPT
 	{
 		#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
-			return std::allocator_traits<element_allocator_type>::max_size(*this);
+			return std::allocator_traits<allocator_type>::max_size(*this);
 		#else
-			return element_allocator_type::max_size();
+			return allocator_type::max_size();
 		#endif
 	}
 
 
 
-	inline size_type capacity() const PLF_NOEXCEPT
+	size_type capacity() const PLF_NOEXCEPT
 	{
-		return groups.element_allocator_pair.capacity;
+		return groups.node_pointer_allocator_pair.capacity;
 	}
 
 
 
-	inline size_type memory() const PLF_NOEXCEPT
+	size_type memory() const PLF_NOEXCEPT
 	{
-		return sizeof(*this) + (groups.element_allocator_pair.capacity * sizeof(node)) + (groups.group_allocator_pair.capacity * sizeof(group));
+		return sizeof(*this) + (groups.node_pointer_allocator_pair.capacity * sizeof(node)) + (groups.group_allocator_pair.capacity * sizeof(group));
 	}
 
 
 
 private:
-
-
-	struct less
-	{
-		inline bool operator() (const element_type &a, const element_type &b) const PLF_NOEXCEPT
-		{
-			return a < b;
-		}
-	};
-
 
 
 	// Function-object to redirect the sort function to sort pointers by the elements they point to, not the pointer value
@@ -2767,7 +2577,7 @@ private:
 			stored_instance(function_instance)
 		{}
 
-		inline bool operator() (const node_pointer_type first, const node_pointer_type second)
+		bool operator() (const node_pointer_type first, const node_pointer_type second)
 		{
 			return stored_instance(first->element, second->element);
 		}
@@ -2781,12 +2591,12 @@ public:
 	template <class comparison_function>
 	void sort(comparison_function compare)
 	{
-		if (node_pointer_allocator_pair.total_size < 2)
+		if (total_size < 2)
 		{
 			return;
 		}
 
-		node_pointer_type * const node_pointers = PLF_ALLOCATE(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointer_allocator_pair.total_size, NULL);
+		node_pointer_type * const node_pointers = PLF_ALLOCATE(node_pointer_allocator_type, groups.node_pointer_allocator_pair, total_size, NULL);
 		node_pointer_type *node_pointer = node_pointers;
 
 
@@ -2801,7 +2611,7 @@ public:
 				{
 					if (current_node->next != NULL) // is not free list node
 					{
-						PLF_CONSTRUCT(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointer++, current_node);
+						PLF_CONSTRUCT(node_pointer_allocator_type, groups.node_pointer_allocator_pair, node_pointer++, current_node);
 					}
 				}
 			}
@@ -2809,7 +2619,7 @@ public:
 			{
 				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 				{
-					PLF_CONSTRUCT(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointer++, current_node);
+					PLF_CONSTRUCT(node_pointer_allocator_type, groups.node_pointer_allocator_pair, node_pointer++, current_node);
 				}
 			}
 		}
@@ -2820,7 +2630,7 @@ public:
 			{
 				if (current_node->next != NULL)
 				{
-					PLF_CONSTRUCT(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointer++, current_node);
+					PLF_CONSTRUCT(node_pointer_allocator_type, groups.node_pointer_allocator_pair, node_pointer++, current_node);
 				}
 			}
 		}
@@ -2828,15 +2638,15 @@ public:
 		{
 			for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 			{
-				PLF_CONSTRUCT(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointer++, current_node);
+				PLF_CONSTRUCT(node_pointer_allocator_type, groups.node_pointer_allocator_pair, node_pointer++, current_node);
 			}
 		}
 
 
 		#ifndef PLF_SORT_FUNCTION
-			std::sort(node_pointers, node_pointers + node_pointer_allocator_pair.total_size, sort_dereferencer<comparison_function>(compare));
+			std::sort(node_pointers, node_pointer, sort_dereferencer<comparison_function>(compare));
 		#else
-			PLF_SORT_FUNCTION(node_pointers, node_pointers + node_pointer_allocator_pair.total_size, sort_dereferencer<comparison_function>(compare));
+			PLF_SORT_FUNCTION(node_pointers, node_pointer, sort_dereferencer<comparison_function>(compare));
 		#endif
 
 
@@ -2845,11 +2655,11 @@ public:
 		begin_iterator.node_pointer->previous = end_iterator.node_pointer;
 
 		end_node.next = node_pointers[0];
-		end_node.previous = node_pointers[node_pointer_allocator_pair.total_size - 1];
+		end_node.previous = node_pointers[total_size - 1];
 		end_node.previous->next = end_iterator.node_pointer;
-		end_node.previous->previous = node_pointers[node_pointer_allocator_pair.total_size - 2];
+		end_node.previous->previous = node_pointers[total_size - 2];
 
-		node_pointer_type * const back = node_pointers + node_pointer_allocator_pair.total_size - 1;
+		node_pointer_type * const back = node_pointers + total_size - 1;
 
 		for(node_pointer = node_pointers + 1; node_pointer != back; ++node_pointer)
 		{
@@ -2860,7 +2670,7 @@ public:
 				if PLF_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 			#endif
 			{
-				PLF_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointer - 1);
+				PLF_DESTROY(node_pointer_allocator_type, groups.node_pointer_allocator_pair, node_pointer - 1);
 			}
 		}
 
@@ -2868,26 +2678,31 @@ public:
 			if PLF_CONSTEXPR (!std::is_trivially_destructible<node_pointer_type>::value)
 		#endif
 		{
-			PLF_DESTROY(node_pointer_allocator_type, node_pointer_allocator_pair, back);
+			PLF_DESTROY(node_pointer_allocator_type, groups.node_pointer_allocator_pair, back);
 		}
 
-		PLF_DEALLOCATE(node_pointer_allocator_type, node_pointer_allocator_pair, node_pointers, node_pointer_allocator_pair.total_size);
+		PLF_DEALLOCATE(node_pointer_allocator_type, groups.node_pointer_allocator_pair, node_pointers, total_size);
 	}
 
 
 
-	inline void sort()
+	void sort()
 	{
-		sort(less());
+		sort(plf::less<element_type>());
 	}
 
 
 
 	void splice(const const_iterator position, const const_iterator first, const const_iterator last) PLF_NOEXCEPT
 	{
+		if (position == last)
+		{
+			return;
+		}
+
 		if (begin_iterator == first)
 		{
-			begin_iterator = last;
+			begin_iterator.node_pointer = last.node_pointer;
 		}
 
 		// To avoid pointer aliasing and subsequently increase performance via simultaneous assignments:
@@ -2906,13 +2721,13 @@ public:
 
 		if (begin_iterator == position)
 		{
-			begin_iterator = first;
+			begin_iterator.node_pointer = first.node_pointer;
 		}
 	}
 
 
 
-	inline void splice(const const_iterator position, const const_iterator location) PLF_NOEXCEPT
+	void splice(const const_iterator position, const const_iterator location) PLF_NOEXCEPT
 	{
 		splice(position, location, const_iterator(location.node_pointer->next));
 	}
@@ -2921,13 +2736,13 @@ public:
 
 	void reserve(size_type reserve_amount)
 	{
-		if (reserve_amount == 0 || reserve_amount <= groups.element_allocator_pair.capacity)
+		if (reserve_amount == 0 || reserve_amount <= groups.node_pointer_allocator_pair.capacity)
 		{
 			return;
 		}
-		else if (reserve_amount < PLF_BLOCK_MIN)
+		else if (reserve_amount < PLF_MIN_BLOCK_CAPACITY)
 		{
-			reserve_amount = PLF_BLOCK_MIN;
+			reserve_amount = PLF_MIN_BLOCK_CAPACITY;
 		}
 		else if (reserve_amount > max_size())
 		{
@@ -2935,25 +2750,25 @@ public:
 		}
 
 
-		if (groups.block_pointer != NULL && node_pointer_allocator_pair.total_size == 0)
+		if (groups.block_pointer != NULL && total_size == 0)
 		{ // edge case: has been filled with elements then clear()'d - some groups may be smaller than would be desired, should be replaced
 			group_size_type end_group_size = static_cast<group_size_type>((groups.block_pointer + groups.size - 1)->beyond_end - (groups.block_pointer + groups.size - 1)->nodes);
 
-			if (reserve_amount > end_group_size && end_group_size != PLF_BLOCK_MAX) // if last group isn't large enough, remove all groups
+			if (reserve_amount > end_group_size && end_group_size != PLF_MAX_BLOCK_CAPACITY) // if last group isn't large enough, remove all groups
 			{
 				reset();
 			}
 			else
 			{
-				size_type number_of_full_groups_needed = reserve_amount / PLF_BLOCK_MAX;
-				group_size_type remainder = static_cast<group_size_type>(reserve_amount - (number_of_full_groups_needed * PLF_BLOCK_MAX));
+				size_type number_of_full_groups_needed = reserve_amount / PLF_MAX_BLOCK_CAPACITY;
+				group_size_type remainder = static_cast<group_size_type>(reserve_amount - (number_of_full_groups_needed * PLF_MAX_BLOCK_CAPACITY));
 
 				// Remove any max_size groups which're not needed and any groups that're smaller than remainder:
 				for (group_pointer_type current_group = groups.block_pointer; current_group < groups.block_pointer + groups.size;)
 				{
 					const group_size_type current_group_size = static_cast<group_size_type>(groups.block_pointer->beyond_end - groups.block_pointer->nodes);
 
-					if (number_of_full_groups_needed != 0 && current_group_size == PLF_BLOCK_MAX)
+					if (number_of_full_groups_needed != 0 && current_group_size == PLF_MAX_BLOCK_CAPACITY)
 					{
 						--number_of_full_groups_needed;
 						++current_group;
@@ -2973,23 +2788,23 @@ public:
 			}
 		}
 
-		reserve_amount -= groups.element_allocator_pair.capacity;
+		reserve_amount -= groups.node_pointer_allocator_pair.capacity;
 
 		// To correct from possible reallocation caused by add_new:
 		const difference_type last_endpoint_group_number = groups.last_endpoint_group - groups.block_pointer;
 
-		size_type number_of_full_groups = (reserve_amount / PLF_BLOCK_MAX);
-		reserve_amount -= (number_of_full_groups++ * PLF_BLOCK_MAX); // ++ to aid while loop below
+		size_type number_of_full_groups = (reserve_amount / PLF_MAX_BLOCK_CAPACITY);
+		reserve_amount -= (number_of_full_groups++ * PLF_MAX_BLOCK_CAPACITY); // ++ to aid while loop below
 
 		if (groups.block_pointer == NULL) // Previously uninitialized list or reset in above if statement; most common scenario
 		{
 			if (reserve_amount != 0)
 			{
-				groups.initialize(static_cast<group_size_type>(((reserve_amount < PLF_BLOCK_MIN) ? PLF_BLOCK_MIN : reserve_amount)));
+				groups.initialize(static_cast<group_size_type>(((reserve_amount < PLF_MIN_BLOCK_CAPACITY) ? PLF_MIN_BLOCK_CAPACITY : reserve_amount)));
 			}
 			else
 			{
-				groups.initialize(PLF_BLOCK_MAX);
+				groups.initialize(PLF_MAX_BLOCK_CAPACITY);
 				--number_of_full_groups;
 			}
 		}
@@ -3001,7 +2816,7 @@ public:
 
 		while (--number_of_full_groups != 0)
 		{
-			groups.add_new(PLF_BLOCK_MAX);
+			groups.add_new(PLF_MAX_BLOCK_CAPACITY);
 		}
 
 		groups.last_endpoint_group = groups.block_pointer + last_endpoint_group_number;
@@ -3009,7 +2824,7 @@ public:
 
 
 
-	inline PLF_FORCE_INLINE void trim() PLF_NOEXCEPT
+	void trim_capacity() PLF_NOEXCEPT
 	{
 		groups.trim_unused_groups();
 	}
@@ -3018,11 +2833,11 @@ public:
 
 	void shrink_to_fit()
 	{
-		if ((groups.block_pointer == NULL) | (node_pointer_allocator_pair.total_size == groups.element_allocator_pair.capacity)) // if list is uninitialized or full
+		if ((groups.block_pointer == NULL) | (total_size == groups.node_pointer_allocator_pair.capacity)) // if list is uninitialized or full
 		{
 			return;
 		}
-		else if (node_pointer_allocator_pair.total_size == 0) // Edge case
+		else if (total_size == 0) // Edge case
 		{
 			reset();
 			return;
@@ -3039,12 +2854,12 @@ public:
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_move_assignable<element_type>::value && std::is_move_constructible<element_type>::value) // move elements if possible, otherwise copy them
 				{
-					temp.range_insert(temp.end_iterator, node_pointer_allocator_pair.total_size, std::make_move_iterator(begin_iterator));
+					temp.range_insert(temp.end_iterator, total_size, std::make_move_iterator(begin_iterator));
 				}
 				else
 			#endif
 			{
-				temp.range_insert(temp.end_iterator, node_pointer_allocator_pair.total_size, begin_iterator);
+				temp.range_insert(temp.end_iterator, total_size, begin_iterator);
 			}
 
 			*this = std::move(temp);
@@ -3062,7 +2877,7 @@ private:
 	void append_process(list &source) // used by merge and splice
 	{
 		if (last_endpoint != groups.last_endpoint_group->beyond_end)
-		{	// Add unused nodes to group's free list
+		{ // Add unused nodes to group's free list
 			const node_pointer_type back_node = last_endpoint - 1;
 			for (node_pointer_type current_node = groups.last_endpoint_group->beyond_end - 1; current_node != back_node; --current_node)
 			{
@@ -3076,7 +2891,7 @@ private:
 
 		groups.append(source.groups);
 		last_endpoint = source.last_endpoint;
-		node_pointer_allocator_pair.total_size += source.node_pointer_allocator_pair.total_size;
+		total_size += source.total_size;
 		source.reset();
 	}
 
@@ -3089,11 +2904,11 @@ public:
 	{
 		assert(&source != this);
 
-		if (source.node_pointer_allocator_pair.total_size == 0)
+		if (source.total_size == 0)
 		{
 			return;
 		}
-		else if (node_pointer_allocator_pair.total_size == 0)
+		else if (total_size == 0)
 		{
 			#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 				*this = std::move(source);
@@ -3121,10 +2936,19 @@ public:
 
 
 
+	#ifdef PLF_MOVE_SEMANTICS_SUPPORT
+		void splice(iterator position, list &&source)
+		{
+			splice(position, source);
+		}
+	#endif
+
+
+
 	template <class comparison_function>
 	void merge(list &source, comparison_function compare)
 	{
-		splice((source.node_pointer_allocator_pair.total_size >= node_pointer_allocator_pair.total_size) ? end_iterator : begin_iterator, source);
+		splice((source.total_size >= total_size) ? end_iterator : begin_iterator, source);
 		sort(compare);
 	}
 
@@ -3134,11 +2958,11 @@ public:
 	{
 		assert(&source != this);
 
-		if (source.node_pointer_allocator_pair.total_size == 0)
+		if (source.total_size == 0)
 		{
 			return;
 		}
-		else if (node_pointer_allocator_pair.total_size == 0)
+		else if (total_size == 0)
 		{
 			#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 				*this = std::move(source);
@@ -3187,10 +3011,27 @@ public:
 
 
 
+	#ifdef PLF_MOVE_SEMANTICS_SUPPORT
+		template <class comparison_function>
+		void merge(list &&source, comparison_function compare)
+		{
+			merge(source, compare);
+		}
+
+
+
+		void merge(list &&source)
+		{
+			merge(source);
+		}
+	#endif
+
+
+
 	void reverse() PLF_NOEXCEPT
 	{
 		// Note: Because current_node->next has to be read during swapping in this process anyway, including a test to figure out whether or not a given group has erased elements within it, and thus avoid per-node tests, is actually detrimental to performance according to benchmarks. This is unlike sort() where current_node->next is not used in the rest of the process and avoiding per-node tests of it's value is therefore beneficial in benchmarks.
-		if (node_pointer_allocator_pair.total_size > 1)
+		if (total_size > 1)
 		{
 			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 			{
@@ -3233,7 +3074,7 @@ private:
 	// Used by unique()
 	struct eq
 	{
-		inline bool operator() (const element_type &a, const element_type &b) const PLF_NOEXCEPT
+		bool operator() (const element_type &a, const element_type &b) const PLF_NOEXCEPT
 		{
 			return a == b;
 		}
@@ -3250,7 +3091,7 @@ private:
 			value(store_value)
 		{}
 
-		inline bool operator() (const element_type compare_value) const PLF_NOEXCEPT
+		bool operator() (const element_type compare_value) const PLF_NOEXCEPT
 		{
 			return value == compare_value;
 		}
@@ -3263,7 +3104,7 @@ public:
 	template <class comparison_function>
 	size_type unique(comparison_function compare)
 	{
-  		const size_type original_number_of_elements = node_pointer_allocator_pair.total_size;
+  		const size_type original_number_of_elements = total_size;
 
 		if (original_number_of_elements > 1)
 		{
@@ -3282,12 +3123,12 @@ public:
 			}
 		}
 
-		return original_number_of_elements - node_pointer_allocator_pair.total_size;
+		return original_number_of_elements - total_size;
 	}
 
 
 
-	inline size_type unique()
+	size_type unique()
 	{
 		return unique(eq());
 	}
@@ -3297,7 +3138,7 @@ public:
 	template <class predicate_function>
 	size_type remove_if(predicate_function predicate)
 	{
-  		const size_type original_number_of_elements = node_pointer_allocator_pair.total_size;
+  		const size_type original_number_of_elements = total_size;
 
 		if (original_number_of_elements != 0)
 		{
@@ -3374,12 +3215,12 @@ public:
 			}
 		}
 
-		return original_number_of_elements - node_pointer_allocator_pair.total_size;
+		return original_number_of_elements - total_size;
 	}
 
 
 
-	inline size_type remove(const element_type &value)
+	size_type remove(const element_type &value)
 	{
 		return remove_if(eq_to(value));
 	}
@@ -3388,7 +3229,7 @@ public:
 
 	void resize(const size_type number_of_elements, const element_type &value = element_type())
 	{
-		if (node_pointer_allocator_pair.total_size == number_of_elements)
+		if (total_size == number_of_elements)
 		{
 			return;
 		}
@@ -3397,15 +3238,15 @@ public:
 			clear();
 			return;
 		}
-		else if (node_pointer_allocator_pair.total_size < number_of_elements)
+		else if (total_size < number_of_elements)
 		{
-			insert(end_iterator, number_of_elements - node_pointer_allocator_pair.total_size, value);
+			insert(end_iterator, number_of_elements - total_size, value);
 		}
-		else // ie. node_pointer_allocator_pair.total_size > number_of_elements
+		else // ie. total_size > number_of_elements
 		{
 			const_iterator current(end_node.previous);
 
-			for (size_type number_to_remove = node_pointer_allocator_pair.total_size - number_of_elements; number_to_remove != 0; --number_to_remove)
+			for (size_type number_to_remove = total_size - number_of_elements; number_to_remove != 0; --number_to_remove)
 			{
 				const node_pointer_type temp = current.node_pointer->previous;
 				erase(current);
@@ -3419,7 +3260,7 @@ public:
 	// Range assign:
 
  	template <class iterator_type>
- 	inline void assign(const typename plf_enable_if_c<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
+ 	void assign(const typename plf::enable_if<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
 	{
 		clear();
 		insert(end_iterator, first, last);
@@ -3428,15 +3269,13 @@ public:
 
 
 
-
-	#ifdef PLF_CPP20_SUPPORT
-		// Support for sentinels:
-		template <class iterator_type, class sentinel>
-			requires (!(std::convertible_to<sentinel, iterator_type> || std::convertible_to<iterator_type, sentinel> || std::integral<iterator_type> || std::integral<sentinel>) && std::sentinel_for<sentinel, iterator_type>)
-		inline void assign(const iterator_type first, const sentinel last)
+	#ifdef PLF_MOVE_SEMANTICS_SUPPORT
+		template <class iterator_type>
+		void assign(const const_iterator position, const std::move_iterator<iterator_type> first, const std::move_iterator<iterator_type> last)
 		{
 			clear();
-			insert(end_iterator, first, last);
+			using std::distance;
+			range_insert(position, static_cast<size_type>(distance(first.base(),last.base())), first);
 			groups.trim_unused_groups();
 		}
 	#endif
@@ -3445,7 +3284,7 @@ public:
 
 	// Fill assign:
 
-	inline void assign(const size_type number_of_elements, const element_type &value)
+	void assign(const size_type number_of_elements, const element_type &value)
 	{
 		clear();
 		insert(end_iterator, number_of_elements, value);
@@ -3457,7 +3296,7 @@ public:
 	#ifdef PLF_INITIALIZER_LIST_SUPPORT
 		// Initializer-list assign:
 
-		inline void assign(const std::initializer_list<element_type> &element_list)
+		void assign(const std::initializer_list<element_type> &element_list)
 		{
 			clear();
 			range_insert(end_iterator, static_cast<size_type>(element_list.size()), element_list.begin());
@@ -3467,16 +3306,29 @@ public:
 
 
 
-	inline allocator_type get_allocator() const PLF_NOEXCEPT
+	#ifdef PLF_CPP20_SUPPORT
+		template<class range_type>
+			requires std::ranges::range<range_type>
+		void assign_range(range_type &&the_range)
+		{
+			clear();
+			range_insert(end_iterator, static_cast<size_type>(std::ranges::distance(the_range)), std::ranges::begin(the_range));
+			groups.trim_unused_groups();
+		}
+	#endif
+
+
+
+	allocator_type get_allocator() const PLF_NOEXCEPT
 	{
-		return element_allocator_type();
+		return allocator_type();
 	}
 
 
 
 	iterator unordered_find_single(const element_type &element_to_match) const PLF_NOEXCEPT
 	{
-		if (node_pointer_allocator_pair.total_size != 0)
+		if (total_size != 0)
 		{
 			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 			{
@@ -3535,7 +3387,7 @@ public:
 	{
 		list<iterator> return_list;
 
-		if (node_pointer_allocator_pair.total_size != 0)
+		if (total_size != 0)
 		{
 			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 			{
@@ -3614,7 +3466,7 @@ public:
 	{
 		list<iterator> return_list;
 
-		if (node_pointer_allocator_pair.total_size != 0)
+		if (total_size != 0)
 		{
 			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 			{
@@ -3680,23 +3532,371 @@ public:
 
 			const node_pointer_type swap_end_node_previous = end_node.previous, swap_last_endpoint = last_endpoint;
 			const iterator swap_begin_iterator = begin_iterator;
-			const size_type swap_total_size = node_pointer_allocator_pair.total_size, swap_number_of_erased_nodes = node_allocator_pair.number_of_erased_nodes;
+			const size_type swap_total_size = total_size, swap_number_of_erased_nodes = node_allocator_pair.number_of_erased_nodes;
 
 			last_endpoint = source.last_endpoint;
 			end_node.next = begin_iterator.node_pointer = (source.begin_iterator.node_pointer != source.end_iterator.node_pointer) ? source.begin_iterator.node_pointer : end_iterator.node_pointer;
 			end_node.previous = (source.begin_iterator.node_pointer != source.end_iterator.node_pointer) ? source.end_node.previous : end_iterator.node_pointer;
 			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
-			node_pointer_allocator_pair.total_size = source.node_pointer_allocator_pair.total_size;
+			total_size = source.total_size;
 			node_allocator_pair.number_of_erased_nodes = source.node_allocator_pair.number_of_erased_nodes;
 
 			source.last_endpoint = swap_last_endpoint;
 			source.end_node.next = source.begin_iterator.node_pointer = (swap_begin_iterator.node_pointer != end_iterator.node_pointer) ? swap_begin_iterator.node_pointer : source.end_iterator.node_pointer;
 			source.end_node.previous = (swap_begin_iterator.node_pointer != end_iterator.node_pointer) ? swap_end_node_previous : source.end_iterator.node_pointer;
 			source.end_node.previous->next = source.begin_iterator.node_pointer->previous = source.end_iterator.node_pointer;
-			source.node_pointer_allocator_pair.total_size = swap_total_size;
+			source.total_size = swap_total_size;
 			source.node_allocator_pair.number_of_erased_nodes = swap_number_of_erased_nodes;
+
+			#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
+				if PLF_CONSTEXPR (std::allocator_traits<allocator_type>::propagate_on_container_swap::value && !std::allocator_traits<allocator_type>::is_always_equal::value)
+			#endif
+			{
+				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
+					allocator_type swap_allocator = std::move(static_cast<allocator_type &>(source));
+					static_cast<allocator_type &>(source) = std::move(static_cast<allocator_type &>(*this));
+					static_cast<allocator_type &>(*this) = std::move(swap_allocator);
+				#else
+					allocator_type swap_allocator = static_cast<allocator_type &>(source);
+					static_cast<allocator_type &>(source) = static_cast<allocator_type &>(*this);
+					static_cast<allocator_type &>(*this) = swap_allocator;
+				#endif
+
+				// Reconstruct rebinds for swapped allocators:
+				static_cast<node_allocator_type &>(node_allocator_pair) = node_allocator_type(*this);
+				static_cast<node_allocator_type &>(source.node_allocator_pair) = node_allocator_type(source);
+			} // else: undefined behaviour, as per standard
 		#endif
 	}
+
+
+
+	// Iterators:
+
+	template <bool is_const> class list_iterator
+	{
+	private:
+		node_pointer_type node_pointer;
+
+	public:
+		struct list_iterator_tag {};
+		typedef std::bidirectional_iterator_tag 	iterator_category;
+		typedef std::bidirectional_iterator_tag	iterator_concept;
+		typedef typename list::value_type 			value_type;
+		typedef typename list::difference_type 	difference_type;
+		typedef list_reverse_iterator<is_const> 	reverse_type;
+		typedef typename plf::conditional<is_const, typename list::const_pointer, typename list::pointer>::type		pointer;
+		typedef typename plf::conditional<is_const, typename list::const_reference, typename list::reference>::type	reference;
+
+		friend class list;
+
+
+
+		bool operator == (const list_iterator rh) const PLF_NOEXCEPT
+		{
+			return (node_pointer == rh.node_pointer);
+		}
+
+
+
+		bool operator == (const list_iterator<!is_const> rh) const PLF_NOEXCEPT
+		{
+			return (node_pointer == rh.node_pointer);
+		}
+
+
+
+		bool operator != (const list_iterator rh) const PLF_NOEXCEPT
+		{
+			return (node_pointer != rh.node_pointer);
+		}
+
+
+
+		bool operator != (const list_iterator<!is_const> rh) const PLF_NOEXCEPT
+		{
+			return (node_pointer != rh.node_pointer);
+		}
+
+
+
+		reference operator * () const
+		{
+			return node_pointer->element;
+		}
+
+
+
+		pointer operator -> () const
+		{
+			return &(node_pointer->element);
+		}
+
+
+
+		list_iterator & operator ++ () PLF_NOEXCEPT
+		{
+			assert(node_pointer != NULL); // covers uninitialised list_iterator
+			node_pointer = node_pointer->next;
+			return *this;
+		}
+
+
+
+		list_iterator operator ++(int) PLF_NOEXCEPT
+		{
+			const list_iterator copy(*this);
+			++*this;
+			return copy;
+		}
+
+
+
+		list_iterator & operator -- () PLF_NOEXCEPT
+		{
+			assert(node_pointer != NULL); // covers uninitialised list_iterator
+			node_pointer = node_pointer->previous;
+			return *this;
+		}
+
+
+
+		list_iterator operator -- (int) PLF_NOEXCEPT
+		{
+			const list_iterator copy(*this);
+			--*this;
+			return copy;
+		}
+
+
+
+		list_iterator & operator = (const list_iterator &rh) PLF_NOEXCEPT
+		{
+			node_pointer = rh.node_pointer;
+			return *this;
+		}
+
+
+
+		#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+			template <bool is_const_it = is_const, class = typename plf::enable_if<is_const_it>::type >
+			list_iterator & operator = (const list_iterator<false> &rh) PLF_NOEXCEPT
+		#else
+			list_iterator & operator = (const list_iterator<!is_const> &rh) PLF_NOEXCEPT
+		#endif
+		{
+			node_pointer = rh.node_pointer;
+			return *this;
+		}
+
+
+
+		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
+			list_iterator & operator = (const list_iterator &&rh) PLF_NOEXCEPT
+			{
+				assert (&rh != this);
+				node_pointer = std::move(rh.node_pointer);
+				return *this;
+			}
+
+
+			#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+				template <bool is_const_it = is_const, class = typename plf::enable_if<is_const_it>::type >
+				list_iterator & operator = (const list_iterator<false> &&rh) PLF_NOEXCEPT
+			#else
+				list_iterator & operator = (const list_iterator<!is_const> &&rh) PLF_NOEXCEPT
+			#endif
+			{
+				node_pointer = std::move(rh.node_pointer);
+				return *this;
+			}
+		#endif
+
+
+
+		list_iterator() PLF_NOEXCEPT: node_pointer(NULL) {}
+
+		list_iterator(const list_iterator &source) PLF_NOEXCEPT: node_pointer(source.node_pointer) {}
+
+
+		#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+			template <bool is_const_it = is_const, class = typename plf::enable_if<is_const_it>::type >
+			list_iterator(const list_iterator<false> &source) PLF_NOEXCEPT: node_pointer(source.node_pointer) {}
+		#else
+			list_iterator(const list_iterator<!is_const> &source) PLF_NOEXCEPT: node_pointer(source.node_pointer) {}
+		#endif
+
+
+		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
+			list_iterator (const list_iterator &&source) PLF_NOEXCEPT: node_pointer(std::move(source.node_pointer)) {}
+
+			#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+				template <bool is_const_it = is_const, class = typename plf::enable_if<is_const_it>::type >
+				list_iterator(const list_iterator<false> &&source) PLF_NOEXCEPT: node_pointer(std::move(source.node_pointer)) {}
+			#else
+				list_iterator(const list_iterator<!is_const> &&source) PLF_NOEXCEPT: node_pointer(std::move(source.node_pointer)) {}
+			#endif
+		#endif
+
+	private:
+
+		list_iterator (const node_pointer_type node_p) PLF_NOEXCEPT: node_pointer(node_p) {}
+	};
+
+
+
+
+	template <bool is_const> class list_reverse_iterator
+	{
+	private:
+		node_pointer_type node_pointer;
+
+	public:
+		typedef std::bidirectional_iterator_tag 	iterator_concept;
+		typedef std::bidirectional_iterator_tag 	iterator_category;
+		typedef typename list::value_type 			value_type;
+		typedef typename list::difference_type 	difference_type;
+		typedef typename plf::conditional<is_const, typename list::const_pointer, typename list::pointer>::type		pointer;
+		typedef typename plf::conditional<is_const, typename list::const_reference, typename list::reference>::type	reference;
+
+		friend class list;
+
+
+		bool operator == (const list_reverse_iterator rh) const PLF_NOEXCEPT
+		{
+			return (node_pointer == rh.node_pointer);
+		}
+
+
+
+		bool operator == (const list_reverse_iterator<!is_const> rh) const PLF_NOEXCEPT
+		{
+			return (node_pointer == rh.node_pointer);
+		}
+
+
+
+		bool operator != (const list_reverse_iterator rh) const PLF_NOEXCEPT
+		{
+			return (node_pointer != rh.node_pointer);
+		}
+
+
+
+		bool operator != (const list_reverse_iterator<!is_const> rh) const PLF_NOEXCEPT
+		{
+			return (node_pointer != rh.node_pointer);
+		}
+
+
+
+		reference operator * () const
+		{
+			return node_pointer->element;
+		}
+
+
+
+		pointer operator -> () const
+		{
+			return &(node_pointer->element);
+		}
+
+
+
+		list_reverse_iterator & operator ++ () PLF_NOEXCEPT
+		{
+			assert(node_pointer != NULL); // covers uninitialised list_reverse_iterator
+			node_pointer = node_pointer->previous;
+			return *this;
+		}
+
+
+
+		list_reverse_iterator operator ++(int) PLF_NOEXCEPT
+		{
+			const list_reverse_iterator copy(*this);
+			++*this;
+			return copy;
+		}
+
+
+
+		list_reverse_iterator & operator -- () PLF_NOEXCEPT
+		{
+			assert(node_pointer != NULL);
+			node_pointer = node_pointer->next;
+			return *this;
+		}
+
+
+
+		list_reverse_iterator operator -- (int) PLF_NOEXCEPT
+		{
+			const list_reverse_iterator copy(*this);
+			--*this;
+			return copy;
+		}
+
+
+
+		list_reverse_iterator & operator = (const list_reverse_iterator &rh) PLF_NOEXCEPT
+		{
+			node_pointer = rh.node_pointer;
+			return *this;
+		}
+
+
+
+		list_reverse_iterator & operator = (const list_reverse_iterator<!is_const> &rh) PLF_NOEXCEPT
+		{
+			node_pointer = rh.node_pointer;
+			return *this;
+		}
+
+
+
+		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
+			list_reverse_iterator & operator = (const list_reverse_iterator &&rh) PLF_NOEXCEPT
+			{
+				assert (&rh != this);
+				node_pointer = std::move(rh.node_pointer);
+				return *this;
+			}
+
+
+			list_reverse_iterator & operator = (const list_reverse_iterator<!is_const> &&rh) PLF_NOEXCEPT
+			{
+				node_pointer = std::move(rh.node_pointer);
+				return *this;
+			}
+		#endif
+
+
+
+		typename list::iterator base() const PLF_NOEXCEPT
+		{
+			return typename list::iterator(node_pointer->next);
+		}
+
+
+
+		list_reverse_iterator() PLF_NOEXCEPT: node_pointer(NULL) {}
+
+		list_reverse_iterator(const list_reverse_iterator &source) PLF_NOEXCEPT: node_pointer(source.node_pointer) {}
+
+		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
+			list_reverse_iterator (const list_reverse_iterator &&source) PLF_NOEXCEPT: node_pointer(std::move(source.node_pointer)) {}
+
+			list_reverse_iterator (const list_reverse_iterator<!is_const> &&source) PLF_NOEXCEPT: node_pointer(std::move(source.node_pointer)) {}
+		#endif
+
+	private:
+
+		list_reverse_iterator (const node_pointer_type node_p) PLF_NOEXCEPT: node_pointer(node_p) {}
+	};
+
+
 
 }; // end of plf::list
 
@@ -3706,34 +3906,47 @@ public:
 
 namespace std
 {
-	template <class element_type, class element_allocator_type>
-	inline void swap(plf::list<element_type, element_allocator_type> &a, plf::list<element_type, element_allocator_type> &b) PLF_NOEXCEPT_SWAP(element_allocator_type)
+	template <class element_type, class allocator_type>
+	void swap(plf::list<element_type, allocator_type> &a, plf::list<element_type, allocator_type> &b) PLF_NOEXCEPT_SWAP(allocator_type)
 	{
 		a.swap(b);
 	}
 
 
 
-	template <class element_type, class element_allocator_type, class predicate_function>
-	inline typename plf::list<element_type, element_allocator_type>::size_type erase_if(plf::list<element_type, element_allocator_type> &container, predicate_function predicate)
+	template <class element_type, class allocator_type, class predicate_function>
+	typename plf::list<element_type, allocator_type>::size_type erase_if(plf::list<element_type, allocator_type> &container, predicate_function predicate)
 	{
 		return container.remove_if(predicate);
 	}
 
 
 
-	template <class element_type, class element_allocator_type>
-	inline typename plf::list<element_type, element_allocator_type>::size_type erase(plf::list<element_type, element_allocator_type> &container, const element_type &value)
+	template <class element_type, class allocator_type>
+	typename plf::list<element_type, allocator_type>::size_type erase(plf::list<element_type, allocator_type> &container, const element_type &value)
 	{
 		return container.remove(value);
 	}
+
+
+
+	#ifdef PLF_CPP20_SUPPORT
+		// std::reverse_iterator overload, to allow use of plf::list with ranges and make_reverse_iterator primarily:
+		template <plf::list_iterator_concept it_type>
+		class reverse_iterator<it_type> : public it_type::reverse_type
+		{
+		public:
+			typedef typename it_type::reverse_type rit;
+			using rit::rit;
+		};
+	#endif
 }
 
 
-#undef PLF_BLOCK_MAX
-#undef PLF_BLOCK_MIN
+#undef PLF_MAX_BLOCK_CAPACITY
+#undef PLF_MIN_BLOCK_CAPACITY
 
-#undef PLF_FORCE_INLINE
+#undef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
 #undef PLF_ALIGNMENT_SUPPORT
 #undef PLF_INITIALIZER_LIST_SUPPORT
 #undef PLF_TYPE_TRAITS_SUPPORT
@@ -3741,11 +3954,12 @@ namespace std
 #undef PLF_VARIADICS_SUPPORT
 #undef PLF_MOVE_SEMANTICS_SUPPORT
 #undef PLF_NOEXCEPT
+#undef PLF_NOEXCEPT_ALLOCATOR
 #undef PLF_NOEXCEPT_SWAP
 #undef PLF_NOEXCEPT_MOVE_ASSIGN
 #undef PLF_CONSTEXPR
+#undef PLF_CONSTFUNC
 #undef PLF_CPP20_SUPPORT
-#undef PLF_STATIC_ASSERT
 
 #undef PLF_CONSTRUCT
 #undef PLF_DESTROY
