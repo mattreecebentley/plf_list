@@ -237,8 +237,9 @@
 
 #ifdef PLF_CPP20_SUPPORT
 	#include <concepts>
-	#include <compare> // std::strong_ordering
+	#include <compare> // std::strong_ordering, std::to_address
 	#include <ranges>
+	#include <bit> // std::bit_cast
 
 	namespace plf
 	{
@@ -304,6 +305,42 @@ namespace plf
 		}
 	};
 
+
+
+	template<class element_type>
+	struct eq_to
+	{
+		const element_type value;
+
+		explicit eq_to(const element_type store_value): // not noexcept as element may allocate and potentially throw when copied
+			value(store_value)
+		{}
+
+		bool operator() (const element_type compare_value) const PLF_NOEXCEPT
+		{
+			return value == compare_value;
+		}
+	};
+
+
+
+	// To enable conversion when allocator supplies non-raw pointers:
+	template <class destination_pointer_type, class source_pointer_type>
+	static PLF_CONSTFUNC destination_pointer_type convert_pointer(const source_pointer_type source_pointer) PLF_NOEXCEPT
+	{
+		#if defined(PLF_TYPE_TRAITS_SUPPORT) && defined(PLF_CPP20_SUPPORT) // constexpr necessary to avoid a branch for every call
+			if constexpr (std::is_trivial<destination_pointer_type>::value && std::is_trivial<source_pointer_type>::value)
+			{
+				return std::bit_cast<destination_pointer_type>(source_pointer);
+			}
+			else
+			{
+				return destination_pointer_type(std::to_address(source_pointer));
+			}
+		#else
+			return destination_pointer_type(&*source_pointer);
+		#endif
+	}
 #endif
 
 
@@ -315,7 +352,7 @@ public:
 	typedef element_type															value_type;
 	typedef unsigned short														group_size_type;
 
-	#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT // >= C++11
+	#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
 		typedef typename std::allocator_traits<allocator_type>::size_type				size_type;
 		typedef typename std::allocator_traits<allocator_type>::difference_type 	difference_type;
 		typedef element_type &																		reference;
@@ -335,7 +372,7 @@ public:
 	// Iterator declarations:
 	template <bool is_const> class list_iterator;
 	typedef list_iterator<false>		iterator;
-	typedef list_iterator<true>			const_iterator;
+	typedef list_iterator<true>		const_iterator;
 	friend class list_iterator<false>; // Using 'iterator' typedef name here is illegal under C++03
 	friend class list_iterator<true>;
 
@@ -547,7 +584,7 @@ private:
 		void blank() PLF_NOEXCEPT
 		{
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
-				if PLF_CONSTEXPR (std::is_trivial<group_pointer_type>::value)
+				if PLF_CONSTEXPR (std::is_standard_layout<group_vector>::value && std::allocator_traits<allocator_type>::is_always_equal::value && std::is_trivial<group_pointer_type>::value)
 				{
 					std::memset(static_cast<void *>(this), 0, sizeof(group_vector));
 				}
@@ -601,7 +638,7 @@ private:
 					{
 						static_cast<allocator_type &>(*this) = std::move(static_cast<allocator_type &>(source));
 						// Reconstruct rebinds:
-        				static_cast<node_pointer_allocator_type &>(node_pointer_allocator_pair) = node_allocator_type(*this);
+		  				static_cast<node_pointer_allocator_type &>(node_pointer_allocator_pair) = node_allocator_type(*this);
 						static_cast<group_allocator_type &>(group_allocator_pair) = group_allocator_type(*this);
 					}
 				}
@@ -765,7 +802,7 @@ private:
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
-					std::memcpy(static_cast<void *>(&*block_pointer), static_cast<void *>(&*old_block), sizeof(group) * size); // static_cast or reinterpret_cast necessary to deal with GCC 8 warnings
+					std::memcpy(convert_pointer<void *>(block_pointer), convert_pointer<void *>(old_block), sizeof(group) * size);
 				}
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 					else if PLF_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
@@ -782,7 +819,7 @@ private:
 
 				for (group_pointer_type current_group = old_block; current_group != beyond_end; ++current_group)
 				{
-					*(current_new_group++) = *(current_group);
+					*current_new_group++ = *current_group;
 
 					current_group->nodes = NULL;
 					current_group->beyond_end = NULL;
@@ -836,6 +873,14 @@ private:
 
 
 
+		#ifdef PLF_CPP20_SUPPORT
+			#define PLF_TO_ADDRESS(pointer) std::to_address(pointer)
+		#else
+			#define PLF_TO_ADDRESS(pointer) &*(pointer)
+		#endif
+
+
+
 		void remove(group_pointer_type const group_to_erase) PLF_NOEXCEPT
 		{
 			if (last_searched_group >= group_to_erase && last_searched_group != block_pointer)
@@ -850,7 +895,7 @@ private:
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
-					std::memmove(static_cast<void *>(&*group_to_erase), static_cast<void *>(&*group_to_erase + 1), sizeof(group) * (--size - static_cast<size_type>(&*group_to_erase - &*block_pointer)));
+					std::memmove(convert_pointer<void *>(group_to_erase), convert_pointer<void *>(group_to_erase + 1), sizeof(group) * (--size - static_cast<size_type>(PLF_TO_ADDRESS(group_to_erase) - PLF_TO_ADDRESS(block_pointer))));
 				}
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 					else if PLF_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
@@ -884,9 +929,9 @@ private:
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{
-					std::memcpy(static_cast<void *>(&*temp_group), static_cast<void *>(&*group_to_erase), sizeof(group));
-					std::memmove(static_cast<void *>(&*group_to_erase), static_cast<void *>(&*group_to_erase + 1), sizeof(group) * ((size - 1) - static_cast<size_type>(&*group_to_erase - &*block_pointer)));
-					std::memcpy(static_cast<void *>(&*(block_pointer + size - 1)), static_cast<void *>(&*temp_group), sizeof(group));
+					std::memcpy(convert_pointer<void *>(temp_group), convert_pointer<void *>(group_to_erase), sizeof(group));
+					std::memmove(convert_pointer<void *>(group_to_erase), convert_pointer<void *>(group_to_erase + 1), sizeof(group) * ((size - 1) - static_cast<size_type>(PLF_TO_ADDRESS(group_to_erase) - PLF_TO_ADDRESS(block_pointer))));
+					std::memcpy(convert_pointer<void *>(block_pointer + size - 1), convert_pointer<void *>(temp_group), sizeof(group));
 				}
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 					else if PLF_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
@@ -923,8 +968,8 @@ private:
 		{
 			const group_pointer_type beyond_end_group = last_endpoint_group + 1;
 			group_pointer_type left = last_searched_group - 1, right = last_searched_group + 1, freelist_group = NULL;
-			bool right_not_beyond_back = (right < beyond_end_group);
-			bool left_not_beyond_front = (left >= block_pointer);
+			bool right_not_beyond_back = right < beyond_end_group;
+			bool left_not_beyond_front = left >= block_pointer;
 
 
 			if (location_node >= last_searched_group->nodes && location_node < last_searched_group->beyond_end) // ie. location is within last_search_group
@@ -932,21 +977,23 @@ private:
 				if (last_searched_group->free_list_head != NULL) // if last_searched_group has previously-erased nodes
 				{
 					return last_searched_group;
-				}
+				} // Else: search outwards using loop below this if/else block
 			}
 			else // search for the node group which location_node is located within, using last_searched_group as a starting point and searching left and right. Try and find the closest node group with reusable erased-element locations along the way:
 			{
-				group_pointer_type closest_freelist_left = (last_searched_group->free_list_head == NULL) ? NULL : last_searched_group, closest_freelist_right = (last_searched_group->free_list_head == NULL) ? NULL : last_searched_group;
+				group_pointer_type closest_freelist_left = (last_searched_group->free_list_head == NULL) ? NULL : last_searched_group;
+				group_pointer_type closest_freelist_right = closest_freelist_left;
 
 				while (true)
 				{
 					if (right_not_beyond_back)
 					{
-						if ((location_node < right->beyond_end) && (location_node >= right->nodes)) // location_node's group is found
+						if (location_node < right->beyond_end && location_node >= right->nodes) // location_node's group is found
 						{
+							last_searched_group = right;
+
 							if (right->free_list_head != NULL) // group has erased nodes, reuse them:
 							{
-								last_searched_group = right;
 								return right;
 							}
 
@@ -954,7 +1001,6 @@ private:
 
 							if (closest_freelist_right != NULL)
 							{
-								last_searched_group = right;
 								left_distance = right - closest_freelist_right;
 
 								if (left_distance <= 2) // ie. this group is close enough to location_node's group
@@ -966,13 +1012,13 @@ private:
 							}
 							else
 							{
-								last_searched_group = right;
 								left_distance = right - left;
 							}
 
 
 							// Otherwise find closest group with freelist - check an equal distance on the right to the distance we've checked on the left:
-							const group_pointer_type end_group = (((right + left_distance) > beyond_end_group) ? beyond_end_group : (right + left_distance - 1));
+							const group_pointer_type right_plus_distance = right + left_distance;
+							const group_pointer_type end_group = (right_plus_distance > beyond_end_group) ? beyond_end_group : right_plus_distance - 1;
 
 							while (++right != end_group)
 							{
@@ -987,7 +1033,7 @@ private:
 								return freelist_group;
 							}
 
-							right_not_beyond_back = (right < beyond_end_group);
+							right_not_beyond_back = right < beyond_end_group;
 							break; // group with reusable erased nodes not found yet, continue searching in loop below
 						}
 
@@ -1001,17 +1047,18 @@ private:
 							closest_freelist_right = right;
 						}
 
-						right_not_beyond_back = (++right < beyond_end_group);
+						right_not_beyond_back = ++right < beyond_end_group;
 					}
 
 
 					if (left_not_beyond_front)
 					{
-						if ((location_node >= left->nodes) && (location_node < left->beyond_end))
+						if (location_node >= left->nodes && location_node < left->beyond_end)
 						{
+							last_searched_group = left;
+
 							if (left->free_list_head != NULL)
 							{
-								last_searched_group = left;
 								return left;
 							}
 
@@ -1019,7 +1066,6 @@ private:
 
 							if (closest_freelist_left != NULL)
 							{
-								last_searched_group = left;
 								right_distance = closest_freelist_left - left;
 
 								if (right_distance <= 2)
@@ -1031,12 +1077,12 @@ private:
 							}
 							else
 							{
-								last_searched_group = left;
 								right_distance = right - left;
 							}
 
 							// Otherwise find closest group with freelist:
-							const group_pointer_type end_group = (((left - right_distance) < block_pointer) ? block_pointer - 1 : (left - right_distance) + 1);
+							const group_pointer_type left_minus_distance = left - right_distance;
+							const group_pointer_type end_group = (left_minus_distance < block_pointer) ? block_pointer - 1 : left_minus_distance + 1;
 
 							while (--left != end_group)
 							{
@@ -1051,7 +1097,7 @@ private:
 								return freelist_group;
 							}
 
-							left_not_beyond_front = (left >= block_pointer);
+							left_not_beyond_front = left >= block_pointer;
 							break;
 						}
 
@@ -1065,7 +1111,7 @@ private:
 							closest_freelist_left = left;
 						}
 
-						left_not_beyond_front = (--left >= block_pointer);
+						left_not_beyond_front = --left >= block_pointer;
 					}
 				}
 			}
@@ -1081,7 +1127,7 @@ private:
 						return right;
 					}
 
-					right_not_beyond_back = (++right < beyond_end_group);
+					right_not_beyond_back = ++right < beyond_end_group;
 				}
 
 				if (left_not_beyond_front)
@@ -1091,11 +1137,11 @@ private:
 						return left;
 					}
 
-					left_not_beyond_front = (--left >= block_pointer);
+					left_not_beyond_front = --left >= block_pointer;
 				}
 			}
 
-			// Will never reach here on a functioning implementation
+			// Will never reach here
 		}
 
 
@@ -1183,7 +1229,7 @@ private:
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{ // &* in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
-					std::memcpy(static_cast<void *>(&*block_pointer + size), static_cast<void *>(&*source.block_pointer), sizeof(group) * source.size);
+					std::memcpy(convert_pointer<void *>(block_pointer + size), convert_pointer<void *>(source.block_pointer), sizeof(group) * source.size);
 				}
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 					else if PLF_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
@@ -1199,7 +1245,7 @@ private:
 
 				for (group_pointer_type current_group = source.block_pointer; current_group != beyond_end_source; ++current_group)
 				{
-					*(current_new_group++) = *(current_group);
+					*current_new_group++ = *current_group;
 
 					current_group->nodes = NULL;
 					current_group->beyond_end = NULL;
@@ -2265,30 +2311,30 @@ public:
 			// Search groups to the left and right of the last searched group, in the group vector:
 			const group_pointer_type beyond_end_group = groups.last_endpoint_group + 1;
 			group_pointer_type left = node_group - 1;
-			bool right_not_beyond_back = (++node_group < beyond_end_group);
-			bool left_not_beyond_front = (left >= groups.block_pointer);
+			bool right_not_beyond_back = ++node_group < beyond_end_group;
+			bool left_not_beyond_front = left >= groups.block_pointer;
 
 			while (true)
 			{
 				if (right_not_beyond_back)
 				{
-					if ((it.node_pointer < node_group->beyond_end) && (it.node_pointer >= node_group->nodes)) // element location found
+					if (it.node_pointer < node_group->beyond_end && it.node_pointer >= node_group->nodes) // element location found
 					{
 						break;
 					}
 
-					right_not_beyond_back = (++node_group < beyond_end_group);
+					right_not_beyond_back = ++node_group < beyond_end_group;
 				}
 
 				if (left_not_beyond_front)
 				{
-					if ((it.node_pointer >= left->nodes) && (it.node_pointer < left->beyond_end)) // element location found
+					if (it.node_pointer >= left->nodes && it.node_pointer < left->beyond_end) // element location found
 					{
 						node_group = left;
 						break;
 					}
 
-					left_not_beyond_front = (--left >= groups.block_pointer);
+					left_not_beyond_front = --left >= groups.block_pointer;
 				}
 			}
 
@@ -2693,7 +2739,7 @@ public:
 
 
 
-	void splice(const const_iterator position, const const_iterator first, const const_iterator last) PLF_NOEXCEPT
+	void splice(const const_iterator position, const const_iterator first, const const_iterator last) PLF_NOEXCEPT // intra-list only splice functions - will crash if first & list are not from *this
 	{
 		if (position == last)
 		{
@@ -2730,144 +2776,6 @@ public:
 	void splice(const const_iterator position, const const_iterator location) PLF_NOEXCEPT
 	{
 		splice(position, location, const_iterator(location.node_pointer->next));
-	}
-
-
-
-	void reserve(size_type reserve_amount)
-	{
-		if (reserve_amount == 0 || reserve_amount <= groups.node_pointer_allocator_pair.capacity)
-		{
-			return;
-		}
-		else if (reserve_amount < PLF_MIN_BLOCK_CAPACITY)
-		{
-			reserve_amount = PLF_MIN_BLOCK_CAPACITY;
-		}
-		else if (reserve_amount > max_size())
-		{
-			throw std::length_error("Capacity requested via reserve() greater than max_size()");
-		}
-
-
-		if (groups.block_pointer != NULL && total_size == 0)
-		{ // edge case: has been filled with elements then clear()'d - some groups may be smaller than would be desired, should be replaced
-			group_size_type end_group_size = static_cast<group_size_type>((groups.block_pointer + groups.size - 1)->beyond_end - (groups.block_pointer + groups.size - 1)->nodes);
-
-			if (reserve_amount > end_group_size && end_group_size != PLF_MAX_BLOCK_CAPACITY) // if last group isn't large enough, remove all groups
-			{
-				reset();
-			}
-			else
-			{
-				size_type number_of_full_groups_needed = reserve_amount / PLF_MAX_BLOCK_CAPACITY;
-				group_size_type remainder = static_cast<group_size_type>(reserve_amount - (number_of_full_groups_needed * PLF_MAX_BLOCK_CAPACITY));
-
-				// Remove any max_size groups which're not needed and any groups that're smaller than remainder:
-				for (group_pointer_type current_group = groups.block_pointer; current_group < groups.block_pointer + groups.size;)
-				{
-					const group_size_type current_group_size = static_cast<group_size_type>(groups.block_pointer->beyond_end - groups.block_pointer->nodes);
-
-					if (number_of_full_groups_needed != 0 && current_group_size == PLF_MAX_BLOCK_CAPACITY)
-					{
-						--number_of_full_groups_needed;
-						++current_group;
-					}
-					else if (remainder != 0 && current_group_size >= remainder)
-					{
-						remainder = 0;
-						++current_group;
-					}
-					else
-					{
-						groups.remove(current_group);
-					}
-				}
-
-				last_endpoint = groups.block_pointer->nodes;
-			}
-		}
-
-		reserve_amount -= groups.node_pointer_allocator_pair.capacity;
-
-		// To correct from possible reallocation caused by add_new:
-		const difference_type last_endpoint_group_number = groups.last_endpoint_group - groups.block_pointer;
-
-		size_type number_of_full_groups = (reserve_amount / PLF_MAX_BLOCK_CAPACITY);
-		reserve_amount -= (number_of_full_groups++ * PLF_MAX_BLOCK_CAPACITY); // ++ to aid while loop below
-
-		if (groups.block_pointer == NULL) // Previously uninitialized list or reset in above if statement; most common scenario
-		{
-			if (reserve_amount != 0)
-			{
-				groups.initialize(static_cast<group_size_type>(((reserve_amount < PLF_MIN_BLOCK_CAPACITY) ? PLF_MIN_BLOCK_CAPACITY : reserve_amount)));
-			}
-			else
-			{
-				groups.initialize(PLF_MAX_BLOCK_CAPACITY);
-				--number_of_full_groups;
-			}
-		}
-		else if (reserve_amount != 0)
-		{ // Create a group at least as large as the last group - may allocate more than necessary, but better solution than creating a very small group in the middle of the group vector, I think:
-			const group_size_type last_endpoint_group_capacity = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - groups.last_endpoint_group->nodes);
-			groups.add_new(static_cast<group_size_type>((reserve_amount < last_endpoint_group_capacity) ? last_endpoint_group_capacity : reserve_amount));
-		}
-
-		while (--number_of_full_groups != 0)
-		{
-			groups.add_new(PLF_MAX_BLOCK_CAPACITY);
-		}
-
-		groups.last_endpoint_group = groups.block_pointer + last_endpoint_group_number;
-	}
-
-
-
-	void trim_capacity() PLF_NOEXCEPT
-	{
-		groups.trim_unused_groups();
-	}
-
-
-
-	void shrink_to_fit()
-	{
-		if ((groups.block_pointer == NULL) | (total_size == groups.node_pointer_allocator_pair.capacity)) // if list is uninitialized or full
-		{
-			return;
-		}
-		else if (total_size == 0) // Edge case
-		{
-			reset();
-			return;
-		}
-		else if (node_allocator_pair.number_of_erased_nodes == 0 && last_endpoint == groups.last_endpoint_group->beyond_end) //edge case - currently no wasted space except for possible trailing groups
-		{
-			groups.trim_unused_groups();
-			return;
-		}
-
-		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
-			list temp;
-
-			#ifdef PLF_TYPE_TRAITS_SUPPORT
-				if PLF_CONSTEXPR (std::is_move_assignable<element_type>::value && std::is_move_constructible<element_type>::value) // move elements if possible, otherwise copy them
-				{
-					temp.range_insert(temp.end_iterator, total_size, std::make_move_iterator(begin_iterator));
-				}
-				else
-			#endif
-			{
-				temp.range_insert(temp.end_iterator, total_size, begin_iterator);
-			}
-
-			*this = std::move(temp);
-		#else
-			list temp(*this);
-			reset();
-			swap(temp);
-		#endif
 	}
 
 
@@ -3082,23 +2990,6 @@ private:
 
 
 
-	// Used by remove()
-	struct eq_to
-	{
-		const element_type value;
-
-		explicit eq_to(const element_type store_value):
-			value(store_value)
-		{}
-
-		bool operator() (const element_type compare_value) const PLF_NOEXCEPT
-		{
-			return value == compare_value;
-		}
-	};
-
-
-
 public:
 
 	template <class comparison_function>
@@ -3222,7 +3113,7 @@ public:
 
 	size_type remove(const element_type &value)
 	{
-		return remove_if(eq_to(value));
+		return remove_if(plf::eq_to<element_type>(value));
 	}
 
 
@@ -3253,6 +3144,144 @@ public:
 				current.node_pointer = temp;
 			}
 		}
+	}
+
+
+
+	void reserve(size_type reserve_amount)
+	{
+		if (reserve_amount == 0 || reserve_amount <= groups.node_pointer_allocator_pair.capacity)
+		{
+			return;
+		}
+		else if (reserve_amount < PLF_MIN_BLOCK_CAPACITY)
+		{
+			reserve_amount = PLF_MIN_BLOCK_CAPACITY;
+		}
+		else if (reserve_amount > max_size())
+		{
+			throw std::length_error("Capacity requested via reserve() greater than max_size()");
+		}
+
+
+		if (groups.block_pointer != NULL && total_size == 0)
+		{ // edge case: has been filled with elements then clear()'d - some groups may be smaller than would be desired, should be replaced
+			group_size_type end_group_size = static_cast<group_size_type>((groups.block_pointer + groups.size - 1)->beyond_end - (groups.block_pointer + groups.size - 1)->nodes);
+
+			if (reserve_amount > end_group_size && end_group_size != PLF_MAX_BLOCK_CAPACITY) // if last group isn't large enough, remove all groups
+			{
+				reset();
+			}
+			else
+			{
+				size_type number_of_full_groups_needed = reserve_amount / PLF_MAX_BLOCK_CAPACITY;
+				group_size_type remainder = static_cast<group_size_type>(reserve_amount - (number_of_full_groups_needed * PLF_MAX_BLOCK_CAPACITY));
+
+				// Remove any max_size groups which're not needed and any groups that're smaller than remainder:
+				for (group_pointer_type current_group = groups.block_pointer; current_group < groups.block_pointer + groups.size;)
+				{
+					const group_size_type current_group_size = static_cast<group_size_type>(groups.block_pointer->beyond_end - groups.block_pointer->nodes);
+
+					if (number_of_full_groups_needed != 0 && current_group_size == PLF_MAX_BLOCK_CAPACITY)
+					{
+						--number_of_full_groups_needed;
+						++current_group;
+					}
+					else if (remainder != 0 && current_group_size >= remainder)
+					{
+						remainder = 0;
+						++current_group;
+					}
+					else
+					{
+						groups.remove(current_group);
+					}
+				}
+
+				last_endpoint = groups.block_pointer->nodes;
+			}
+		}
+
+		reserve_amount -= groups.node_pointer_allocator_pair.capacity;
+
+		// To correct from possible reallocation caused by add_new:
+		const difference_type last_endpoint_group_number = groups.last_endpoint_group - groups.block_pointer;
+
+		size_type number_of_full_groups = reserve_amount / PLF_MAX_BLOCK_CAPACITY;
+		reserve_amount -= (number_of_full_groups++ * PLF_MAX_BLOCK_CAPACITY); // ++ to aid while loop below
+
+		if (groups.block_pointer == NULL) // Previously uninitialized list or reset in above if statement; most common scenario
+		{
+			if (reserve_amount != 0)
+			{
+				groups.initialize(static_cast<group_size_type>(((reserve_amount < PLF_MIN_BLOCK_CAPACITY) ? PLF_MIN_BLOCK_CAPACITY : reserve_amount)));
+			}
+			else
+			{
+				groups.initialize(PLF_MAX_BLOCK_CAPACITY);
+				--number_of_full_groups;
+			}
+		}
+		else if (reserve_amount != 0)
+		{ // Create a group at least as large as the last group - may allocate more than necessary, but better solution than creating a very small group in the middle of the group vector, I think:
+			const group_size_type last_endpoint_group_capacity = static_cast<group_size_type>(groups.last_endpoint_group->beyond_end - groups.last_endpoint_group->nodes);
+			groups.add_new(static_cast<group_size_type>((reserve_amount < last_endpoint_group_capacity) ? last_endpoint_group_capacity : reserve_amount));
+		}
+
+		while (--number_of_full_groups != 0)
+		{
+			groups.add_new(PLF_MAX_BLOCK_CAPACITY);
+		}
+
+		groups.last_endpoint_group = groups.block_pointer + last_endpoint_group_number;
+	}
+
+
+
+	void trim_capacity() PLF_NOEXCEPT
+	{
+		groups.trim_unused_groups();
+	}
+
+
+
+	void shrink_to_fit()
+	{
+		if ((groups.block_pointer == NULL) | (total_size == groups.node_pointer_allocator_pair.capacity)) // if list is uninitialized or full
+		{
+			return;
+		}
+		else if (total_size == 0) // Edge case
+		{
+			reset();
+			return;
+		}
+		else if (node_allocator_pair.number_of_erased_nodes == 0 && last_endpoint == groups.last_endpoint_group->beyond_end) //edge case - currently no wasted space except for possible trailing groups
+		{
+			groups.trim_unused_groups();
+			return;
+		}
+
+		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
+			list temp;
+
+			#ifdef PLF_TYPE_TRAITS_SUPPORT
+				if PLF_CONSTEXPR (std::is_move_assignable<element_type>::value && std::is_move_constructible<element_type>::value) // move elements if possible, otherwise copy them
+				{
+					temp.range_insert(temp.end_iterator, total_size, std::make_move_iterator(begin_iterator));
+				}
+				else
+			#endif
+			{
+				temp.range_insert(temp.end_iterator, total_size, begin_iterator);
+			}
+
+			*this = std::move(temp);
+		#else
+			list temp(*this);
+			reset();
+			swap(temp);
+		#endif
 	}
 
 
@@ -3946,6 +3975,7 @@ namespace std
 #undef PLF_MAX_BLOCK_CAPACITY
 #undef PLF_MIN_BLOCK_CAPACITY
 
+#undef PLF_TO_ADDRESS
 #undef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
 #undef PLF_ALIGNMENT_SUPPORT
 #undef PLF_INITIALIZER_LIST_SUPPORT

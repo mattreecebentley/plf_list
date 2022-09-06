@@ -719,6 +719,8 @@ int main()
 				if (size_counter != list2.size())
 				{
 					std::cout << "Failing at counter == " << test_counter << std::endl;
+					std::cin.get();
+					abort();
 				}
 			}
 
@@ -728,8 +730,90 @@ int main()
 			list1.clear();
 			list2.clear();
 
+
+			test_counter = 0;
+
+			for (unsigned int counter = 0; counter != 500; ++counter)
+			{
+				list1.emplace_back(1);
+				list2.emplace_front(1);
+				test_counter += 2;
+
+				for (counter2 = 0; counter2 != 50; ++counter2)
+				{
+					if ((rand() & 7) == 0)
+					{
+						list1.emplace_back(counter2);
+						++test_counter;
+					}
+
+					if ((rand() & 15) == 0)
+					{
+						list2.emplace_back(counter2);
+						++test_counter;
+					}
+				}
+
+				for (plf::list<int>::iterator it = list1.begin(); it != list1.end();)
+				{
+					if ((rand() & 7) == 0)
+					{
+						list1.insert(it, 13);
+						++test_counter;
+					}
+
+					if ((rand() & 3) == 0)
+					{
+						it = list1.erase(it);
+						--test_counter;
+					}
+					else
+					{
+						++it;
+					}
+				}
+
+
+				for (plf::list<int>::iterator it = --list2.end(); it != list2.begin();)
+				{
+					if ((rand() & 7) == 0)
+					{
+						list2.insert(it, 13);
+						++test_counter;
+					}
+
+					if ((rand() & 7) == 0)
+					{
+						it = list2.erase(it);
+						--test_counter;
+					}
+
+					--it;
+				}
+
+
+				list2.splice(++list2.begin(), list1);
+				test_counter -= static_cast<int>(list2.remove(1));
+
+				unsigned int size_counter = 0;
+
+				for (plf::list<int>::iterator it = list2.begin(); it != list2.end(); ++it)
+				{
+					++size_counter;
+				}
+
+				if (size_counter != list2.size())
+				{
+					std::cout << "Failing at counter == " << counter << std::endl;
+					std::cin.get();
+					abort();
+				}
+			}
+
+			failpass("Erase and insert randomly + splicing test", test_counter == static_cast<int>(list2.size()));
 		}
 		#endif
+
 
 		#if defined(PLF_TEST_MOVE_SEMANTICS_SUPPORT) && defined(PLF_TEST_VARIADICS_SUPPORT)
 		{
