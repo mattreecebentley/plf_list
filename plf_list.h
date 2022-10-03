@@ -634,7 +634,9 @@ private:
 					node_pointer_allocator_pair.capacity = source.node_pointer_allocator_pair.capacity;
 					group_allocator_pair.capacity = source.group_allocator_pair.capacity;
 
-					if PLF_CONSTEXPR(std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value)
+					#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
+						if PLF_CONSTEXPR(std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value)
+					#endif
 					{
 						static_cast<allocator_type &>(*this) = std::move(static_cast<allocator_type &>(source));
 						// Reconstruct rebinds:
@@ -1228,7 +1230,7 @@ private:
 
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
-				{ // &* in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
+				{
 					std::memcpy(convert_pointer<void *>(block_pointer + size), convert_pointer<void *>(source.block_pointer), sizeof(group) * source.size);
 				}
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
@@ -1365,7 +1367,7 @@ public:
 		// Move constructor:
 
 		list(list &&source) PLF_NOEXCEPT:
-			allocator_type(source),
+			allocator_type(std::move(static_cast<allocator_type &>(source))),
 			groups(std::move(source.groups)),
 			end_node(std::move(source.end_node)),
 			last_endpoint(std::move(source.last_endpoint)),
@@ -2502,7 +2504,9 @@ public:
 				end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
 				source.groups.blank();
 
-				if PLF_CONSTEXPR(std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value)
+				#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
+					if PLF_CONSTEXPR(std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value)
+				#endif
 				{
 					static_cast<allocator_type &>(*this) = source;
 					static_cast<node_allocator_type &>(node_allocator_pair) = node_allocator_type(*this);
