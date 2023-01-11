@@ -1,4 +1,4 @@
-// Copyright (c) 2022, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
+// Copyright (c) 2023, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
 
 // zLib license (https://www.zlib.net/zlib_license.html):
 // This software is provided 'as-is', without any express or implied
@@ -33,6 +33,15 @@
 #define PLF_NOEXCEPT_ALLOCATOR
 #define PLF_CONSTEXPR
 #define PLF_CONSTFUNC
+
+#define PLF_EXCEPTIONS_SUPPORT
+
+#if ((defined(__clang__) || defined(__GNUC__)) && !defined(__EXCEPTIONS)) || (defined(_MSC_VER) && !defined(_CPPUNWIND))
+	#undef PLF_EXCEPTIONS_SUPPORT
+#else
+	#include <exception> // std::terminate
+#endif
+
 
 #if defined(_MSC_VER) && !defined(__clang__) && !defined(__GNUC__)
 	#if _MSC_VER >= 1600
@@ -1759,20 +1768,29 @@ public:
 				else
 			#endif
 			{
-				try
-				{
+				#ifdef PLF_EXCEPTIONS_SUPPORT
+					try
+					{
+						#ifdef PLF_VARIADICS_SUPPORT
+							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, element);
+						#else
+							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, element));
+						#endif
+					}
+					catch (...)
+					{
+						reset();
+						throw;
+					}
+				#else
 					#ifdef PLF_VARIADICS_SUPPORT
 						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, element);
 					#else
 						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, element));
 					#endif
-				}
-				catch (...)
-				{
-					reset();
-					throw;
-				}
+				#endif
 			}
+
 
 			return begin_iterator;
 		}
@@ -1856,19 +1874,27 @@ public:
 					else
 				#endif
 				{
-					try
-					{
+					#ifdef PLF_EXCEPTIONS_SUPPORT
+						try
+						{
+							#ifdef PLF_VARIADICS_SUPPORT
+								PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::move(element));
+							#else
+								PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, std::move(element)));
+							#endif
+						}
+						catch (...)
+						{
+							reset();
+							throw;
+						}
+					#else
 						#ifdef PLF_VARIADICS_SUPPORT
 							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::move(element));
 						#else
 							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, std::move(element)));
 						#endif
-					}
-					catch (...)
-					{
-						reset();
-						throw;
-					}
+					#endif
 				}
 
 				return begin_iterator;
@@ -1943,15 +1969,19 @@ public:
 					else
 				#endif
 				{
-					try
-					{
+					#ifdef PLF_EXCEPTIONS_SUPPORT
+						try
+						{
+							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
+						}
+						catch (...)
+						{
+							reset();
+							throw;
+						}
+					#else
 						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
-					}
-					catch (...)
-					{
-						reset();
-						throw;
-					}
+					#endif
 				}
 
 				return begin_iterator;
@@ -2002,21 +2032,29 @@ private:
 				else
 			#endif
 			{
-				try
-				{
+				#ifdef PLF_EXCEPTIONS_SUPPORT
+					try
+					{
+						#ifdef PLF_VARIADICS_SUPPORT
+							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, last_endpoint + 1, previous, element);
+						#else
+							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(last_endpoint + 1, previous, element));
+						#endif
+					}
+					catch (...)
+					{
+						previous->next = position;
+						position->previous = --previous;
+						groups.last_endpoint_group->number_of_elements = static_cast<group_size_type>(groups.last_endpoint_group->number_of_elements - (number_of_elements - (last_endpoint - position)));
+						throw;
+					}
+				#else
 					#ifdef PLF_VARIADICS_SUPPORT
 						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, last_endpoint + 1, previous, element);
 					#else
 						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(last_endpoint + 1, previous, element));
 					#endif
-				}
-				catch (...)
-				{
-					previous->next = position;
-					position->previous = --previous;
-					groups.last_endpoint_group->number_of_elements = static_cast<group_size_type>(groups.last_endpoint_group->number_of_elements - (number_of_elements - (last_endpoint - position)));
-					throw;
-				}
+				#endif
 			}
 
 			previous = last_endpoint++;
@@ -2050,21 +2088,29 @@ private:
 				else
 			#endif
 			{
-				try
-				{
+				#ifdef PLF_EXCEPTIONS_SUPPORT
+					try
+					{
+						#ifdef PLF_VARIADICS_SUPPORT
+							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, last_endpoint + 1, previous, *it++);
+						#else
+							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(last_endpoint + 1, previous, *it++));
+						#endif
+					}
+					catch (...)
+					{
+						previous->next = position;
+						position->previous = --previous;
+						groups.last_endpoint_group->number_of_elements = static_cast<group_size_type>(groups.last_endpoint_group->number_of_elements - (number_of_elements - (last_endpoint - position)));
+						throw;
+					}
+				#else
 					#ifdef PLF_VARIADICS_SUPPORT
 						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, last_endpoint + 1, previous, *it++);
 					#else
 						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(last_endpoint + 1, previous, *it++));
 					#endif
-				}
-				catch (...)
-				{
-					previous->next = position;
-					position->previous = --previous;
-					groups.last_endpoint_group->number_of_elements = static_cast<group_size_type>(groups.last_endpoint_group->number_of_elements - (number_of_elements - (last_endpoint - position)));
-					throw;
-				}
+				#endif
 			}
 
 			previous = last_endpoint++;
@@ -3164,7 +3210,11 @@ public:
 		}
 		else if (reserve_amount > max_size())
 		{
-			throw std::length_error("Capacity requested via reserve() greater than max_size()");
+			#ifdef PLF_EXCEPTIONS_SUPPORT
+				throw std::length_error("Capacity requested via reserve() greater than max_size()");
+			#else
+				std::terminate();
+			#endif
 		}
 
 
@@ -3979,6 +4029,7 @@ namespace std
 #undef PLF_MAX_BLOCK_CAPACITY
 #undef PLF_MIN_BLOCK_CAPACITY
 
+#undef PLF_EXCEPTIONS_SUPPORT
 #undef PLF_TO_ADDRESS
 #undef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
 #undef PLF_ALIGNMENT_SUPPORT
