@@ -1371,6 +1371,29 @@ public:
 
 
 
+private:
+
+	void blank() PLF_NOEXCEPT
+	{
+		end_node.next = static_cast<node_pointer_type>(&end_node);
+		end_node.previous = static_cast<node_pointer_type>(&end_node);
+		last_endpoint = NULL;
+		begin_iterator.node_pointer = end_iterator.node_pointer;
+		total_size = 0;
+		node_allocator_pair.number_of_erased_nodes = 0;
+	}
+
+
+	void reset() PLF_NOEXCEPT
+	{
+		groups.destroy_all_data(last_endpoint);
+		blank();
+	}
+
+
+
+public:
+
 	#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 		// Move constructor:
 
@@ -1386,7 +1409,7 @@ public:
 		{
 			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
 			source.groups.blank();
-			source.reset();
+			source.blank();
 		}
 
 
@@ -1409,7 +1432,7 @@ public:
 		{
 			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
 			source.groups.blank();
-			source.reset();
+			source.blank();
 		}
 	#endif
 
@@ -1563,9 +1586,23 @@ public:
 
 
 
+ 	const_reverse_iterator rbegin() const PLF_NOEXCEPT
+ 	{
+ 		return const_reverse_iterator(end_node.previous);
+ 	}
+
+
+
  	reverse_iterator rend() PLF_NOEXCEPT
  	{
  		return reverse_iterator(end_iterator.node_pointer);
+ 	}
+
+
+
+ 	const_reverse_iterator rend() const PLF_NOEXCEPT
+ 	{
+ 		return const_reverse_iterator(end_iterator.node_pointer);
  	}
 
 
@@ -1618,7 +1655,7 @@ public:
 
 	void clear() PLF_NOEXCEPT
 	{
-		if (last_endpoint == NULL)
+		if (last_endpoint == NULL) // already clear'ed or uninitialized
 		{
 			return;
 		}
@@ -1628,29 +1665,12 @@ public:
 			groups.clear(last_endpoint);
 		}
 
-		end_node.next = static_cast<node_pointer_type>(&end_node);
-		end_node.previous = static_cast<node_pointer_type>(&end_node);
-		last_endpoint = NULL;
-		begin_iterator.node_pointer = end_iterator.node_pointer;
-		total_size = 0;
-		node_allocator_pair.number_of_erased_nodes = 0;
+		blank();
 	}
 
 
 
 private:
-
-
-	void reset() PLF_NOEXCEPT
-	{
-		groups.destroy_all_data(last_endpoint);
-		last_endpoint = NULL;
-		end_node.next = static_cast<node_pointer_type>(&end_node);
-		end_node.previous = static_cast<node_pointer_type>(&end_node);
-		begin_iterator.node_pointer = end_iterator.node_pointer;
-		total_size = 0;
-		node_allocator_pair.number_of_erased_nodes = 0;
-	}
 
 
 
@@ -2453,7 +2473,7 @@ public:
 			else
 			{
 				groups.last_endpoint_group = groups.block_pointer; // If number of elements is zero, it indicates that this was the only group in the vector. In which case the last_endpoint_group would be invalid at this point due to the decrement in the above else-if statement. So it needs to be reset, as it will not be reset in the function call below.
-				clear();
+				blank();
 			}
 
 			return return_iterator;
@@ -2508,7 +2528,7 @@ public:
 				if(static_cast<allocator_type &>(*this) != source_allocator)
 			#endif
 			{ // Deallocate existing blocks as source allocator is not necessarily able to do so
-				reset();
+				groups.destroy_all_data(last_endpoint);
 			}
 
 			static_cast<allocator_type &>(*this) = source_allocator;
@@ -2556,14 +2576,16 @@ public:
 					static_cast<allocator_type &>(*this) = source;
 					static_cast<node_allocator_type &>(node_allocator_pair) = node_allocator_type(*this);
 				}
+
+				source.blank();
 			}
 			else // Allocator isn't movable so move elements from source and deallocate the source's blocks:
 			{
 				clear();
 				range_insert(end_iterator, source.total_size, std::make_move_iterator(source.begin_iterator));
+				source.reset();
 			}
 
-			source.reset();
 			return *this;
 		}
 	#endif
@@ -2581,18 +2603,18 @@ public:
 
 
 
-	bool operator == (const list &rh) const PLF_NOEXCEPT
+	bool operator == (const list &source) const PLF_NOEXCEPT
 	{
-		assert (this != &rh);
+		assert (this != &source);
 
-		if (total_size != rh.total_size)
+		if (total_size != source.total_size)
 		{
 			return false;
 		}
 
-		for (const_iterator lh_iterator = begin_iterator, rh_iterator = rh.begin_iterator; lh_iterator != end_iterator; ++lh_iterator, ++rh_iterator)
+		for (const_iterator lh = begin_iterator, rh = source.begin_iterator; lh != end_iterator; ++lh, ++rh)
 		{
-			if (*lh_iterator != *rh_iterator)
+			if (*lh != *rh)
 			{
 				return false;
 			}
@@ -2833,6 +2855,8 @@ private:
 
 	void append_process(list &source) // used by merge and splice
 	{
+		node_allocator_pair.number_of_erased_nodes += source.node_allocator_pair.number_of_erased_nodes;
+
 		if (last_endpoint != groups.last_endpoint_group->beyond_end)
 		{ // Add unused nodes to group's free list
 			const node_pointer_type back_node = last_endpoint - 1;
@@ -2849,7 +2873,7 @@ private:
 		groups.append(source.groups);
 		last_endpoint = source.last_endpoint;
 		total_size += source.total_size;
-		source.reset();
+		source.blank();
 	}
 
 
@@ -3828,7 +3852,7 @@ public:
 
 
 
-	template <bool is_const> class list_reverse_iterator
+	template <bool is_const_r> class list_reverse_iterator
 	{
 	private:
 		node_pointer_type node_pointer;
@@ -3838,8 +3862,8 @@ public:
 		typedef std::bidirectional_iterator_tag 	iterator_category;
 		typedef typename list::value_type 			value_type;
 		typedef typename list::difference_type 	difference_type;
-		typedef typename plf::conditional<is_const, typename list::const_pointer, typename list::pointer>::type		pointer;
-		typedef typename plf::conditional<is_const, typename list::const_reference, typename list::reference>::type	reference;
+		typedef typename plf::conditional<is_const_r, typename list::const_pointer, typename list::pointer>::type		pointer;
+		typedef typename plf::conditional<is_const_r, typename list::const_reference, typename list::reference>::type	reference;
 
 		friend class list;
 
@@ -3851,7 +3875,7 @@ public:
 
 
 
-		bool operator == (const list_reverse_iterator<!is_const> rh) const PLF_NOEXCEPT
+		bool operator == (const list_reverse_iterator<!is_const_r> rh) const PLF_NOEXCEPT
 		{
 			return (node_pointer == rh.node_pointer);
 		}
@@ -3865,7 +3889,7 @@ public:
 
 
 
-		bool operator != (const list_reverse_iterator<!is_const> rh) const PLF_NOEXCEPT
+		bool operator != (const list_reverse_iterator<!is_const_r> rh) const PLF_NOEXCEPT
 		{
 			return (node_pointer != rh.node_pointer);
 		}
@@ -3922,40 +3946,6 @@ public:
 
 
 
-		list_reverse_iterator & operator = (const list_reverse_iterator &rh) PLF_NOEXCEPT
-		{
-			node_pointer = rh.node_pointer;
-			return *this;
-		}
-
-
-
-		list_reverse_iterator & operator = (const list_reverse_iterator<!is_const> &rh) PLF_NOEXCEPT
-		{
-			node_pointer = rh.node_pointer;
-			return *this;
-		}
-
-
-
-		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
-			list_reverse_iterator & operator = (const list_reverse_iterator &&rh) PLF_NOEXCEPT
-			{
-				assert (&rh != this);
-				node_pointer = std::move(rh.node_pointer);
-				return *this;
-			}
-
-
-			list_reverse_iterator & operator = (const list_reverse_iterator<!is_const> &&rh) PLF_NOEXCEPT
-			{
-				node_pointer = std::move(rh.node_pointer);
-				return *this;
-			}
-		#endif
-
-
-
 		typename list::iterator base() const PLF_NOEXCEPT
 		{
 			return typename list::iterator(node_pointer->next);
@@ -3965,13 +3955,119 @@ public:
 
 		list_reverse_iterator() PLF_NOEXCEPT: node_pointer(NULL) {}
 
+
 		list_reverse_iterator(const list_reverse_iterator &source) PLF_NOEXCEPT: node_pointer(source.node_pointer) {}
+
 
 		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 			list_reverse_iterator (const list_reverse_iterator &&source) PLF_NOEXCEPT: node_pointer(std::move(source.node_pointer)) {}
 
-			list_reverse_iterator (const list_reverse_iterator<!is_const> &&source) PLF_NOEXCEPT: node_pointer(std::move(source.node_pointer)) {}
+			list_reverse_iterator (const list_reverse_iterator<!is_const_r> &&source) PLF_NOEXCEPT: node_pointer(std::move(source.node_pointer)) {}
 		#endif
+
+
+		#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+			template <bool is_const_rit = is_const_r, class = typename plf::enable_if<is_const_rit>::type >
+			list_reverse_iterator (const list_reverse_iterator<false> &source) PLF_NOEXCEPT:
+		#else
+			list_reverse_iterator (const list_reverse_iterator<!is_const_r> &source) PLF_NOEXCEPT:
+		#endif
+			node_pointer(source.node_pointer)
+		{}
+
+
+		list_reverse_iterator (const list_iterator<is_const_r> &source) PLF_NOEXCEPT:
+			node_pointer(source.node_pointer)
+		{}
+
+
+		#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+			template <bool is_const_rit = is_const_r, class = typename plf::enable_if<is_const_rit>::type >
+			list_reverse_iterator (const list_iterator<false> &source) PLF_NOEXCEPT:
+		#else
+			list_reverse_iterator (const list_iterator<!is_const_r> &source) PLF_NOEXCEPT:
+		#endif
+			node_pointer(source.node_pointer)
+		{}
+
+
+		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
+			list_reverse_iterator (list_reverse_iterator &&source) PLF_NOEXCEPT:
+				node_pointer(std::move(source.node_pointer))
+			{}
+
+
+			#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+				template <bool is_const_rit = is_const_r, class = typename plf::enable_if<is_const_rit>::type >
+				list_reverse_iterator (list_reverse_iterator<false> &&source) PLF_NOEXCEPT:
+			#else
+				list_reverse_iterator (const list_iterator<!is_const_r> &&source) PLF_NOEXCEPT:
+			#endif
+				node_pointer(std::move(source.node_pointer))
+			{}
+		#endif
+
+
+		list_reverse_iterator& operator = (const list_iterator<is_const_r> &source) PLF_NOEXCEPT
+		{
+			node_pointer = source.node_pointer;
+			return *this;
+		}
+
+
+		#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+			template <bool is_const_rit = is_const_r, class = typename plf::enable_if<is_const_rit>::type >
+			list_reverse_iterator& operator = (const list_iterator<false> &source) PLF_NOEXCEPT
+		#else
+			list_reverse_iterator& operator = (const list_iterator<!is_const_r> &source) PLF_NOEXCEPT
+		#endif
+		{
+			node_pointer = source.node_pointer;
+			return *this;
+		}
+
+
+		list_reverse_iterator& operator = (const list_reverse_iterator &source) PLF_NOEXCEPT
+		{
+			node_pointer = source.node_pointer;
+			return *this;
+		}
+
+
+		#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+			template <bool is_const_rit = is_const_r, class = typename plf::enable_if<is_const_rit>::type >
+			list_reverse_iterator& operator = (const list_reverse_iterator<false> &source) PLF_NOEXCEPT
+		#else
+			list_reverse_iterator& operator = (const list_reverse_iterator<!is_const_r> &source) PLF_NOEXCEPT
+		#endif
+		{
+			node_pointer = source.node_pointer;
+			return *this;
+		}
+
+
+		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
+			list_reverse_iterator& operator = (list_reverse_iterator &&source) PLF_NOEXCEPT
+			{
+				assert (&source != this);
+				node_pointer = std::move(source.node_pointer);
+				return *this;
+			}
+
+
+			#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+				template <bool is_const_rit = is_const_r, class = typename plf::enable_if<is_const_rit>::type >
+				list_reverse_iterator& operator = (list_reverse_iterator<false> &&source) PLF_NOEXCEPT
+			#else
+				list_reverse_iterator& operator = (list_reverse_iterator<!is_const_r> &&source) PLF_NOEXCEPT
+			#endif
+			{
+				assert (&source != this);
+				node_pointer = std::move(source.node_pointer);
+				return *this;
+			}
+		#endif
+
 
 	private:
 
