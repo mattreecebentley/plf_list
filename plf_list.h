@@ -3629,11 +3629,16 @@ public:
 
 	void swap(list &source) PLF_NOEXCEPT_SWAP(allocator_type)
 	{
-		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
-			list temp(std::move(source));
-			source = std::move(*this);
-			*this = std::move(temp);
-		#else
+		#if defined(PLF_TYPE_TRAITS_SUPPORT) && defined(PLF_MOVE_SEMANTICS_SUPPORT)
+			if PLF_CONSTEXPR (std::is_move_assignable<group_pointer_type>::value && std::is_move_assignable<node_pointer_type>::value && std::is_move_constructible<group_pointer_type>::value && std::is_move_constructible<node_pointer_type>::value)
+			{
+				list temp(std::move(source));
+				source = std::move(*this);
+				*this = std::move(temp);
+			}
+			else
+		#endif
+		{
 			groups.swap(source.groups);
 
 			const node_pointer_type swap_end_node_previous = end_node.previous, swap_last_endpoint = last_endpoint;
@@ -3672,7 +3677,7 @@ public:
 				static_cast<node_allocator_type &>(node_allocator_pair) = node_allocator_type(*this);
 				static_cast<node_allocator_type &>(source.node_allocator_pair) = node_allocator_type(source);
 			} // else: undefined behaviour, as per standard
-		#endif
+		}
 	}
 
 
