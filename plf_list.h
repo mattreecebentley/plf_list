@@ -3982,7 +3982,7 @@ public:
 
 
 		list_reverse_iterator (const list_iterator<is_const_r> &source) PLF_NOEXCEPT:
-			node_pointer(source.node_pointer)
+			node_pointer(source.node_pointer->previous)
 		{}
 
 
@@ -3992,7 +3992,7 @@ public:
 		#else
 			list_reverse_iterator (const list_iterator<!is_const_r> &source) PLF_NOEXCEPT:
 		#endif
-			node_pointer(source.node_pointer)
+			node_pointer(source.node_pointer->previous)
 		{}
 
 
@@ -4015,7 +4015,7 @@ public:
 
 		list_reverse_iterator& operator = (const list_iterator<is_const_r> &source) PLF_NOEXCEPT
 		{
-			node_pointer = source.node_pointer;
+			node_pointer = source.node_pointer->previous;
 			return *this;
 		}
 
@@ -4027,7 +4027,7 @@ public:
 			list_reverse_iterator& operator = (const list_iterator<!is_const_r> &source) PLF_NOEXCEPT
 		#endif
 		{
-			node_pointer = source.node_pointer;
+			node_pointer = source.node_pointer->previous;
 			return *this;
 		}
 
