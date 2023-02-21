@@ -3687,6 +3687,7 @@ public:
 	template <bool is_const> class list_iterator
 	{
 	private:
+		typedef typename list::node_pointer_type node_pointer_type;
 		node_pointer_type node_pointer;
 
 	public:
@@ -3860,6 +3861,7 @@ public:
 	template <bool is_const_r> class list_reverse_iterator
 	{
 	private:
+		typedef typename list::node_pointer_type node_pointer_type;
 		node_pointer_type node_pointer;
 
 	public:
