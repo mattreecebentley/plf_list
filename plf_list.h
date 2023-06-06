@@ -247,7 +247,6 @@
 	#include <concepts>
 	#include <compare> // std::strong_ordering, std::to_address
 	#include <ranges>
-	#include <bit> // std::bit_cast
 
 	namespace plf
 	{
@@ -332,21 +331,14 @@ namespace plf
 
 
 
-	// To enable conversion when allocator supplies non-raw pointers:
-	template <class destination_pointer_type, class source_pointer_type>
-	static PLF_CONSTFUNC destination_pointer_type convert_pointer(const source_pointer_type source_pointer) PLF_NOEXCEPT
+	// To enable conversion to void * when allocator supplies non-raw pointers:
+	template <class source_pointer_type>
+	static PLF_CONSTFUNC void * convert_to_void(const source_pointer_type source_pointer) PLF_NOEXCEPT
 	{
-		#if defined(PLF_TYPE_TRAITS_SUPPORT) && defined(PLF_CPP20_SUPPORT) // constexpr necessary to avoid a branch for every call
-			if constexpr (std::is_trivial<destination_pointer_type>::value && std::is_trivial<source_pointer_type>::value)
-			{
-				return std::bit_cast<destination_pointer_type>(source_pointer);
-			}
-			else
-			{
-				return destination_pointer_type(std::to_address(source_pointer));
-			}
+		#if defined(PLF_CPP20_SUPPORT)
+			return static_cast<void *>(std::to_address(source_pointer));
 		#else
-			return destination_pointer_type(&*source_pointer);
+			return static_cast<void *>(&*source_pointer);
 		#endif
 	}
 #endif
@@ -811,8 +803,8 @@ private:
 
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
-				{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
-					std::memcpy(convert_pointer<void *>(block_pointer), convert_pointer<void *>(old_block), sizeof(group) * size);
+				{
+					std::memcpy(convert_to_void(block_pointer), convert_to_void(old_block), sizeof(group) * size);
 				}
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 					else if PLF_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
@@ -904,8 +896,8 @@ private:
 
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
-				{ // Dereferencing here in order to deal with smart pointer situations ie. obtaining the raw pointer from the smart pointer
-					std::memmove(convert_pointer<void *>(group_to_erase), convert_pointer<void *>(group_to_erase + 1), sizeof(group) * (--size - static_cast<size_type>(PLF_TO_ADDRESS(group_to_erase) - PLF_TO_ADDRESS(block_pointer))));
+				{
+					std::memmove(convert_to_void(group_to_erase), convert_to_void(group_to_erase + 1), sizeof(group) * (--size - static_cast<size_type>(PLF_TO_ADDRESS(group_to_erase) - PLF_TO_ADDRESS(block_pointer))));
 				}
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 					else if PLF_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
@@ -939,9 +931,9 @@ private:
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{
-					std::memcpy(convert_pointer<void *>(temp_group), convert_pointer<void *>(group_to_erase), sizeof(group));
-					std::memmove(convert_pointer<void *>(group_to_erase), convert_pointer<void *>(group_to_erase + 1), sizeof(group) * ((size - 1) - static_cast<size_type>(PLF_TO_ADDRESS(group_to_erase) - PLF_TO_ADDRESS(block_pointer))));
-					std::memcpy(convert_pointer<void *>(block_pointer + size - 1), convert_pointer<void *>(temp_group), sizeof(group));
+					std::memcpy(convert_to_void(temp_group), convert_to_void(group_to_erase), sizeof(group));
+					std::memmove(convert_to_void(group_to_erase), convert_to_void(group_to_erase + 1), sizeof(group) * ((size - 1) - static_cast<size_type>(PLF_TO_ADDRESS(group_to_erase) - PLF_TO_ADDRESS(block_pointer))));
+					std::memcpy(convert_to_void(block_pointer + size - 1), convert_to_void(temp_group), sizeof(group));
 				}
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 					else if PLF_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
@@ -1239,7 +1231,7 @@ private:
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{
-					std::memcpy(convert_pointer<void *>(block_pointer + size), convert_pointer<void *>(source.block_pointer), sizeof(group) * source.size);
+					std::memcpy(convert_to_void(block_pointer + size), convert_to_void(source.block_pointer), sizeof(group) * source.size);
 				}
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 					else if PLF_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
