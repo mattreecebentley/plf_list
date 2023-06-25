@@ -223,7 +223,7 @@
 #include <cassert> // assert
 #include <limits>   // std::numeric_limits
 #include <memory>  // std::uninitialized_copy, std::allocator
-#include <iterator>	// std::bidirectional_iterator_tag, iterator_traits, make_move_iterator, std::distance for range insert
+#include <iterator>	// std::bidirectional_iterator_tag, iterator_traits, std::move_iterator, std::distance for range insert
 #include <stdexcept> // std::length_error
 
 
@@ -275,8 +275,8 @@ namespace plf
 
 #ifndef PLF_TOOLS
 	#define PLF_TOOLS
-	// std:: tool replacements for C++03/98 support:
 
+	// std:: tool replacements for C++03/98/11 support:
 	template <bool condition, class T = void>
 	struct enable_if
 	{
@@ -315,11 +315,11 @@ namespace plf
 
 
 	template<class element_type>
-	struct eq_to
+	struct equal_to
 	{
 		const element_type value;
 
-		explicit eq_to(const element_type store_value): // not noexcept as element may allocate and potentially throw when copied
+		explicit equal_to(const element_type store_value): // no noexcept as element may allocate and potentially throw when copied
 			value(store_value)
 		{}
 
@@ -333,7 +333,7 @@ namespace plf
 
 	// To enable conversion to void * when allocator supplies non-raw pointers:
 	template <class source_pointer_type>
-	static PLF_CONSTFUNC void * convert_to_void(const source_pointer_type source_pointer) PLF_NOEXCEPT
+	static PLF_CONSTFUNC void * void_cast(const source_pointer_type source_pointer) PLF_NOEXCEPT
 	{
 		#if defined(PLF_CPP20_SUPPORT)
 			return static_cast<void *>(std::to_address(source_pointer));
@@ -341,6 +341,15 @@ namespace plf
 			return static_cast<void *>(&*source_pointer);
 		#endif
 	}
+
+
+	#ifdef PLF_MOVE_SEMANTICS_SUPPORT
+		template <class iterator_type>
+		PLF_CONSTFUNC std::move_iterator<iterator_type> make_move_iterator(iterator_type it)
+		{
+			return std::move_iterator<iterator_type>(std::move(it));
+		}
+	#endif
 #endif
 
 
@@ -349,36 +358,36 @@ template <class element_type, class allocator_type = std::allocator<element_type
 {
 public:
 	// Standard container typedefs:
-	typedef element_type															value_type;
+	typedef element_type														value_type;
 	typedef unsigned short														group_size_type;
 
 	#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
-		typedef typename std::allocator_traits<allocator_type>::size_type				size_type;
+		typedef typename std::allocator_traits<allocator_type>::size_type			size_type;
 		typedef typename std::allocator_traits<allocator_type>::difference_type 	difference_type;
-		typedef element_type &																		reference;
-		typedef const element_type &																const_reference;
-		typedef typename std::allocator_traits<allocator_type>::pointer 				pointer;
+		typedef element_type &														reference;
+		typedef const element_type &												const_reference;
+		typedef typename std::allocator_traits<allocator_type>::pointer 			pointer;
 		typedef typename std::allocator_traits<allocator_type>::const_pointer		const_pointer;
 	#else
 		typedef typename allocator_type::size_type			size_type;
 		typedef typename allocator_type::difference_type	difference_type;
 		typedef typename allocator_type::reference			reference;
 		typedef typename allocator_type::const_reference	const_reference;
-		typedef typename allocator_type::pointer				pointer;
+		typedef typename allocator_type::pointer			pointer;
 		typedef typename allocator_type::const_pointer		const_pointer;
 	#endif
 
 
 	// Iterator declarations:
-	template <bool is_const> class list_iterator;
-	typedef list_iterator<false>		iterator;
+	template <bool is_const> class	list_iterator;
+	typedef list_iterator<false>	iterator;
 	typedef list_iterator<true>		const_iterator;
 	friend class list_iterator<false>; // Using 'iterator' typedef name here is illegal under C++03
 	friend class list_iterator<true>;
 
-	template <bool is_const> class list_reverse_iterator;
-	typedef list_reverse_iterator<false>		reverse_iterator;
-	typedef list_reverse_iterator<true>			const_reverse_iterator;
+	template <bool is_const> class			list_reverse_iterator;
+	typedef list_reverse_iterator<false>	reverse_iterator;
+	typedef list_reverse_iterator<true>		const_reverse_iterator;
 	friend class list_reverse_iterator<false>;
 	friend class list_reverse_iterator<true>;
 
@@ -390,14 +399,14 @@ private:
 	#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT // >= C++11
 		typedef typename std::allocator_traits<allocator_type>::template rebind_alloc<group>				group_allocator_type;
 		typedef typename std::allocator_traits<allocator_type>::template rebind_alloc<node>					node_allocator_type;
-		typedef typename std::allocator_traits<group_allocator_type>::pointer 				group_pointer_type;
-		typedef typename std::allocator_traits<node_allocator_type>::pointer					node_pointer_type;
+		typedef typename std::allocator_traits<group_allocator_type>::pointer 								group_pointer_type;
+		typedef typename std::allocator_traits<node_allocator_type>::pointer								node_pointer_type;
 		typedef typename std::allocator_traits<allocator_type>::template rebind_alloc<node_pointer_type>	node_pointer_allocator_type;
 	#else
 		typedef typename allocator_type::template rebind<group>::other				group_allocator_type;
 		typedef typename allocator_type::template rebind<node>::other				node_allocator_type;
-		typedef typename group_allocator_type::pointer 				group_pointer_type;
-		typedef typename node_allocator_type::pointer				node_pointer_type;
+		typedef typename group_allocator_type::pointer 								group_pointer_type;
+		typedef typename node_allocator_type::pointer								node_pointer_type;
 		typedef typename allocator_type::template rebind<node_pointer_type>::other	node_pointer_allocator_type;
 	#endif
 
@@ -804,7 +813,7 @@ private:
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{
-					std::memcpy(convert_to_void(block_pointer), convert_to_void(old_block), sizeof(group) * size);
+					std::memcpy(plf::void_cast(block_pointer), plf::void_cast(old_block), sizeof(group) * size);
 				}
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 					else if PLF_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
@@ -897,7 +906,7 @@ private:
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{
-					std::memmove(convert_to_void(group_to_erase), convert_to_void(group_to_erase + 1), sizeof(group) * (--size - static_cast<size_type>(PLF_TO_ADDRESS(group_to_erase) - PLF_TO_ADDRESS(block_pointer))));
+					std::memmove(plf::void_cast(group_to_erase), plf::void_cast(group_to_erase + 1), sizeof(group) * (--size - static_cast<size_type>(PLF_TO_ADDRESS(group_to_erase) - PLF_TO_ADDRESS(block_pointer))));
 				}
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 					else if PLF_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
@@ -931,9 +940,9 @@ private:
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{
-					std::memcpy(convert_to_void(temp_group), convert_to_void(group_to_erase), sizeof(group));
-					std::memmove(convert_to_void(group_to_erase), convert_to_void(group_to_erase + 1), sizeof(group) * ((size - 1) - static_cast<size_type>(PLF_TO_ADDRESS(group_to_erase) - PLF_TO_ADDRESS(block_pointer))));
-					std::memcpy(convert_to_void(block_pointer + size - 1), convert_to_void(temp_group), sizeof(group));
+					std::memcpy(plf::void_cast(temp_group), plf::void_cast(group_to_erase), sizeof(group));
+					std::memmove(plf::void_cast(group_to_erase), plf::void_cast(group_to_erase + 1), sizeof(group) * ((size - 1) - static_cast<size_type>(PLF_TO_ADDRESS(group_to_erase) - PLF_TO_ADDRESS(block_pointer))));
+					std::memcpy(plf::void_cast(block_pointer + size - 1), plf::void_cast(temp_group), sizeof(group));
 				}
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 					else if PLF_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
@@ -1231,7 +1240,7 @@ private:
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{
-					std::memcpy(convert_to_void(block_pointer + size), convert_to_void(source.block_pointer), sizeof(group) * source.size);
+					std::memcpy(plf::void_cast(block_pointer + size), plf::void_cast(source.block_pointer), sizeof(group) * source.size);
 				}
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 					else if PLF_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
@@ -3178,7 +3187,7 @@ public:
 
 	size_type remove(const element_type &value)
 	{
-		return remove_if(plf::eq_to<element_type>(value));
+		return remove_if(plf::equal_to<element_type>(value));
 	}
 
 
