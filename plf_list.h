@@ -43,6 +43,10 @@
 
 
 #if defined(_MSC_VER) && !defined(__clang__) && !defined(__GNUC__)
+    // Suppress incorrect (unfixed MSVC bug) warnings re: constant expressions in constexpr-if statements
+	#pragma warning ( push )
+    #pragma warning ( disable : 4127 )
+
 	#if _MSC_VER >= 1600
 		#define PLF_MOVE_SEMANTICS_SUPPORT
 	#endif
@@ -222,7 +226,7 @@
 #include <cstring> // memmove, memcpy
 #include <cassert> // assert
 #include <limits>   // std::numeric_limits
-#include <memory>  // std::uninitialized_copy, std::allocator
+#include <memory>  // std::uninitialized_copy, std::allocator, std::to_address
 #include <iterator>	// std::bidirectional_iterator_tag, iterator_traits, std::move_iterator, std::distance for range insert
 #include <stdexcept> // std::length_error
 
@@ -245,7 +249,7 @@
 
 #ifdef PLF_CPP20_SUPPORT
 	#include <concepts>
-	#include <compare> // std::strong_ordering, std::to_address
+	#include <compare> // std::strong_ordering
 	#include <ranges>
 
 	namespace plf
@@ -335,7 +339,7 @@ namespace plf
 	template <class source_pointer_type>
 	static PLF_CONSTFUNC void * void_cast(const source_pointer_type source_pointer) PLF_NOEXCEPT
 	{
-		#if defined(PLF_CPP20_SUPPORT)
+		#ifdef PLF_CPP20_SUPPORT
 			return static_cast<void *>(std::to_address(source_pointer));
 		#else
 			return static_cast<void *>(&*source_pointer);
@@ -4153,5 +4157,9 @@ namespace std
 #undef PLF_DESTROY
 #undef PLF_ALLOCATE
 #undef PLF_DEALLOCATE
+
+#if defined(_MSC_VER) && !defined(__clang__) && !defined(__GNUC__)
+	#pragma warning ( pop )
+#endif
 
 #endif // PLF_LIST_H
