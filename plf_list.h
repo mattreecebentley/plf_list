@@ -354,6 +354,10 @@ namespace plf
 			return std::move_iterator<iterator_type>(std::move(it));
 		}
 	#endif
+
+
+
+	enum priority { performance = 1, memory_use = 4};
 #endif
 
 
@@ -822,7 +826,7 @@ private:
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 					else if PLF_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
 					{
-						std::uninitialized_copy(std::make_move_iterator(old_block), std::make_move_iterator(old_block + size), block_pointer);
+						std::uninitialized_copy(plf::make_move_iterator(old_block), plf::make_move_iterator(old_block + size), block_pointer);
 					}
 				#endif
 				else
@@ -1249,7 +1253,7 @@ private:
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 					else if PLF_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
 					{
-						std::uninitialized_copy(std::make_move_iterator(source.block_pointer), std::make_move_iterator(source.block_pointer + source.size), block_pointer + size);
+						std::uninitialized_copy(plf::make_move_iterator(source.block_pointer), plf::make_move_iterator(source.block_pointer + source.size), block_pointer + size);
 					}
 				#endif
 				else
@@ -2587,7 +2591,7 @@ public:
 			else // Allocator isn't movable so move elements from source and deallocate the source's blocks:
 			{
 				clear();
-				range_insert(end_iterator, source.total_size, std::make_move_iterator(source.begin_iterator));
+				range_insert(end_iterator, source.total_size, plf::make_move_iterator(source.begin_iterator));
 				source.reset();
 			}
 
@@ -3350,7 +3354,7 @@ public:
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_move_assignable<element_type>::value && std::is_move_constructible<element_type>::value) // move elements if possible, otherwise copy them
 				{
-					temp.range_insert(temp.end_iterator, total_size, std::make_move_iterator(begin_iterator));
+					temp.range_insert(temp.end_iterator, total_size, plf::make_move_iterator(begin_iterator));
 				}
 				else
 			#endif
