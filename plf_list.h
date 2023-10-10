@@ -22,10 +22,6 @@
 #define PLF_LIST_H
 
 
-#define PLF_MIN_BLOCK_CAPACITY static_cast<group_size_type>((sizeof(node) * 8 > (sizeof(*this) + sizeof(group)) * 2) ? 8 : (((sizeof(*this) + sizeof(group)) * 2) / sizeof(node)) + 1)
-#define PLF_MAX_BLOCK_CAPACITY 2048
-
-
 // Compiler-specific defines:
 
 // Define default cases before possibly redefining:
@@ -231,6 +227,11 @@
 #include <stdexcept> // std::length_error
 
 
+#ifndef PLF_SORT_FUNCTION
+	#define PLF_SORT_FUNCTION std::sort
+	#define PLF_SORT_FUNCTION_DEFINED
+#endif
+
 #if !defined(PLF_SORT_FUNCTION) || defined(PLF_CPP20_SUPPORT)
 	#include <algorithm> // std::sort, lexicographical_three_way_compare
 #endif
@@ -358,6 +359,7 @@ namespace plf
 
 
 	enum priority { performance = 1, memory_use = 4};
+
 #endif
 
 
@@ -1689,7 +1691,7 @@ private:
 		{
 			if (static_cast<size_type>(groups.last_endpoint_group - groups.block_pointer) == groups.size - 1) // ie. there are no reusable groups available at the back of group vector
 			{
-				groups.add_new((total_size < PLF_MAX_BLOCK_CAPACITY) ? static_cast<group_size_type>(total_size) : PLF_MAX_BLOCK_CAPACITY);
+				groups.add_new((total_size < list_max_block_capacity()) ? static_cast<group_size_type>(total_size) : list_max_block_capacity());
 			}
 			else
 			{
@@ -1718,11 +1720,25 @@ private:
 
 
 
+	static PLF_CONSTFUNC group_size_type list_min_block_capacity() PLF_NOEXCEPT
+	{
+		return static_cast<group_size_type>((sizeof(node) * 8 > (sizeof(list) + sizeof(group)) * 2) ? 8 : (((sizeof(list) + sizeof(group)) * 2) / sizeof(node)) + 1);
+	}
+
+
+
+	static PLF_CONSTFUNC group_size_type list_max_block_capacity() PLF_NOEXCEPT
+	{
+		return 2048u;
+	}
+
+
+
 	void insert_initialize()
 	{
 		if (groups.block_pointer == NULL) // In case of prior reserve/clear call as opposed to being uninitialized
 		{
-			groups.initialize(PLF_MIN_BLOCK_CAPACITY);
+			groups.initialize(list_min_block_capacity());
 		}
 
 		groups.last_endpoint_group->number_of_elements = 1;
@@ -2382,7 +2398,7 @@ public:
 		// find the group this element is in, starting from the last group an element to-be-erased was found in (as erasures are, for most programs, likely to be closer in proximity to previous erasures):
 		group_pointer_type node_group = groups.last_searched_group;
 
-		if ((it.node_pointer < node_group->nodes) || (it.node_pointer >= node_group->beyond_end))
+		if (it.node_pointer < node_group->nodes || it.node_pointer >= node_group->beyond_end)
 		{
 			// Search groups to the left and right of the last searched group, in the group vector:
 			const group_pointer_type beyond_end_group = groups.last_endpoint_group + 1;
@@ -2452,7 +2468,7 @@ public:
 
 			node_group->free_list_head = NULL;
 
-			if ((group_size == PLF_MAX_BLOCK_CAPACITY) | (node_group >= groups.last_endpoint_group - 1)) // Preserve only groups which are at the maximum possible size, or first/second/third-to-last active groups - seems to be best for performance under high-modification benchmarks
+			if ((group_size == list_max_block_capacity()) | (node_group >= groups.last_endpoint_group - 1)) // Preserve only groups which are at the maximum possible size, or first/second/third-to-last active groups - seems to be best for performance under high-modification benchmarks
 			{
 				groups.move_to_back(node_group);
 			}
@@ -2725,13 +2741,12 @@ public:
 		node_pointer_type * const node_pointers = PLF_ALLOCATE(node_pointer_allocator_type, groups.node_pointer_allocator_pair, total_size, NULL);
 		node_pointer_type *node_pointer = node_pointers;
 
-
 		// According to the C++ standard, construction of a pointer (of any type) may not trigger an exception - hence, no try-catch blocks are necessary for constructing the pointers:
 		for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
 		{
 			const node_pointer_type end = current_group->beyond_end;
 
-			if ((end - current_group->nodes) != current_group->number_of_elements) // If there are erased nodes present in the group
+			if (end - current_group->nodes != current_group->number_of_elements) // If there are erased nodes present in the group
 			{
 				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 				{
@@ -2750,7 +2765,7 @@ public:
 			}
 		}
 
-		if ((last_endpoint - groups.last_endpoint_group->nodes) != groups.last_endpoint_group->number_of_elements) // If there are erased nodes present in the group
+		if (last_endpoint - groups.last_endpoint_group->nodes != groups.last_endpoint_group->number_of_elements) // If there are erased nodes present in the group
 		{
 			for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 			{
@@ -2770,7 +2785,7 @@ public:
 
 
 		#ifndef PLF_SORT_FUNCTION
-			std::sort(node_pointers, node_pointer, sort_dereferencer<comparison_function>(compare));
+			std::stable_sort(node_pointers, node_pointer, sort_dereferencer<comparison_function>(compare));
 		#else
 			PLF_SORT_FUNCTION(node_pointers, node_pointer, sort_dereferencer<comparison_function>(compare));
 		#endif
@@ -3236,9 +3251,9 @@ public:
 		{
 			return;
 		}
-		else if (reserve_amount < PLF_MIN_BLOCK_CAPACITY)
+		else if (reserve_amount < list_min_block_capacity())
 		{
-			reserve_amount = PLF_MIN_BLOCK_CAPACITY;
+			reserve_amount = list_min_block_capacity();
 		}
 		else if (reserve_amount > max_size())
 		{
@@ -3254,21 +3269,21 @@ public:
 		{ // edge case: has been filled with elements then clear()'d - some groups may be smaller than would be desired, should be replaced
 			group_size_type end_group_size = static_cast<group_size_type>((groups.block_pointer + groups.size - 1)->beyond_end - (groups.block_pointer + groups.size - 1)->nodes);
 
-			if (reserve_amount > end_group_size && end_group_size != PLF_MAX_BLOCK_CAPACITY) // if last group isn't large enough, remove all groups
+			if (reserve_amount > end_group_size && end_group_size != list_max_block_capacity()) // if last group isn't large enough, remove all groups
 			{
 				reset();
 			}
 			else
 			{
-				size_type number_of_full_groups_needed = reserve_amount / PLF_MAX_BLOCK_CAPACITY;
-				group_size_type remainder = static_cast<group_size_type>(reserve_amount - (number_of_full_groups_needed * PLF_MAX_BLOCK_CAPACITY));
+				size_type number_of_full_groups_needed = reserve_amount / list_max_block_capacity();
+				group_size_type remainder = static_cast<group_size_type>(reserve_amount - (number_of_full_groups_needed * list_max_block_capacity()));
 
 				// Remove any max_size groups which're not needed and any groups that're smaller than remainder:
 				for (group_pointer_type current_group = groups.block_pointer; current_group < groups.block_pointer + groups.size;)
 				{
 					const group_size_type current_group_size = static_cast<group_size_type>(groups.block_pointer->beyond_end - groups.block_pointer->nodes);
 
-					if (number_of_full_groups_needed != 0 && current_group_size == PLF_MAX_BLOCK_CAPACITY)
+					if (number_of_full_groups_needed != 0 && current_group_size == list_max_block_capacity())
 					{
 						--number_of_full_groups_needed;
 						++current_group;
@@ -3293,18 +3308,18 @@ public:
 		// To correct from possible reallocation caused by add_new:
 		const difference_type last_endpoint_group_number = groups.last_endpoint_group - groups.block_pointer;
 
-		size_type number_of_full_groups = reserve_amount / PLF_MAX_BLOCK_CAPACITY;
-		reserve_amount -= (number_of_full_groups++ * PLF_MAX_BLOCK_CAPACITY); // ++ to aid while loop below
+		size_type number_of_full_groups = reserve_amount / list_max_block_capacity();
+		reserve_amount -= (number_of_full_groups++ * list_max_block_capacity()); // ++ to aid while loop below
 
 		if (groups.block_pointer == NULL) // Previously uninitialized list or reset in above if statement; most common scenario
 		{
 			if (reserve_amount != 0)
 			{
-				groups.initialize(static_cast<group_size_type>(((reserve_amount < PLF_MIN_BLOCK_CAPACITY) ? PLF_MIN_BLOCK_CAPACITY : reserve_amount)));
+				groups.initialize(static_cast<group_size_type>(((reserve_amount < list_min_block_capacity()) ? list_min_block_capacity() : reserve_amount)));
 			}
 			else
 			{
-				groups.initialize(PLF_MAX_BLOCK_CAPACITY);
+				groups.initialize(list_max_block_capacity());
 				--number_of_full_groups;
 			}
 		}
@@ -3316,7 +3331,7 @@ public:
 
 		while (--number_of_full_groups != 0)
 		{
-			groups.add_new(PLF_MAX_BLOCK_CAPACITY);
+			groups.add_new(list_max_block_capacity());
 		}
 
 		groups.last_endpoint_group = groups.block_pointer + last_endpoint_group_number;
@@ -4137,9 +4152,6 @@ namespace std
 }
 
 
-#undef PLF_MAX_BLOCK_CAPACITY
-#undef PLF_MIN_BLOCK_CAPACITY
-
 #undef PLF_EXCEPTIONS_SUPPORT
 #undef PLF_TO_ADDRESS
 #undef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
@@ -4164,6 +4176,11 @@ namespace std
 
 #if defined(_MSC_VER) && !defined(__clang__) && !defined(__GNUC__)
 	#pragma warning ( pop )
+#endif
+
+#ifdef PLF_SORT_FUNCTION_DEFINED
+	#undef PLF_SORT_FUNCTION
+	#undef PLF_SORT_FUNCTION_DEFINED
 #endif
 
 #endif // PLF_LIST_H
