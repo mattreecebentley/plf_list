@@ -227,7 +227,7 @@
 
 
 #if !defined(PLF_SORT_FUNCTION) || defined(PLF_CPP20_SUPPORT)
-	#include <algorithm> // std::stable_sort, lexicographical_three_way_compare (C++20)
+	#include <algorithm> // std::sort, lexicographical_three_way_compare (C++20)
 #endif
 
 #ifdef PLF_TYPE_TRAITS_SUPPORT
@@ -2779,7 +2779,7 @@ public:
 
 
 		#ifndef PLF_SORT_FUNCTION
-			std::stable_sort(node_pointers, node_pointer, sort_dereferencer<comparison_function>(compare));
+			std::sort(node_pointers, node_pointer, sort_dereferencer<comparison_function>(compare));
 		#else
 			PLF_SORT_FUNCTION(node_pointers, node_pointer, sort_dereferencer<comparison_function>(compare));
 		#endif
