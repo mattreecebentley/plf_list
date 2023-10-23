@@ -3450,7 +3450,8 @@ public:
 
 
 
-	iterator unordered_find_single(const element_type &element_to_match) const PLF_NOEXCEPT
+	template <class predicate_function>
+	iterator unordered_find_single(predicate_function predicate) const PLF_NOEXCEPT
 	{
 		if (total_size != 0)
 		{
@@ -3462,7 +3463,7 @@ public:
 				{
 					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 					{
-						if (current_node->next != NULL && current_node->element == element_to_match) // is not free list node and matches element
+						if (current_node->next != NULL && predicate(current_node->element)) // is not free list node and matches element
 						{
 							return iterator(current_node);
 						}
@@ -3472,7 +3473,7 @@ public:
 				{
 					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 					{
-						if (current_node->element == element_to_match)
+						if (predicate(current_node->element))
 						{
 							return iterator(current_node);
 						}
@@ -3484,7 +3485,7 @@ public:
 			{
 				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
-					if (current_node->next != NULL && current_node->element == element_to_match)
+					if (current_node->next != NULL && predicate(current_node->element))
 					{
 						return iterator(current_node);
 					}
@@ -3494,7 +3495,7 @@ public:
 			{
 				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
-					if (current_node->element == element_to_match)
+					if (predicate(current_node->element))
 					{
 						return iterator(current_node);
 					}
@@ -3507,7 +3508,15 @@ public:
 
 
 
-	list<iterator> unordered_find_multiple(const element_type &element_to_match, size_type number_to_find) const
+	iterator unordered_find_single(const element_type &element_to_match) const PLF_NOEXCEPT
+	{
+		return unordered_find_single(plf::equal_to(element_to_match));
+	}
+
+
+
+	template <class predicate_function>
+	list<iterator> unordered_find_multiple(predicate_function predicate, size_type number_to_find) const
 	{
 		list<iterator> return_list;
 
@@ -3521,7 +3530,7 @@ public:
 				{
 					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 					{
-						if (current_node->next != NULL && current_node->element == element_to_match)
+						if (current_node->next != NULL && predicate(current_node->element))
 						{
 							return_list.push_back(iterator(current_node));
 
@@ -3536,7 +3545,7 @@ public:
 				{
 					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 					{
-						if (current_node->element == element_to_match)
+						if (predicate(current_node->element))
 						{
 							return_list.push_back(iterator(current_node));
 
@@ -3553,7 +3562,7 @@ public:
 			{
 				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
-					if (current_node->next != NULL && current_node->element == element_to_match)
+					if (current_node->next != NULL && predicate(current_node->element))
 					{
 						return_list.push_back(iterator(current_node));
 
@@ -3568,7 +3577,7 @@ public:
 			{
 				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
-					if (current_node->element == element_to_match)
+					if (predicate(current_node->element))
 					{
 						return_list.push_back(iterator(current_node));
 
@@ -3586,7 +3595,15 @@ public:
 
 
 
-	list<iterator> unordered_find_all(const element_type &element_to_match) const
+	list<iterator> unordered_find_multiple(const element_type &element_to_match, size_type number_to_find) const
+	{
+		return unordered_find_multiple(plf::equal_to(element_to_match), number_to_find);
+	}
+
+
+
+	template <class predicate_function>
+	list<iterator> unordered_find_all(predicate_function predicate) const
 	{
 		list<iterator> return_list;
 
@@ -3600,7 +3617,7 @@ public:
 				{
 					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 					{
-						if (current_node->next != NULL && current_node->element == element_to_match)
+						if (current_node->next != NULL && predicate(current_node->element))
 						{
 							return_list.push_back(iterator(current_node));
 						}
@@ -3610,7 +3627,7 @@ public:
 				{
 					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 					{
-						if (current_node->element == element_to_match)
+						if (predicate(current_node->element))
 						{
 							return_list.push_back(iterator(current_node));
 						}
@@ -3622,7 +3639,7 @@ public:
 			{
 				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
-					if (current_node->next != NULL && current_node->element == element_to_match)
+					if (current_node->next != NULL && predicate(current_node->element))
 					{
 						return_list.push_back(iterator(current_node));
 					}
@@ -3632,7 +3649,7 @@ public:
 			{
 				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
-					if (current_node->element == element_to_match)
+					if (predicate(current_node->element))
 					{
 						return_list.push_back(iterator(current_node));
 					}
@@ -3641,6 +3658,13 @@ public:
 		}
 
 		return return_list;
+	}
+
+
+
+	list<iterator> unordered_find_all(const element_type &element_to_match) const
+	{
+		return unordered_find_all(plf::equal_to(element_to_match));
 	}
 
 
