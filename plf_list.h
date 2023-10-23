@@ -218,7 +218,6 @@
 
 
 
-
 #include <cstring> // memmove, memcpy
 #include <cassert> // assert
 #include <limits>   // std::numeric_limits
@@ -227,13 +226,8 @@
 #include <stdexcept> // std::length_error
 
 
-#ifndef PLF_SORT_FUNCTION
-	#define PLF_SORT_FUNCTION std::sort
-	#define PLF_SORT_FUNCTION_DEFINED
-#endif
-
 #if !defined(PLF_SORT_FUNCTION) || defined(PLF_CPP20_SUPPORT)
-	#include <algorithm> // std::sort, lexicographical_three_way_compare
+	#include <algorithm> // std::stable_sort, lexicographical_three_way_compare (C++20)
 #endif
 
 #ifdef PLF_TYPE_TRAITS_SUPPORT
@@ -4176,11 +4170,6 @@ namespace std
 
 #if defined(_MSC_VER) && !defined(__clang__) && !defined(__GNUC__)
 	#pragma warning ( pop )
-#endif
-
-#ifdef PLF_SORT_FUNCTION_DEFINED
-	#undef PLF_SORT_FUNCTION
-	#undef PLF_SORT_FUNCTION_DEFINED
 #endif
 
 #endif // PLF_LIST_H
