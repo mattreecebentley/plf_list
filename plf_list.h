@@ -224,6 +224,7 @@
 #include <memory>  // std::uninitialized_copy, std::allocator, std::to_address
 #include <iterator>	// std::bidirectional_iterator_tag, iterator_traits, std::move_iterator, std::distance for range insert
 #include <stdexcept> // std::length_error
+#include <utility> // std::move, std::swap
 
 
 #if !defined(PLF_SORT_FUNCTION) || defined(PLF_CPP20_SUPPORT)
@@ -234,9 +235,6 @@
 	#include <type_traits> // std::is_trivially_destructible, etc
 #endif
 
-#ifdef PLF_MOVE_SEMANTICS_SUPPORT
-	#include <utility> // std::move
-#endif
 
 #ifdef PLF_INITIALIZER_LIST_SUPPORT
 	#include <initializer_list>
@@ -1174,6 +1172,7 @@ private:
 				else
 			#endif
 			{
+				// Otherwise, make the reads/writes as contiguous in memory as-possible (yes, it is faster than using std::swap with the individual variables):
 				const group_pointer_type swap_last_endpoint_group = last_endpoint_group, swap_block_pointer = block_pointer, swap_last_searched_group = last_searched_group;
 				const size_type swap_size = size, swap_element_capacity = node_pointer_allocator_pair.capacity, swap_capacity = group_allocator_pair.capacity;
 
@@ -1195,15 +1194,7 @@ private:
 					if PLF_CONSTEXPR (std::allocator_traits<allocator_type>::propagate_on_container_swap::value && !std::allocator_traits<allocator_type>::is_always_equal::value)
 				#endif
 				{
-					#ifdef PLF_MOVE_SEMANTICS_SUPPORT
-						allocator_type swap_allocator = std::move(static_cast<allocator_type &>(source));
-						static_cast<allocator_type &>(source) = std::move(static_cast<allocator_type &>(*this));
-						static_cast<allocator_type &>(*this) = std::move(swap_allocator);
-					#else
-						const allocator_type swap_allocator = static_cast<allocator_type &>(source);
-						static_cast<allocator_type &>(source) = static_cast<allocator_type &>(*this);
-						static_cast<allocator_type &>(*this) = swap_allocator;
-					#endif
+					std::swap(static_cast<allocator_type &>(source), static_cast<allocator_type &>(*this));
 
 					// Reconstruct rebinds for swapped allocators:
 					static_cast<node_pointer_allocator_type &>(node_pointer_allocator_pair) = node_pointer_allocator_type(*this);
@@ -3029,7 +3020,7 @@ public:
 
 	void reverse() PLF_NOEXCEPT
 	{
-		// Note: Because current_node->next has to be read during swapping in this process anyway, including a test to figure out whether or not a given group has erased elements within it, and thus avoid per-node tests, is actually detrimental to performance according to benchmarks. This is unlike sort() where current_node->next is not used in the rest of the process and avoiding per-node tests of it's value is therefore beneficial in benchmarks.
+		// Note: current_node->next has to be read during swapping in this process anyway, so including a test to figure out whether or not a given group has erased elements within it, and thus avoid per-node tests, is actually detrimental to performance according to benchmarks. This is unlike sort() where current_node->next is not used in the rest of the process and avoiding per-node tests of it's value is therefore beneficial in benchmarks.
 		if (total_size > 1)
 		{
 			for (group_pointer_type current_group = groups.block_pointer; current_group != groups.last_endpoint_group; ++current_group)
@@ -3039,10 +3030,8 @@ public:
 				for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 				{
 					if (current_node->next != NULL) // ie. is not free list node
-					{ // swap the pointers:
-						const node_pointer_type temp = current_node->next;
-						current_node->next = current_node->previous;
-						current_node->previous = temp;
+					{
+						std::swap(current_node->next, current_node->previous);
 					}
 				}
 			}
@@ -3051,16 +3040,11 @@ public:
 			{
 				if (current_node->next != NULL)
 				{
-					const node_pointer_type temp = current_node->next;
-					current_node->next = current_node->previous;
-					current_node->previous = temp;
+					std::swap(current_node->next, current_node->previous);
 				}
 			}
 
-			const node_pointer_type temp = end_node.previous;
-			end_node.previous = begin_iterator.node_pointer;
-			begin_iterator.node_pointer = temp;
-
+			std::swap(end_node.previous, begin_iterator.node_pointer);
 			end_node.previous->next = end_iterator.node_pointer;
 			begin_iterator.node_pointer->previous = end_iterator.node_pointer;
 		}
@@ -3705,15 +3689,7 @@ public:
 				if PLF_CONSTEXPR (std::allocator_traits<allocator_type>::propagate_on_container_swap::value && !std::allocator_traits<allocator_type>::is_always_equal::value)
 			#endif
 			{
-				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
-					allocator_type swap_allocator = std::move(static_cast<allocator_type &>(source));
-					static_cast<allocator_type &>(source) = std::move(static_cast<allocator_type &>(*this));
-					static_cast<allocator_type &>(*this) = std::move(swap_allocator);
-				#else
-					allocator_type swap_allocator = static_cast<allocator_type &>(source);
-					static_cast<allocator_type &>(source) = static_cast<allocator_type &>(*this);
-					static_cast<allocator_type &>(*this) = swap_allocator;
-				#endif
+				std::swap(static_cast<allocator_type &>(source), static_cast<allocator_type &>(*this));
 
 				// Reconstruct rebinds for swapped allocators:
 				static_cast<node_allocator_type &>(node_allocator_pair) = node_allocator_type(*this);
