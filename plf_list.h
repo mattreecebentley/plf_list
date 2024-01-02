@@ -39,9 +39,9 @@
 
 
 #if defined(_MSC_VER) && !defined(__clang__) && !defined(__GNUC__)
-    // Suppress incorrect (unfixed MSVC bug) warnings re: constant expressions in constexpr-if statements
+	 // Suppress incorrect (unfixed MSVC bug) warnings re: constant expressions in constexpr-if statements
 	#pragma warning ( push )
-    #pragma warning ( disable : 4127 )
+	 #pragma warning ( disable : 4127 )
 
 	#if _MSC_VER >= 1600
 		#define PLF_MOVE_SEMANTICS_SUPPORT
@@ -217,6 +217,12 @@
 #endif
 
 
+#ifdef PLF_VARIADICS_SUPPORT
+	#define PLF_CONSTRUCT_NODE(location, next, prev, element)	PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, location, next, prev, element)
+#else
+	#define PLF_CONSTRUCT_NODE(location, next, prev, element)	PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, location, node(next, prev, element))
+#endif
+
 
 #include <cstring> // memmove, memcpy
 #include <cassert> // assert
@@ -361,28 +367,28 @@ template <class element_type, class allocator_type = std::allocator<element_type
 public:
 	// Standard container typedefs:
 	typedef element_type														value_type;
-	typedef unsigned short														group_size_type;
+	typedef unsigned short													group_size_type;
 
 	#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
 		typedef typename std::allocator_traits<allocator_type>::size_type			size_type;
-		typedef typename std::allocator_traits<allocator_type>::difference_type 	difference_type;
+		typedef typename std::allocator_traits<allocator_type>::difference_type difference_type;
 		typedef element_type &														reference;
 		typedef const element_type &												const_reference;
 		typedef typename std::allocator_traits<allocator_type>::pointer 			pointer;
-		typedef typename std::allocator_traits<allocator_type>::const_pointer		const_pointer;
+		typedef typename std::allocator_traits<allocator_type>::const_pointer	const_pointer;
 	#else
 		typedef typename allocator_type::size_type			size_type;
 		typedef typename allocator_type::difference_type	difference_type;
 		typedef typename allocator_type::reference			reference;
 		typedef typename allocator_type::const_reference	const_reference;
-		typedef typename allocator_type::pointer			pointer;
+		typedef typename allocator_type::pointer				pointer;
 		typedef typename allocator_type::const_pointer		const_pointer;
 	#endif
 
 
 	// Iterator declarations:
 	template <bool is_const> class	list_iterator;
-	typedef list_iterator<false>	iterator;
+	typedef list_iterator<false>		iterator;
 	typedef list_iterator<true>		const_iterator;
 	friend class list_iterator<false>; // Using 'iterator' typedef name here is illegal under C++03
 	friend class list_iterator<true>;
@@ -1743,13 +1749,7 @@ public:
 			if (node_allocator_pair.number_of_erased_nodes == 0) // No erased nodes available for reuse
 			{
 				add_group_if_necessary();
-
-				#ifdef PLF_VARIADICS_SUPPORT
-					PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, it.node_pointer, it.node_pointer->previous, element);
-				#else
-					PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(it.node_pointer, it.node_pointer->previous, element));
-				#endif
-
+				PLF_CONSTRUCT_NODE(last_endpoint, it.node_pointer, it.node_pointer->previous, element);
 				update_sizes_and_iterators(it);
 				return iterator(last_endpoint++);
 			}
@@ -1758,12 +1758,7 @@ public:
 				group_pointer_type const node_group = groups.get_nearest_freelist_group((it.node_pointer != end_iterator.node_pointer) ? it.node_pointer : end_node.previous);
 				node_pointer_type const selected_node = node_group->free_list_head;
 				const node_pointer_type previous = node_group->free_list_head->previous;
-
-				#ifdef PLF_VARIADICS_SUPPORT
-					PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, selected_node, it.node_pointer, it.node_pointer->previous, element);
-				#else
-					PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, selected_node, node(it.node_pointer, it.node_pointer->previous, element));
-				#endif
+				PLF_CONSTRUCT_NODE(selected_node, it.node_pointer, it.node_pointer->previous, element);
 
 				node_group->free_list_head = previous;
 				++(node_group->number_of_elements);
@@ -1785,41 +1780,28 @@ public:
 		{
 			insert_initialize();
 
-			#ifdef PLF_TYPE_TRAITS_SUPPORT
-				if PLF_CONSTEXPR (std::is_nothrow_copy_constructible<node>::value) // Avoid try-catch code generation
+			#ifndef PLF_EXCEPTIONS_SUPPORT
+				PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, element);
+	 		#else
+				#ifdef PLF_TYPE_TRAITS_SUPPORT
+					if PLF_CONSTEXPR (std::is_nothrow_copy_constructible<node>::value) // Avoid try-catch code generation
+					{
+						PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, element);
+					}
+					else
+				#endif
 				{
-					#ifdef PLF_VARIADICS_SUPPORT
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, element);
-					#else
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, element));
-					#endif
-				}
-				else
-			#endif
-			{
-				#ifdef PLF_EXCEPTIONS_SUPPORT
 					try
 					{
-						#ifdef PLF_VARIADICS_SUPPORT
-							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, element);
-						#else
-							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, element));
-						#endif
+						PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, element);
 					}
 					catch (...)
 					{
 						reset();
 						throw;
 					}
-				#else
-					#ifdef PLF_VARIADICS_SUPPORT
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, element);
-					#else
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, element));
-					#endif
-				#endif
-			}
-
+				}
+			#endif
 
 			return begin_iterator;
 		}
@@ -1849,13 +1831,7 @@ public:
 				if (node_allocator_pair.number_of_erased_nodes == 0)
 				{
 					add_group_if_necessary();
-
-					#ifdef PLF_VARIADICS_SUPPORT
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, it.node_pointer, it.node_pointer->previous, std::move(element));
-					#else
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(it.node_pointer, it.node_pointer->previous, std::move(element)));
-					#endif
-
+					PLF_CONSTRUCT_NODE(last_endpoint, it.node_pointer, it.node_pointer->previous, std::move(element));
 					update_sizes_and_iterators(it);
 					return iterator(last_endpoint++);
 				}
@@ -1864,12 +1840,7 @@ public:
 					group_pointer_type const node_group = groups.get_nearest_freelist_group((it.node_pointer != end_iterator.node_pointer) ? it.node_pointer : end_node.previous);
 					node_pointer_type const selected_node = node_group->free_list_head;
 					const node_pointer_type previous = node_group->free_list_head->previous;
-
-					#ifdef PLF_VARIADICS_SUPPORT
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, selected_node, it.node_pointer, it.node_pointer->previous, std::move(element));
-					#else
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, selected_node, node(it.node_pointer, it.node_pointer->previous, std::move(element)));
-					#endif
+					PLF_CONSTRUCT_NODE(selected_node, it.node_pointer, it.node_pointer->previous, std::move(element));
 
 					node_group->free_list_head = previous;
 					++(node_group->number_of_elements);
@@ -1891,40 +1862,28 @@ public:
 			{
 				insert_initialize();
 
-				#ifdef PLF_TYPE_TRAITS_SUPPORT
-					if PLF_CONSTEXPR (std::is_nothrow_move_constructible<node>::value)
+				#ifndef PLF_EXCEPTIONS_SUPPORT
+					PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::move(element));
+		 		#else
+					#ifdef PLF_TYPE_TRAITS_SUPPORT
+						if PLF_CONSTEXPR (std::is_nothrow_move_constructible<node>::value)
+						{
+							PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::move(element));
+						}
+						else
+					#endif
 					{
-						#ifdef PLF_VARIADICS_SUPPORT
-							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::move(element));
-						#else
-							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, std::move(element)));
-						#endif
-					}
-					else
-				#endif
-				{
-					#ifdef PLF_EXCEPTIONS_SUPPORT
 						try
 						{
-							#ifdef PLF_VARIADICS_SUPPORT
-								PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::move(element));
-							#else
-								PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, std::move(element)));
-							#endif
+							PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::move(element));
 						}
 						catch (...)
 						{
 							reset();
 							throw;
 						}
-					#else
-						#ifdef PLF_VARIADICS_SUPPORT
-							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::move(element));
-						#else
-							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, node(end_iterator.node_pointer, end_iterator.node_pointer, std::move(element)));
-						#endif
-					#endif
-				}
+					}
+				#endif
 
 				return begin_iterator;
 			}
@@ -1957,9 +1916,7 @@ public:
 				if (node_allocator_pair.number_of_erased_nodes == 0)
 				{
 					add_group_if_necessary();
-
-					PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, it.node_pointer, it.node_pointer->previous, std::forward<arguments>(parameters)...);
-
+					PLF_CONSTRUCT_NODE(last_endpoint, it.node_pointer, it.node_pointer->previous, std::forward<arguments>(parameters)...);
 					update_sizes_and_iterators(it);
 					return iterator(last_endpoint++);
 				}
@@ -1968,8 +1925,7 @@ public:
 					group_pointer_type const node_group = groups.get_nearest_freelist_group((it.node_pointer != end_iterator.node_pointer) ? it.node_pointer : end_node.previous);
 					node_pointer_type const selected_node = node_group->free_list_head;
 					const node_pointer_type previous = node_group->free_list_head->previous;
-
-					PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, selected_node, it.node_pointer, it.node_pointer->previous, std::forward<arguments>(parameters)...);
+					PLF_CONSTRUCT_NODE(selected_node, it.node_pointer, it.node_pointer->previous, std::forward<arguments>(parameters)...);
 
 					node_group->free_list_head = previous;
 					++(node_group->number_of_elements);
@@ -1990,28 +1946,28 @@ public:
 			{
 			  	insert_initialize();
 
-				#ifdef PLF_TYPE_TRAITS_SUPPORT
-					if PLF_CONSTEXPR (std::is_nothrow_constructible<element_type, arguments ...>::value)
+				#ifndef PLF_EXCEPTIONS_SUPPORT
+					PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
+		 		#else
+					#ifdef PLF_TYPE_TRAITS_SUPPORT
+						if PLF_CONSTEXPR (std::is_nothrow_constructible<node>::value)
+						{
+							PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
+						}
+						else
+					#endif
 					{
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
-					}
-					else
-				#endif
-				{
-					#ifdef PLF_EXCEPTIONS_SUPPORT
 						try
 						{
-							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
+							PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
 						}
 						catch (...)
 						{
 							reset();
 							throw;
 						}
-					#else
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
-					#endif
-				}
+					}
+				#endif
 
 				return begin_iterator;
 			}
@@ -2052,11 +2008,7 @@ private:
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_nothrow_copy_constructible<element_type>::value)
 				{
-					#ifdef PLF_VARIADICS_SUPPORT
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, last_endpoint + 1, previous, element);
-					#else
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(last_endpoint + 1, previous, element));
-					#endif
+					PLF_CONSTRUCT_NODE(last_endpoint, last_endpoint + 1, previous, element);
 				}
 				else
 			#endif
@@ -2064,11 +2016,7 @@ private:
 				#ifdef PLF_EXCEPTIONS_SUPPORT
 					try
 					{
-						#ifdef PLF_VARIADICS_SUPPORT
-							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, last_endpoint + 1, previous, element);
-						#else
-							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(last_endpoint + 1, previous, element));
-						#endif
+						PLF_CONSTRUCT_NODE(last_endpoint, last_endpoint + 1, previous, element);
 					}
 					catch (...)
 					{
@@ -2078,11 +2026,7 @@ private:
 						throw;
 					}
 				#else
-					#ifdef PLF_VARIADICS_SUPPORT
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, last_endpoint + 1, previous, element);
-					#else
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(last_endpoint + 1, previous, element));
-					#endif
+					PLF_CONSTRUCT_NODE(last_endpoint, last_endpoint + 1, previous, element);
 				#endif
 			}
 
@@ -2108,11 +2052,7 @@ private:
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_nothrow_copy_constructible<element_type>::value)
 				{
-					#ifdef PLF_VARIADICS_SUPPORT
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, last_endpoint + 1, previous, *it++);
-					#else
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(last_endpoint + 1, previous, *it++));
-					#endif
+					PLF_CONSTRUCT_NODE(last_endpoint, last_endpoint + 1, previous, *it++);
 				}
 				else
 			#endif
@@ -2120,11 +2060,7 @@ private:
 				#ifdef PLF_EXCEPTIONS_SUPPORT
 					try
 					{
-						#ifdef PLF_VARIADICS_SUPPORT
-							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, last_endpoint + 1, previous, *it++);
-						#else
-							PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(last_endpoint + 1, previous, *it++));
-						#endif
+						PLF_CONSTRUCT_NODE(last_endpoint, last_endpoint + 1, previous, *it++);
 					}
 					catch (...)
 					{
@@ -2134,11 +2070,7 @@ private:
 						throw;
 					}
 				#else
-					#ifdef PLF_VARIADICS_SUPPORT
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, last_endpoint + 1, previous, *it++);
-					#else
-						PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, last_endpoint, node(last_endpoint + 1, previous, *it++));
-					#endif
+					PLF_CONSTRUCT_NODE(last_endpoint, last_endpoint + 1, previous, *it++);
 				#endif
 			}
 
@@ -4146,6 +4078,7 @@ namespace std
 }
 
 
+#undef PLF_CONSTRUCT_NODE
 #undef PLF_EXCEPTIONS_SUPPORT
 #undef PLF_TO_ADDRESS
 #undef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
