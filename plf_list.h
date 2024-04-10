@@ -320,13 +320,13 @@ namespace plf
 	template<class element_type>
 	struct equal_to
 	{
-		const element_type value;
+		const element_type &value;
 
-		explicit equal_to(const element_type store_value): // no noexcept as element may allocate and potentially throw when copied
+		explicit equal_to(const element_type &store_value) PLF_NOEXCEPT:
 			value(store_value)
 		{}
 
-		bool operator() (const element_type compare_value) const PLF_NOEXCEPT
+		bool operator() (const element_type &compare_value) const PLF_NOEXCEPT
 		{
 			return value == compare_value;
 		}
@@ -348,7 +348,7 @@ namespace plf
 
 	#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 		template <class iterator_type>
-		PLF_CONSTFUNC std::move_iterator<iterator_type> make_move_iterator(iterator_type it)
+		static PLF_CONSTFUNC std::move_iterator<iterator_type> make_move_iterator(iterator_type it)
 		{
 			return std::move_iterator<iterator_type>(std::move(it));
 		}
