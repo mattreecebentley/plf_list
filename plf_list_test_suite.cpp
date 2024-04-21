@@ -1668,10 +1668,9 @@ int main()
 			failpass("unordered_find_single test 3", ++(list<int>::iterator(i_list.begin())) == found_item);
 
 
-			#if defined(__cplusplus) && __cplusplus >= 201103L
-				found_item = i_list.unordered_find_single([](const int x){return x > 20;});
-				failpass("unordered_find_single test 4", *found_item == 50);
-			#endif
+			found_item = i_list.unordered_find_single([](const int x){return x > 20;});
+
+			failpass("unordered_find_single test 4", *found_item == 50);
 
 
 			list<list<int>::iterator> found_items_list = i_list.unordered_find_multiple(20, 50);
@@ -1684,10 +1683,9 @@ int main()
 			failpass("unordered_find_multiple test 2", found_items_list.size() == 135);
 
 
-			#if defined(__cplusplus) && __cplusplus >= 201103L
-				found_items_list = i_list.unordered_find_multiple([](const int x){return x > 10;}, 2000);
-				failpass("unordered_find_multiple test 3", found_items_list.size() == 1001);
-			#endif
+			found_items_list = i_list.unordered_find_multiple([](const int x){return x > 10;}, 2000);
+
+			failpass("unordered_find_multiple test 3", found_items_list.size() == 1001);
 
 
 			found_items_list = i_list.unordered_find_all(10);
@@ -1705,10 +1703,9 @@ int main()
 			failpass("unordered_find_all test 3", found_items_list.size() == 1);
 
 
-			#if defined(__cplusplus) && __cplusplus >= 201103L
-				found_items_list = i_list.unordered_find_all([](const int x){return x > 10;});
-				failpass("unordered_find_all test 4", found_items_list.size() == 1001);
-			#endif
+			found_items_list = i_list.unordered_find_all([](const int x){return x > 10;});
+
+			failpass("unordered_find_all test 4", found_items_list.size() == 1001);
 		}
 
 

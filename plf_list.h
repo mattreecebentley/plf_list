@@ -1,4 +1,4 @@
-// Copyright (c) 2023, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
+// Copyright (c) 2024, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
 
 // zLib license (https://www.zlib.net/zlib_license.html):
 // This software is provided 'as-is', without any express or implied
@@ -515,7 +515,7 @@ private:
 		#endif
 
 
-		group & operator = (const group &source) PLF_NOEXCEPT // Actually a move operator, used by c++03 in group_vector's remove, expand_capacity and append
+		group & operator = (const group &source) PLF_NOEXCEPT // Actually a move operator, used by c++03 in group_vector's remove, expand_capacity and append functions
 		{
 			nodes = source.nodes;
 			free_list_head = source.free_list_head;
@@ -573,7 +573,7 @@ private:
 				node_pointer_allocator_type(alloc),
 				capacity(number_of_elements)
 			{};
-		}		node_pointer_allocator_pair;
+		} node_pointer_allocator_pair;
 
 		struct ebco_pair : group_allocator_type
 		{
@@ -582,7 +582,7 @@ private:
 				group_allocator_type(alloc),
 				capacity(number_of_groups)
 			{};
-		}		group_allocator_pair;
+		} group_allocator_pair;
 
 
 
@@ -671,19 +671,13 @@ private:
 
 		void destroy_all_data(const node_pointer_type last_endpoint_node) PLF_NOEXCEPT
 		{
-			if (block_pointer == NULL)
-			{
-				return;
-			}
+			if (block_pointer == NULL) return;
 
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (!std::is_trivially_destructible<element_type>::value || !std::is_trivially_destructible<node_pointer_type>::value)
 			#endif
 			{
-				if (last_endpoint_node != NULL)
-				{
-					clear(last_endpoint_node);
-				}
+				if (last_endpoint_node != NULL) clear(last_endpoint_node);
 			}
 
 			const group_pointer_type end_group = block_pointer + size;
@@ -855,10 +849,7 @@ private:
 
 		void add_new(const group_size_type group_size)
 		{
-			if (group_allocator_pair.capacity == size)
-			{
-				expand_capacity(group_allocator_pair.capacity * 2);
-			}
+			if (group_allocator_pair.capacity == size) expand_capacity(group_allocator_pair.capacity * 2);
 
 			last_endpoint_group = block_pointer + size - 1;
 
@@ -902,10 +893,7 @@ private:
 
 		void remove(group_pointer_type const group_to_erase) PLF_NOEXCEPT
 		{
-			if (last_searched_group >= group_to_erase && last_searched_group != block_pointer)
-			{
-				--last_searched_group;
-			}
+			if (last_searched_group >= group_to_erase && last_searched_group != block_pointer) --last_searched_group;
 
 			node_pointer_allocator_pair.capacity -= static_cast<size_type>(group_to_erase->beyond_end - group_to_erase->nodes);
 
@@ -938,10 +926,7 @@ private:
 
 		void move_to_back(group_pointer_type const group_to_erase)
 		{
-			if (last_searched_group >= group_to_erase && last_searched_group != block_pointer)
-			{
-				--last_searched_group;
-			}
+			if (last_searched_group >= group_to_erase && last_searched_group != block_pointer) --last_searched_group;
 
 			group *temp_group = PLF_ALLOCATE(group_allocator_type, group_allocator_pair, 1, NULL);
 
@@ -993,10 +978,8 @@ private:
 
 			if (location_node >= last_searched_group->nodes && location_node < last_searched_group->beyond_end) // ie. location is within last_search_group
 			{
-				if (last_searched_group->free_list_head != NULL) // if last_searched_group has previously-erased nodes
-				{
-					return last_searched_group;
-				} // Else: search outwards using loop below this if/else block
+				if (last_searched_group->free_list_head != NULL) return last_searched_group; // if last_searched_group has previously-erased nodes
+				// Else: search outwards using loop below this if/else block
 			}
 			else // search for the node group which location_node is located within, using last_searched_group as a starting point and searching left and right. Try and find the closest node group with reusable erased-element locations along the way:
 			{
@@ -1010,23 +993,13 @@ private:
 						if (location_node < right->beyond_end && location_node >= right->nodes) // location_node's group is found
 						{
 							last_searched_group = right;
-
-							if (right->free_list_head != NULL) // group has erased nodes, reuse them:
-							{
-								return right;
-							}
-
+							if (right->free_list_head != NULL) return right; // group has erased nodes, reuse them:
 							difference_type left_distance;
 
 							if (closest_freelist_right != NULL)
 							{
 								left_distance = right - closest_freelist_right;
-
-								if (left_distance <= 2) // ie. this group is close enough to location_node's group
-								{
-									return closest_freelist_right;
-								}
-
+								if (left_distance <= 2) return closest_freelist_right; // ie. this group is close enough to location_node's group
 								freelist_group = closest_freelist_right;
 							}
 							else
@@ -1041,16 +1014,10 @@ private:
 
 							while (++right != end_group)
 							{
-								if (right->free_list_head != NULL)
-								{
-									return right;
-								}
+								if (right->free_list_head != NULL) return right;
 							}
 
-							if (freelist_group != NULL)
-							{
-								return freelist_group;
-							}
+							if (freelist_group != NULL) return freelist_group;
 
 							right_not_beyond_back = right < beyond_end_group;
 							break; // group with reusable erased nodes not found yet, continue searching in loop below
@@ -1058,11 +1025,7 @@ private:
 
 						if (right->free_list_head != NULL) // location_node's group not found, but a reusable location found
 						{
-							if ((closest_freelist_right == NULL) & (closest_freelist_left == NULL))
-							{
-								closest_freelist_left = right;
-							}
-
+							if ((closest_freelist_right == NULL) & (closest_freelist_left == NULL)) closest_freelist_left = right;
 							closest_freelist_right = right;
 						}
 
@@ -1075,23 +1038,13 @@ private:
 						if (location_node >= left->nodes && location_node < left->beyond_end)
 						{
 							last_searched_group = left;
-
-							if (left->free_list_head != NULL)
-							{
-								return left;
-							}
-
+							if (left->free_list_head != NULL) return left;
 							difference_type right_distance;
 
 							if (closest_freelist_left != NULL)
 							{
 								right_distance = closest_freelist_left - left;
-
-								if (right_distance <= 2)
-								{
-									return closest_freelist_left;
-								}
-
+								if (right_distance <= 2) return closest_freelist_left;
 								freelist_group = closest_freelist_left;
 							}
 							else
@@ -1105,28 +1058,17 @@ private:
 
 							while (--left != end_group)
 							{
-								if (left->free_list_head != NULL)
-								{
-									return left;
-								}
+								if (left->free_list_head != NULL) return left;
 							}
 
-							if (freelist_group != NULL)
-							{
-								return freelist_group;
-							}
-
+							if (freelist_group != NULL) return freelist_group;
 							left_not_beyond_front = left >= block_pointer;
 							break;
 						}
 
 						if (left->free_list_head != NULL)
 						{
-							if ((closest_freelist_left == NULL) & (closest_freelist_right == NULL))
-							{
-								closest_freelist_right = left;
-							}
-
+							if ((closest_freelist_left == NULL) & (closest_freelist_right == NULL)) closest_freelist_right = left;
 							closest_freelist_left = left;
 						}
 
@@ -1141,21 +1083,13 @@ private:
 			{
 				if (right_not_beyond_back)
 				{
-					if (right->free_list_head != NULL)
-					{
-						return right;
-					}
-
+					if (right->free_list_head != NULL) return right;
 					right_not_beyond_back = ++right < beyond_end_group;
 				}
 
 				if (left_not_beyond_front)
 				{
-					if (left->free_list_head != NULL)
-					{
-						return left;
-					}
-
+					if (left->free_list_head != NULL) return left;
 					left_not_beyond_front = --left >= block_pointer;
 				}
 			}
@@ -1233,10 +1167,7 @@ private:
 			source.trim_unused_groups();
 			trim_unused_groups();
 
-			if (size + source.size > group_allocator_pair.capacity)
-			{
-				expand_capacity(size + source.size);
-			}
+			if (size + source.size > group_allocator_pair.capacity) expand_capacity(size + source.size);
 
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
 				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
@@ -1657,16 +1588,8 @@ public:
 
 	void clear() PLF_NOEXCEPT
 	{
-		if (last_endpoint == NULL) // already clear'ed or uninitialized
-		{
-			return;
-		}
-
-		if (total_size != 0)
-		{
-			groups.clear(last_endpoint);
-		}
-
+		if (last_endpoint == NULL) return; // already clear'ed or uninitialized
+		if (total_size != 0) groups.clear(last_endpoint);
 		blank();
 	}
 
@@ -1699,12 +1622,7 @@ private:
 	{
 		++(groups.last_endpoint_group->number_of_elements);
 		++total_size;
-
-		if (it.node_pointer == begin_iterator.node_pointer)
-		{
-			begin_iterator.node_pointer = last_endpoint;
-		}
-
+		if (it.node_pointer == begin_iterator.node_pointer) begin_iterator.node_pointer = last_endpoint;
 		it.node_pointer->previous->next = last_endpoint;
 		it.node_pointer->previous = last_endpoint;
 	}
@@ -1727,10 +1645,7 @@ private:
 
 	void insert_initialize()
 	{
-		if (groups.block_pointer == NULL) // In case of prior reserve/clear call as opposed to being uninitialized
-		{
-			groups.initialize(list_min_block_capacity());
-		}
+		if (groups.block_pointer == NULL) groups.initialize(list_min_block_capacity()); // In case of prior reserve/clear call as opposed to being uninitialized
 
 		groups.last_endpoint_group->number_of_elements = 1;
 		end_node.next = end_node.previous = last_endpoint = begin_iterator.node_pointer = groups.last_endpoint_group->nodes;
@@ -1768,11 +1683,7 @@ public:
 				it.node_pointer->previous->next = selected_node;
 				it.node_pointer->previous = selected_node;
 
-				if (it.node_pointer == begin_iterator.node_pointer)
-				{
-					begin_iterator.node_pointer = selected_node;
-				}
-
+				if (it.node_pointer == begin_iterator.node_pointer) begin_iterator.node_pointer = selected_node;
 				return iterator(selected_node);
 			}
 		}
@@ -1850,11 +1761,7 @@ public:
 					it.node_pointer->previous->next = selected_node;
 					it.node_pointer->previous = selected_node;
 
-					if (it.node_pointer == begin_iterator.node_pointer)
-					{
-						begin_iterator.node_pointer = selected_node;
-					}
-
+					if (it.node_pointer == begin_iterator.node_pointer) begin_iterator.node_pointer = selected_node;
 					return iterator(selected_node);
 				}
 			}
@@ -1935,10 +1842,7 @@ public:
 					it.node_pointer->previous->next = selected_node;
 					it.node_pointer->previous = selected_node;
 
-					if (it.node_pointer == begin_iterator.node_pointer)
-					{
-						begin_iterator.node_pointer = selected_node;
-					}
+					if (it.node_pointer == begin_iterator.node_pointer) begin_iterator.node_pointer = selected_node;
 					return iterator(selected_node);
 				}
 			}
@@ -2106,11 +2010,7 @@ private:
 		while (node_allocator_pair.number_of_erased_nodes != 0)
 		{
 			insert(position, *it++);
-
-			if (--remainder == 0)
-			{
-				return return_iterator;
-			}
+			if (--remainder == 0) return return_iterator;
 		}
 
 		total_size += remainder;
@@ -2181,11 +2081,7 @@ public:
 		while (node_allocator_pair.number_of_erased_nodes != 0)
 		{
 			insert(position, element);
-
-			if (--remainder == 0)
-			{
-				return return_iterator;
-			}
+			if (--remainder == 0) return return_iterator;
 		}
 
 		total_size += remainder;
@@ -2327,11 +2223,7 @@ public:
 			{
 				if (right_not_beyond_back)
 				{
-					if (it.node_pointer < node_group->beyond_end && it.node_pointer >= node_group->nodes) // element location found
-					{
-						break;
-					}
-
+					if (it.node_pointer < node_group->beyond_end && it.node_pointer >= node_group->nodes) break; // element location found
 					right_not_beyond_back = ++node_group < beyond_end_group;
 				}
 
@@ -2356,10 +2248,7 @@ public:
 		next->previous = previous;
 		previous->next = next;
 
-		if (it.node_pointer == begin_iterator.node_pointer)
-		{
-			begin_iterator.node_pointer = next;
-		}
+		if (it.node_pointer == begin_iterator.node_pointer) begin_iterator.node_pointer = next;
 
 
 		const iterator return_iterator(next);
@@ -2549,17 +2438,11 @@ public:
 	{
 		assert (&lh != &rh);
 
-		if (lh.total_size != rh.total_size)
-		{
-			return false;
-		}
+		if (lh.total_size != rh.total_size) return false;
 
 		for (const_iterator lh_iterator = lh.begin_iterator, rh_iterator = rh.begin_iterator; lh_iterator != lh.end_iterator; ++lh_iterator, ++rh_iterator)
 		{
-			if (*lh_iterator != *rh_iterator)
-			{
-				return false;
-			}
+			if (*lh_iterator != *rh_iterator) return false;
 		}
 
 		return true;
@@ -2650,10 +2533,7 @@ public:
 	template <class comparison_function>
 	void sort(comparison_function compare)
 	{
-		if (total_size < 2)
-		{
-			return;
-		}
+		if (total_size < 2) return;
 
 		node_pointer_type * const node_pointers = PLF_ALLOCATE(node_pointer_allocator_type, groups.node_pointer_allocator_pair, total_size, NULL);
 		node_pointer_type *node_pointer = node_pointers;
@@ -2753,15 +2633,8 @@ public:
 
 	void splice(const const_iterator position, const const_iterator first, const const_iterator last) PLF_NOEXCEPT // intra-list only splice functions - will crash if first & list are not from *this
 	{
-		if (position == last)
-		{
-			return;
-		}
-
-		if (begin_iterator == first)
-		{
-			begin_iterator.node_pointer = last.node_pointer;
-		}
+		if (position == last) return;
+		if (begin_iterator == first) begin_iterator.node_pointer = last.node_pointer;
 
 		// To avoid pointer aliasing and subsequently increase performance via simultaneous assignments:
 		const node_pointer_type first_previous = first.node_pointer->previous;
@@ -2777,10 +2650,7 @@ public:
 		position_previous->next = first.node_pointer;
 		position.node_pointer->previous = last_previous;
 
-		if (begin_iterator == position)
-		{
-			begin_iterator.node_pointer = first.node_pointer;
-		}
+		if (begin_iterator == position) begin_iterator.node_pointer = first.node_pointer;
 	}
 
 
@@ -3088,11 +2958,7 @@ public:
 					if (current_node->next != NULL && predicate(current_node->element))
 					{
 						erase(current_node);
-
-						if (--num_elements == 0)
-						{
-							break;
-						}
+						if (--num_elements == 0) break;
 					}
 				}
 			}
@@ -3103,11 +2969,7 @@ public:
 					if (predicate(current_node->element))
 					{
 						erase(current_node);
-
-						if (--num_elements == 0)
-						{
-							break;
-						}
+						if (--num_elements == 0) break;
 					}
 				}
 			}
@@ -3379,20 +3241,14 @@ public:
 				{
 					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 					{
-						if (current_node->next != NULL && predicate(current_node->element)) // is not free list node and matches element
-						{
-							return iterator(current_node);
-						}
+						if (current_node->next != NULL && predicate(current_node->element)) return iterator(current_node); // is not free list node and matches element
 					}
 				}
 				else // No erased nodes in group
 				{
 					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 					{
-						if (predicate(current_node->element))
-						{
-							return iterator(current_node);
-						}
+						if (predicate(current_node->element)) return iterator(current_node);
 					}
 				}
 			}
@@ -3401,20 +3257,14 @@ public:
 			{
 				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
-					if (current_node->next != NULL && predicate(current_node->element))
-					{
-						return iterator(current_node);
-					}
+					if (current_node->next != NULL && predicate(current_node->element)) return iterator(current_node);
 				}
 			}
 			else
 			{
 				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
-					if (predicate(current_node->element))
-					{
-						return iterator(current_node);
-					}
+					if (predicate(current_node->element)) return iterator(current_node);
 				}
 			}
 		}
@@ -3449,11 +3299,7 @@ public:
 						if (current_node->next != NULL && predicate(current_node->element))
 						{
 							return_list.push_back(iterator(current_node));
-
-							if (--number_to_find == 0)
-							{
-								return return_list;
-							}
+							if (--number_to_find == 0) return return_list;
 						}
 					}
 				}
@@ -3464,11 +3310,7 @@ public:
 						if (predicate(current_node->element))
 						{
 							return_list.push_back(iterator(current_node));
-
-							if (--number_to_find == 0)
-							{
-								return return_list;
-							}
+							if (--number_to_find == 0) return return_list;
 						}
 					}
 				}
@@ -3481,11 +3323,7 @@ public:
 					if (current_node->next != NULL && predicate(current_node->element))
 					{
 						return_list.push_back(iterator(current_node));
-
-						if (--number_to_find == 0)
-						{
-							return return_list;
-						}
+						if (--number_to_find == 0) return return_list;
 					}
 				}
 			}
@@ -3496,11 +3334,7 @@ public:
 					if (predicate(current_node->element))
 					{
 						return_list.push_back(iterator(current_node));
-
-						if (--number_to_find == 0)
-						{
-							return return_list;
-						}
+						if (--number_to_find == 0) return return_list;
 					}
 				}
 			}
@@ -3533,20 +3367,14 @@ public:
 				{
 					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 					{
-						if (current_node->next != NULL && predicate(current_node->element))
-						{
-							return_list.push_back(iterator(current_node));
-						}
+						if (current_node->next != NULL && predicate(current_node->element)) return_list.push_back(iterator(current_node));
 					}
 				}
 				else // No erased nodes in group
 				{
 					for (node_pointer_type current_node = current_group->nodes; current_node != end; ++current_node)
 					{
-						if (predicate(current_node->element))
-						{
-							return_list.push_back(iterator(current_node));
-						}
+						if (predicate(current_node->element)) return_list.push_back(iterator(current_node));
 					}
 				}
 			}
@@ -3555,20 +3383,14 @@ public:
 			{
 				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
-					if (current_node->next != NULL && predicate(current_node->element))
-					{
-						return_list.push_back(iterator(current_node));
-					}
+					if (current_node->next != NULL && predicate(current_node->element)) return_list.push_back(iterator(current_node));
 				}
 			}
 			else
 			{
 				for (node_pointer_type current_node = groups.last_endpoint_group->nodes; current_node != last_endpoint; ++current_node)
 				{
-					if (predicate(current_node->element))
-					{
-						return_list.push_back(iterator(current_node));
-					}
+					if (predicate(current_node->element)) return_list.push_back(iterator(current_node));
 				}
 			}
 		}
