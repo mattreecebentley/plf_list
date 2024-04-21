@@ -206,7 +206,7 @@ int main()
 
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				std::cout << *it << ",	";
 
 				if (test_counter++ != *it)
 				{
@@ -260,7 +260,7 @@ int main()
 			test_counter = 1;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				std::cout << *it << ",	";
 
 				if (test_counter++ != *it)
 				{
@@ -286,7 +286,7 @@ int main()
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				std::cout << *it << ",	";
 				test_counter += *it;
 			}
 
@@ -309,7 +309,7 @@ int main()
 
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				std::cout << *it << ",	";
 				test_counter += *it;
 			}
 
@@ -332,7 +332,7 @@ int main()
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				std::cout << *it << ",	";
 				test_counter += *it;
 			}
 
@@ -354,7 +354,7 @@ int main()
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				std::cout << *it << ",	";
 				test_counter += *it;
 			}
 
@@ -369,7 +369,7 @@ int main()
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				std::cout << *it << ",	";
 
 				if(*it < test_counter)
 				{
@@ -387,7 +387,7 @@ int main()
 			test_counter = 65535;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				std::cout << *it << ",	";
 
 				if(*it > test_counter)
 				{
@@ -408,7 +408,7 @@ int main()
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				std::cout << *it << ",	";
 
 				if(*it < test_counter)
 				{
@@ -453,7 +453,7 @@ int main()
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				std::cout << *it << ",	";
 
 				if(*it == test_counter)
 				{
@@ -474,7 +474,7 @@ int main()
 
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				std::cout << *it << ",	";
 
 				if (*it > 15)
 				{
@@ -497,7 +497,7 @@ int main()
 
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				std::cout << *it << ",	";
 
 				if(*it == 5)
 				{
@@ -568,7 +568,7 @@ int main()
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				std::cout << *it << ",	";
 				++test_counter;
 			}
 
@@ -586,7 +586,7 @@ int main()
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				std::cout << *it << ",	";
 
 				if (++test_counter != *it)
 				{
@@ -604,7 +604,7 @@ int main()
 			test_counter = 0;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				std::cout << *it << ",	";
 				++test_counter;
 
 				if (*it != 1)
@@ -627,7 +627,7 @@ int main()
 			test_counter = 11;
 			for (plf::list<int>::iterator it = list1.begin(); it != list1.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				std::cout << *it << ",	";
 
 				if (--test_counter != *it)
 				{
@@ -647,7 +647,7 @@ int main()
 
 			for (plf::list<int>::iterator it = list2.begin(); it != list2.end(); ++it)
 			{
-				std::cout << *it << ",  ";
+				std::cout << *it << ",	";
 
 				if (test_counter++ != *it)
 				{
@@ -1668,9 +1668,10 @@ int main()
 			failpass("unordered_find_single test 3", ++(list<int>::iterator(i_list.begin())) == found_item);
 
 
-			found_item = i_list.unordered_find_single([](const int x){return x > 20;});
-
-			failpass("unordered_find_single test 4", *found_item == 50);
+			#if defined(__cplusplus) && __cplusplus >= 201103L
+				found_item = i_list.unordered_find_single([](const int x){return x > 20;});
+				failpass("unordered_find_single test 4", *found_item == 50);
+			#endif
 
 
 			list<list<int>::iterator> found_items_list = i_list.unordered_find_multiple(20, 50);
@@ -1683,9 +1684,10 @@ int main()
 			failpass("unordered_find_multiple test 2", found_items_list.size() == 135);
 
 
-			found_items_list = i_list.unordered_find_multiple([](const int x){return x > 10;}, 2000);
-
-			failpass("unordered_find_multiple test 3", found_items_list.size() == 1001);
+			#if defined(__cplusplus) && __cplusplus >= 201103L
+				found_items_list = i_list.unordered_find_multiple([](const int x){return x > 10;}, 2000);
+				failpass("unordered_find_multiple test 3", found_items_list.size() == 1001);
+			#endif
 
 
 			found_items_list = i_list.unordered_find_all(10);
@@ -1703,9 +1705,10 @@ int main()
 			failpass("unordered_find_all test 3", found_items_list.size() == 1);
 
 
-			found_items_list = i_list.unordered_find_all([](const int x){return x > 10;});
-
-			failpass("unordered_find_all test 4", found_items_list.size() == 1001);
+			#if defined(__cplusplus) && __cplusplus >= 201103L
+				found_items_list = i_list.unordered_find_all([](const int x){return x > 10;});
+				failpass("unordered_find_all test 4", found_items_list.size() == 1001);
+			#endif
 		}
 
 
