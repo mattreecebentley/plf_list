@@ -191,9 +191,6 @@
 	#define PLF_NOEXCEPT_SWAP(the_allocator)
 #endif
 
-#undef PLF_IS_ALWAYS_EQUAL_SUPPORT
-
-
 #ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
 	#ifdef PLF_VARIADICS_SUPPORT
 		#define PLF_CONSTRUCT(the_allocator, allocator_instance, location, ...) std::allocator_traits<the_allocator>::construct(allocator_instance, location, __VA_ARGS__)
@@ -222,6 +219,7 @@
 #else
 	#define PLF_CONSTRUCT_NODE(location, next, prev, element)	PLF_CONSTRUCT(node_allocator_type, node_allocator_pair, location, node(next, prev, element))
 #endif
+
 
 
 #include <cstring> // memmove, memcpy
@@ -600,7 +598,7 @@ private:
 
 		void blank() PLF_NOEXCEPT
 		{
-			#ifdef PLF_TYPE_TRAITS_SUPPORT
+			#ifdef PLF_IS_ALWAYS_EQUAL_SUPPORT // allocator_traits and type_traits always available when is_always_equal is available
 				if PLF_CONSTEXPR (std::is_standard_layout<group_vector>::value && std::allocator_traits<allocator_type>::is_always_equal::value && std::is_trivial<group_pointer_type>::value)
 				{
 					std::memset(static_cast<void *>(this), 0, sizeof(group_vector));
@@ -636,7 +634,7 @@ private:
 
 			group_vector & operator = (group_vector &&source) PLF_NOEXCEPT
 			{
-				#if defined(PLF_TYPE_TRAITS_SUPPORT) && defined(PLF_ALLOCATOR_TRAITS_SUPPORT)
+				#ifdef PLF_IS_ALWAYS_EQUAL_SUPPORT
 					if PLF_CONSTEXPR ((std::is_trivially_copyable<allocator_type>::value || std::allocator_traits<allocator_type>::is_always_equal::value) && std::is_trivial<group_pointer_type>::value)
 					{
 						std::memcpy(static_cast<void *>(this), &source, sizeof(group_vector));
@@ -1101,7 +1099,7 @@ private:
 
 		void swap(group_vector &source) PLF_NOEXCEPT_SWAP(group_allocator_type)
 		{
-			#if defined(PLF_TYPE_TRAITS_SUPPORT) && defined(PLF_ALLOCATOR_TRAITS_SUPPORT)
+			#ifdef PLF_IS_ALWAYS_EQUAL_SUPPORT
 				if PLF_CONSTEXPR (std::allocator_traits<allocator_type>::is_always_equal::value && std::is_trivial<group_pointer_type>::value) // if all pointer types are trivial we can just copy using memcpy - avoids constructors/destructors etc and is faster
 				{
 					char temp[sizeof(group_vector)];
@@ -1130,7 +1128,7 @@ private:
 				source.node_pointer_allocator_pair.capacity = swap_element_capacity;
 				source.group_allocator_pair.capacity = swap_capacity;
 
-				#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
+				#ifdef PLF_IS_ALWAYS_EQUAL_SUPPORT
 					if PLF_CONSTEXPR (std::allocator_traits<allocator_type>::propagate_on_container_swap::value && !std::allocator_traits<allocator_type>::is_always_equal::value)
 				#endif
 				{
@@ -2353,7 +2351,7 @@ public:
 		{
 			allocator_type source_allocator(source);
 
-			#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
+			#ifdef PLF_IS_ALWAYS_EQUAL_SUPPORT
 				if(!std::allocator_traits<allocator_type>::is_always_equal::value && static_cast<allocator_type &>(*this) != source_allocator)
 			#else
 				if(static_cast<allocator_type &>(*this) != source_allocator)
@@ -2382,7 +2380,7 @@ public:
 			assert (&source != this);
 
 			// Move source values across:
-			#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
+			#ifdef PLF_IS_ALWAYS_EQUAL_SUPPORT
 				if (std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value || std::allocator_traits<allocator_type>::is_always_equal::value || static_cast<allocator_type &>(*this) == static_cast<allocator_type &>(source))
 			#else
 				if (static_cast<allocator_type &>(*this) == static_cast<allocator_type &>(source))
@@ -3439,7 +3437,7 @@ public:
 			source.total_size = swap_total_size;
 			source.node_allocator_pair.number_of_erased_nodes = swap_number_of_erased_nodes;
 
-			#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
+			#ifdef PLF_IS_ALWAYS_EQUAL_SUPPORT
 				if PLF_CONSTEXPR (std::allocator_traits<allocator_type>::propagate_on_container_swap::value && !std::allocator_traits<allocator_type>::is_always_equal::value)
 			#endif
 			{
@@ -3907,6 +3905,7 @@ namespace std
 #undef PLF_ALIGNMENT_SUPPORT
 #undef PLF_INITIALIZER_LIST_SUPPORT
 #undef PLF_TYPE_TRAITS_SUPPORT
+#undef PLF_IS_ALWAYS_EQUAL_SUPPORT
 #undef PLF_ALLOCATOR_TRAITS_SUPPORT
 #undef PLF_VARIADICS_SUPPORT
 #undef PLF_MOVE_SEMANTICS_SUPPORT
