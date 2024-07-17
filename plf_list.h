@@ -1554,7 +1554,7 @@ public:
 
 	reference front()
 	{
-		assert(begin_iterator.node_pointer != &end_node);
+		assert(total_size != 0);
 		return begin_iterator.node_pointer->element;
 	}
 
@@ -1562,7 +1562,7 @@ public:
 
 	const_reference front() const
 	{
-		assert(begin_iterator.node_pointer != &end_node);
+		assert(total_size != 0);
 		return begin_iterator.node_pointer->element;
 	}
 
@@ -1570,7 +1570,7 @@ public:
 
 	reference back()
 	{
-		assert(end_node.previous != &end_node);
+		assert(total_size != 0);
 		return end_node.previous->element;
 	}
 
@@ -1578,7 +1578,7 @@ public:
 
 	const_reference back() const
 	{
-		assert(end_node.previous != &end_node);
+		assert(total_size != 0);
 		return end_node.previous->element;
 	}
 
@@ -2192,8 +2192,8 @@ public:
 	iterator erase(const const_iterator it) // if uninitialized/invalid iterator supplied, function could generate an exception, hence no noexcept
 	{
 		assert(total_size != 0);
-		assert(it.node_pointer != NULL);
-		assert(it.node_pointer != end_iterator.node_pointer);
+		assert(it.node_pointer != NULL); // uninitialized iterator
+		assert(it.node_pointer != end_iterator.node_pointer); // iterator points to end()
 
 		#ifdef PLF_TYPE_TRAITS_SUPPORT
 			if PLF_CONSTEXPR (!(std::is_trivially_destructible<element_type>::value))
@@ -2434,8 +2434,6 @@ public:
 
 	friend bool operator == (const list &lh, const list &rh) PLF_NOEXCEPT
 	{
-		assert (&lh != &rh);
-
 		if (lh.total_size != rh.total_size) return false;
 
 		for (const_iterator lh_iterator = lh.begin_iterator, rh_iterator = rh.begin_iterator; lh_iterator != lh.end_iterator; ++lh_iterator, ++rh_iterator)
@@ -2692,7 +2690,8 @@ public:
 
 	void splice(iterator position, list &source)
 	{
-		assert(&source != this);
+		assert(
+&source != this);
 
 		if (source.total_size == 0)
 		{
@@ -3536,7 +3535,7 @@ public:
 
 		list_iterator & operator -- () PLF_NOEXCEPT
 		{
-			assert(node_pointer != NULL); // covers uninitialised list_iterator
+			assert(node_pointer != NULL);
 			node_pointer = node_pointer->previous;
 			return *this;
 		}
@@ -3689,7 +3688,7 @@ public:
 
 		list_reverse_iterator & operator ++ () PLF_NOEXCEPT
 		{
-			assert(node_pointer != NULL); // covers uninitialised list_reverse_iterator
+			assert(node_pointer != NULL);
 			node_pointer = node_pointer->previous;
 			return *this;
 		}
