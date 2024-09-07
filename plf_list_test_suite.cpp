@@ -173,6 +173,33 @@ struct larger_than_fifteen
 #endif
 
 
+unsigned int generic_global =  0;
+
+struct small_struct_non_trivial
+{
+	double *empty_field_1;
+	double unused_number;
+	unsigned int empty_field2;
+	double *empty_field_3;
+	double number;
+	unsigned int empty_field4;
+
+	int operator * () const { return number; };
+	bool operator == (const small_struct_non_trivial &source) const { return source.number == number; };
+	bool operator != (const small_struct_non_trivial &source) const { return source.number != number; };
+	bool operator > (const small_struct_non_trivial &source) const { return number > source.number; };
+	bool operator < (const small_struct_non_trivial &source) const { return number < source.number; };
+	bool operator >= (const small_struct_non_trivial &source) const { return number >= source.number; };
+	bool operator <= (const small_struct_non_trivial &source) const { return number <= source.number; };
+
+	small_struct_non_trivial(const unsigned int num): number(num) {};
+
+	~small_struct_non_trivial()
+	{
+		++generic_global;
+	}
+};
+
 
 
 int main()
@@ -194,6 +221,35 @@ int main()
 	{
 		int test_counter = 1;
 
+		{
+			title2("Non-trivial type tests");
+			plf::list<small_struct_non_trivial> sslist1;
+			
+			for (int counter = 0; counter != 50; ++counter)
+			{
+				sslist1.push_back(small_struct_non_trivial(counter));
+			}
+			
+			unsigned int size = sslist1.size();
+			failpass("Non-trivial insert test", size == 50);
+
+			for (plf::list<small_struct_non_trivial>::iterator it = sslist1.begin(); it != sslist1.end();)
+			{
+				if ((rand() & 7) == 0)
+				{
+					it = sslist1.erase(it);
+					--size;
+				}
+				else
+				{
+					++it;
+				}
+			}
+			
+			failpass("Non-trivial erase test", sslist1.size() == size);
+		}
+		
+		
 		#ifdef PLF_TEST_INITIALIZER_LIST_SUPPORT
 		{
 			title2("Merge tests");
@@ -1655,17 +1711,17 @@ int main()
 
 			list<int>::iterator found_item = i_list.unordered_find_single(10);
 
-			failpass("unordered_find_single test 1", i_list.begin() == found_item);
-
-
-			found_item = i_list.unordered_find_single(50);
-
-			failpass("unordered_find_single test 2", *found_item == 50);
+			failpass("unordered_find_single test 1", *found_item == 10);
 
 
 			found_item = i_list.unordered_find_single(20);
 
-			failpass("unordered_find_single test 3", ++(list<int>::iterator(i_list.begin())) == found_item);
+			failpass("unordered_find_single test 2", *found_item == 20);
+
+
+			found_item = i_list.unordered_find_single(50);
+
+			failpass("unordered_find_single test 3", --(list<int>::iterator(i_list.end())) == found_item);
 
 
 			#if defined(__cplusplus) && __cplusplus >= 201103L

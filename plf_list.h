@@ -678,8 +678,8 @@ private:
 				if (last_endpoint_node != NULL) clear(last_endpoint_node);
 			}
 
-			const group_pointer_type end_group = block_pointer + size;
-			for (group_pointer_type current_group = block_pointer; current_group != end_group; ++current_group)
+			const group_pointer_type end = block_pointer + size;
+			for (group_pointer_type current_group = block_pointer; current_group != end; ++current_group)
 			{
 				PLF_DESTROY(group_allocator_type, group_allocator_pair, current_group);
 			}
@@ -825,10 +825,9 @@ private:
 			#endif
 			{
 				// If allocator supplies non-trivial pointers it becomes necessary to destroy the group. uninitialized_copy will not work in this context as the copy constructor for "group" is overriden in C++03/98. The = operator for "group" has been overriden to make the following work:
-				const group_pointer_type beyond_end = old_block + size;
-				group_pointer_type current_new_group = block_pointer;
+				const group_pointer_type end = old_block + size;
 
-				for (group_pointer_type current_group = old_block; current_group != beyond_end; ++current_group)
+				for (group_pointer_type current_group = old_block, current_new_group = block_pointer; current_group != end; ++current_group)
 				{
 					*current_new_group++ = *current_group;
 
@@ -1147,15 +1146,15 @@ private:
 
 		void trim_unused_groups() PLF_NOEXCEPT // trim trailing groups previously allocated by reserve() or retained via erase()
 		{
-			const group_pointer_type beyond_last = block_pointer + size;
+			const group_pointer_type end = block_pointer + size;
 
-			for (group_pointer_type current_group = last_endpoint_group + 1; current_group != beyond_last; ++current_group)
+			for (group_pointer_type current_group = last_endpoint_group + 1; current_group != end; ++current_group)
 			{
 				node_pointer_allocator_pair.capacity -= static_cast<size_type>(current_group->beyond_end - current_group->nodes);
 				PLF_DESTROY(group_allocator_type, group_allocator_pair, current_group);
 			}
 
-			size -= static_cast<size_type>(beyond_last - (last_endpoint_group + 1));
+			size -= static_cast<size_type>(end - (last_endpoint_group + 1));
 		}
 
 
@@ -1181,10 +1180,9 @@ private:
 				else
 			#endif
 			{
-				group_pointer_type current_new_group = block_pointer + size;
-				const group_pointer_type beyond_end_source = source.block_pointer + source.size;
+				const group_pointer_type end = source.block_pointer + source.size;
 
-				for (group_pointer_type current_group = source.block_pointer; current_group != beyond_end_source; ++current_group)
+				for (group_pointer_type current_group = source.block_pointer, current_new_group = block_pointer + size; current_group != end; ++current_group)
 				{
 					*current_new_group++ = *current_group;
 
@@ -2690,8 +2688,7 @@ public:
 
 	void splice(iterator position, list &source)
 	{
-		assert(
-&source != this);
+		assert(&source != this);
 
 		if (source.total_size == 0)
 		{
@@ -3048,7 +3045,7 @@ public:
 				group_size_type remainder = static_cast<group_size_type>(reserve_amount - (number_of_full_groups_needed * list_max_block_capacity()));
 
 				// Remove any max_size groups which're not needed and any groups that're smaller than remainder:
-				for (group_pointer_type current_group = groups.block_pointer; current_group < groups.block_pointer + groups.size;)
+				for (group_pointer_type current_group = groups.block_pointer; current_group < groups.block_pointer + groups.size;) // note: groups.size may change during procedure so we calculate this every loop
 				{
 					const group_size_type current_group_size = static_cast<group_size_type>(groups.block_pointer->beyond_end - groups.block_pointer->nodes);
 
