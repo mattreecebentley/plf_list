@@ -1,4 +1,4 @@
-// Copyright (c) 2024, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
+// Copyright (c) 2025, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
 
 // zLib license (https://www.zlib.net/zlib_license.html):
 // This software is provided 'as-is', without any express or implied
@@ -2302,18 +2302,17 @@ public:
 			if PLF_CONSTEXPR (std::allocator_traits<allocator_type>::propagate_on_container_copy_assignment::value)
 		#endif
 		{
-			allocator_type source_allocator(source);
-
 			#ifdef PLF_IS_ALWAYS_EQUAL_SUPPORT
-				if(!std::allocator_traits<allocator_type>::is_always_equal::value && static_cast<allocator_type &>(*this) != source_allocator)
-			#else
-				if(static_cast<allocator_type &>(*this) != source_allocator)
+				if PLF_CONSTEXPR (!std::allocator_traits<allocator_type>::is_always_equal::value)
 			#endif
-			{ // Deallocate existing blocks as source allocator is not necessarily able to do so
-				groups.destroy_all_data(last_endpoint);
+			{
+				if(static_cast<allocator_type &>(*this) != static_cast<const allocator_type &>(source))
+				{ // Deallocate existing blocks as source allocator is not necessarily able to do so
+					groups.destroy_all_data(last_endpoint);
+				}
 			}
 
-			static_cast<allocator_type &>(*this) = source_allocator;
+			static_cast<allocator_type &>(*this) = static_cast<const allocator_type &>(source);
 
 			// Reconstruct rebinds:
 			static_cast<node_allocator_type &>(node_allocator_pair) = node_allocator_type(*this);
@@ -2327,6 +2326,37 @@ public:
 
 
 	#ifdef PLF_MOVE_SEMANTICS_SUPPORT
+	private:
+
+		void move_assign(list &&source) PLF_NOEXCEPT
+		{
+			groups.destroy_all_data(last_endpoint);
+
+			groups = std::move(source.groups);
+			end_node = std::move(source.end_node);
+			last_endpoint = std::move(source.last_endpoint);
+			begin_iterator.node_pointer = (source.begin_iterator.node_pointer == source.end_iterator.node_pointer) ? end_iterator.node_pointer : std::move(source.begin_iterator.node_pointer);
+			total_size = source.total_size;
+			node_allocator_pair.number_of_erased_nodes = source.node_allocator_pair.number_of_erased_nodes;
+
+			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
+			source.groups.blank();
+
+			#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
+				if PLF_CONSTEXPR(std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value)
+			#endif
+			{
+				static_cast<allocator_type &>(*this) = source;
+				static_cast<node_allocator_type &>(node_allocator_pair) = node_allocator_type(*this);
+			}
+
+			source.blank();
+		}
+
+
+
+	public:
+
 		// Move assignment
 		list & operator = (list &&source) PLF_NOEXCEPT_MOVE_ASSIGN(allocator_type)
 		{
@@ -2334,37 +2364,38 @@ public:
 
 			// Move source values across:
 			#ifdef PLF_IS_ALWAYS_EQUAL_SUPPORT
-				if (std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value || std::allocator_traits<allocator_type>::is_always_equal::value || static_cast<allocator_type &>(*this) == static_cast<allocator_type &>(source))
-			#else
-				if (static_cast<allocator_type &>(*this) == static_cast<allocator_type &>(source))
-			#endif
-			{
-				groups.destroy_all_data(last_endpoint);
-
-				groups = std::move(source.groups);
-				end_node = std::move(source.end_node);
-				last_endpoint = std::move(source.last_endpoint);
-				begin_iterator.node_pointer = (source.begin_iterator.node_pointer == source.end_iterator.node_pointer) ? end_iterator.node_pointer : std::move(source.begin_iterator.node_pointer);
-				total_size = source.total_size;
-				node_allocator_pair.number_of_erased_nodes = source.node_allocator_pair.number_of_erased_nodes;
-
-				end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
-				source.groups.blank();
-
-				#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
-					if PLF_CONSTEXPR(std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value)
-				#endif
+				if PLF_CONSTEXPR (std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value || std::allocator_traits<allocator_type>::is_always_equal::value)
 				{
-					static_cast<allocator_type &>(*this) = source;
-					static_cast<node_allocator_type &>(node_allocator_pair) = node_allocator_type(*this);
+					move_assign(std::move(source));
 				}
-
-				source.blank();
+				else
+			#endif
+			if (static_cast<allocator_type &>(*this) == static_cast<allocator_type &>(source))
+			{
+				move_assign(std::move(source));
 			}
-			else // Allocator isn't movable so move elements from source and deallocate the source's blocks:
+			else // Allocator isn't movable so move/copy elements from source and deallocate the source's blocks:
 			{
 				clear();
-				range_insert(end_iterator, source.total_size, plf::make_move_iterator(source.begin_iterator));
+
+				#ifdef PLF_TYPE_TRAITS_SUPPORT
+					if PLF_CONSTEXPR (!std::is_move_constructible<element_type>::value)
+					{
+						#ifdef PLF_EXCEPTIONS_SUPPORT
+							if PLF_CONSTEXPR (!std::is_copy_constructible<element_type>::value)
+							{
+								throw std::domain_error("Cannot perform move assignment, allocators are not equal and type is not copy/move-constructible.");
+							}
+						#endif
+
+						range_insert(end_iterator, source.total_size, source.begin_iterator);
+					}
+					else
+				#endif
+				{
+					range_insert(end_iterator, source.total_size, plf::make_move_iterator(source.begin_iterator));
+				}
+
 				source.reset();
 			}
 
