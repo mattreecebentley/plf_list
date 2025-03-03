@@ -3141,41 +3141,40 @@ private:
 		}
 
 		#ifdef PLF_TYPE_TRAITS_SUPPORT
-			if PLF_CONSTEXPR (!(std::is_trivially_destructible<element_type>::value && std::is_trivially_constructible<element_type>::value) && std::is_copy_assignable<element_type>::value)
+			if PLF_CONSTEXPR ((std::is_trivially_destructible<element_type>::value && std::is_trivially_constructible<element_type>::value) || std::is_copy_assignable<element_type>::value)
 			{
-				if (total_size == 0)
-				{
-					clear();
-					range_insert(end_iterator, range_size, it);
-				}
-				else if (range_size < total_size)
-				{
-					iterator current = begin_iterator;
-
-					do
-					{
-						*current++ = *it++;
-					} while (--range_size != 0);
-
-					erase(current, end_iterator);
-				}
-				else
-				{
-					iterator current = begin_iterator;
-
-					do
-					{
-						*current = *it++;
-					} while (++current != end_iterator);
-
-					range_insert(end_iterator, range_size, it);
-				}
+				clear();
+				range_insert(end_iterator, range_size, it);
 			}
 			else
 		#endif
 		{
-			clear();
-			range_insert(end_iterator, range_size, it);
+			if (total_size == 0)
+			{
+				range_insert(end_iterator, range_size, it);
+			}
+			else if (range_size < total_size)
+			{
+				iterator current = begin_iterator;
+
+				do
+				{
+					*current++ = *it++;
+				} while (--range_size != 0);
+
+				erase(current, end_iterator);
+			}
+			else
+			{
+				iterator current = begin_iterator;
+
+				do
+				{
+					*current = *it++;
+				} while (++current != end_iterator);
+
+				range_insert(end_iterator, range_size - total_size, it);
+			}
 		}
 
 		groups.trim_unused_groups();
@@ -3218,40 +3217,37 @@ public:
 		#ifdef PLF_TYPE_TRAITS_SUPPORT
 			if PLF_CONSTEXPR (!(std::is_trivially_destructible<element_type>::value && std::is_trivially_constructible<element_type>::value) && std::is_copy_assignable<element_type>::value)
 			{
-				if (total_size == 0)
-				{
-					clear();
-					insert(end_iterator, number_of_elements, value);
-				}
-				else if (number_of_elements < total_size)
-				{
-					iterator current = begin_iterator;
-
-					do
-					{
-						*current++ = value;
-					} while (--number_of_elements != 0);
-
-					erase(current, end_iterator);
-				}
-				else
-				{
-					iterator current = begin_iterator;
-
-					do
-					{
-						*current = value;
-						--number_of_elements;
-					} while (++current != end_iterator);
-
-					insert(end_iterator, number_of_elements, value);
-				}
+				clear();
+				insert(end_iterator, number_of_elements, value);
 			}
-			else
 		#endif
 		{
-			clear();
-			insert(end_iterator, number_of_elements, value);
+			if (total_size == 0)
+			{
+				insert(end_iterator, number_of_elements, value);
+			}
+			else if (number_of_elements < total_size)
+			{
+				iterator current = begin_iterator;
+
+				do
+				{
+					*current++ = value;
+				} while (--number_of_elements != 0);
+
+				erase(current, end_iterator);
+			}
+			else
+			{
+				iterator current = begin_iterator;
+
+				do
+				{
+					*current = value;
+				} while (++current != end_iterator);
+
+				insert(end_iterator, number_of_elements - total_size, value);
+			}
 		}
 
 		groups.trim_unused_groups();
