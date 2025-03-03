@@ -226,7 +226,7 @@
 #include <cassert> // assert
 #include <limits>   // std::numeric_limits
 #include <memory>  // std::uninitialized_copy, std::allocator, std::to_address
-#include <iterator>	// std::bidirectional_iterator_tag, iterator_traits, std::move_iterator, std::distance for range insert
+#include <iterator>	// std::bidirectional_iterator_tag, iterator_traits, std::move_iterator, std::distance
 #include <stdexcept> // std::length_error
 #include <utility> // std::move, std::swap
 
@@ -653,7 +653,7 @@ private:
 						if PLF_CONSTEXPR(std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value)
 					#endif
 					{
-						static_cast<allocator_type &>(*this) = std::move(static_cast<allocator_type &>(source));
+						static_cast<allocator_type &>(*this) = static_cast<allocator_type &>(source);
 						// Reconstruct rebinds:
 		  				static_cast<node_pointer_allocator_type &>(node_pointer_allocator_pair) = node_allocator_type(*this);
 						static_cast<group_allocator_type &>(group_allocator_pair) = group_allocator_type(*this);
@@ -1282,7 +1282,7 @@ public:
 		// Move constructor:
 
 		list(list &&source) PLF_NOEXCEPT:
-			allocator_type(std::move(static_cast<allocator_type &>(source))),
+			allocator_type(static_cast<allocator_type &>(source)),
 			groups(std::move(source.groups)),
 			end_node(std::move(source.end_node)),
 			last_endpoint(std::move(source.last_endpoint)),
@@ -1896,7 +1896,7 @@ private:
 
 
 	template <class iterator_type>
-	iterator_type range_fill(iterator_type it, group_size_type number_of_elements, const node_pointer_type position)
+	void range_fill(iterator_type &it, group_size_type number_of_elements, const node_pointer_type position)
 	{
 		position->previous->next = last_endpoint;
 		groups.last_endpoint_group->number_of_elements = static_cast<group_size_type>(groups.last_endpoint_group->number_of_elements + number_of_elements);
@@ -1934,7 +1934,6 @@ private:
 
 		previous->next = position;
 		position->previous = previous;
-		return it;
 	}
 
 
@@ -1973,12 +1972,12 @@ private:
 		{
 			if (remaining_nodes_in_group < remainder)
 			{
-				it = range_fill(it, remaining_nodes_in_group, position.node_pointer);
+				range_fill(it, remaining_nodes_in_group, position.node_pointer);
 				remainder -= remaining_nodes_in_group;
 			}
 			else
 			{
-				it = range_fill(it, static_cast<group_size_type>(remainder), position.node_pointer);
+				range_fill(it, static_cast<group_size_type>(remainder), position.node_pointer);
 				return return_iterator;
 			}
 		}
@@ -1992,12 +1991,12 @@ private:
 
 			if (group_size < remainder)
 			{
-				it = range_fill(it, group_size, position.node_pointer);
+				range_fill(it, group_size, position.node_pointer);
 				remainder -= group_size;
 			}
 			else
 			{
-				it = range_fill(it, static_cast<group_size_type>(remainder), position.node_pointer);
+				range_fill(it, static_cast<group_size_type>(remainder), position.node_pointer);
 				break;
 			}
 		}
@@ -2083,8 +2082,7 @@ public:
 	template <class iterator_type>
 	iterator insert(const const_iterator position, typename plf::enable_if<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
 	{
-		using std::distance;
-		return range_insert(position, static_cast<size_type>(distance(first, last)), first);
+		return range_insert(position, static_cast<size_type>(std::distance(first, last)), first);
 	}
 
 
@@ -2095,8 +2093,7 @@ public:
 		template <class iterator_type>
 		iterator insert (const const_iterator position, const std::move_iterator<iterator_type> first, const std::move_iterator<iterator_type> last)
 		{
-			using std::distance;
-			return range_insert(position, static_cast<size_type>(distance(first.base(),last.base())), first);
+			return range_insert(position, static_cast<size_type>(std::distance(first.base(),last.base())), first);
 		}
 	#endif
 
@@ -2296,8 +2293,6 @@ public:
 	{
 		assert (&source != this);
 
-		clear();
-
 		#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
 			if PLF_CONSTEXPR (std::allocator_traits<allocator_type>::propagate_on_container_copy_assignment::value)
 		#endif
@@ -2308,7 +2303,7 @@ public:
 			{
 				if(static_cast<allocator_type &>(*this) != static_cast<const allocator_type &>(source))
 				{ // Deallocate existing blocks as source allocator is not necessarily able to do so
-					groups.destroy_all_data(last_endpoint);
+					reset();
 				}
 			}
 
@@ -2318,8 +2313,7 @@ public:
 			static_cast<node_allocator_type &>(node_allocator_pair) = node_allocator_type(*this);
 		}
 
-		range_insert(end_iterator, source.total_size, source.begin_iterator);
-
+		range_assign(source.begin_iterator, source.total_size);
 		return *this;
 	}
 
@@ -2376,7 +2370,7 @@ public:
 			}
 			else // Allocator isn't movable so move/copy elements from source and deallocate the source's blocks:
 			{
-				clear();
+				reset();
 
 				#ifdef PLF_TYPE_TRAITS_SUPPORT
 					if PLF_CONSTEXPR (!std::is_move_constructible<element_type>::value)
@@ -2408,8 +2402,7 @@ public:
 	#ifdef PLF_INITIALIZER_LIST_SUPPORT
 		list & operator = (const std::initializer_list<element_type> &element_list)
 		{
-			clear();
-			range_insert(end_iterator, static_cast<size_type>(element_list.size()), element_list.begin());
+			range_assign(element_list.begin(), static_cast<size_type>(element_list.size()));
 			return *this;
 		}
 	#endif
@@ -3135,24 +3128,78 @@ public:
 
 	// Range assign:
 
+private:
+
+
  	template <class iterator_type>
- 	void assign(const typename plf::enable_if<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
+ 	void range_assign(iterator_type it, size_type range_size)
 	{
-		clear();
-		insert(end_iterator, first, last);
+		if (range_size == 0)
+		{
+			clear();
+			return;
+		}
+
+		#ifdef PLF_TYPE_TRAITS_SUPPORT
+			if PLF_CONSTEXPR (!(std::is_trivially_destructible<element_type>::value && std::is_trivially_constructible<element_type>::value) && std::is_copy_assignable<element_type>::value)
+			{
+				if (total_size == 0)
+				{
+					clear();
+					range_insert(end_iterator, range_size, it);
+				}
+				else if (range_size < total_size)
+				{
+					iterator current = begin_iterator;
+
+					do
+					{
+						*current++ = *it++;
+					} while (--range_size != 0);
+
+					erase(current, end_iterator);
+				}
+				else
+				{
+					iterator current = begin_iterator;
+
+					do
+					{
+						*current = *it++;
+					} while (++current != end_iterator);
+
+					range_insert(end_iterator, range_size, it);
+				}
+			}
+			else
+		#endif
+		{
+			clear();
+			range_insert(end_iterator, range_size, it);
+		}
+
 		groups.trim_unused_groups();
+	}
+
+
+
+
+public:
+
+
+ 	template <class iterator_type>
+ 	void assign(typename plf::enable_if<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type first, const iterator_type last)
+	{
+		range_assign(first, std::distance(first, last));
 	}
 
 
 
 	#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 		template <class iterator_type>
-		void assign(const const_iterator position, const std::move_iterator<iterator_type> first, const std::move_iterator<iterator_type> last)
+		void insert (const std::move_iterator<iterator_type> first, const std::move_iterator<iterator_type> last)
 		{
-			clear();
-			using std::distance;
-			range_insert(position, static_cast<size_type>(distance(first.base(),last.base())), first);
-			groups.trim_unused_groups();
+			range_assign(first, static_cast<size_type>(std::distance(first.base(),last.base())));
 		}
 	#endif
 
@@ -3160,10 +3207,53 @@ public:
 
 	// Fill assign:
 
-	void assign(const size_type number_of_elements, const element_type &value)
+	void assign(size_type number_of_elements, const element_type &value)
 	{
-		clear();
-		insert(end_iterator, number_of_elements, value);
+		if (number_of_elements == 0)
+		{
+			clear();
+			return;
+		}
+
+		#ifdef PLF_TYPE_TRAITS_SUPPORT
+			if PLF_CONSTEXPR (!(std::is_trivially_destructible<element_type>::value && std::is_trivially_constructible<element_type>::value) && std::is_copy_assignable<element_type>::value)
+			{
+				if (total_size == 0)
+				{
+					clear();
+					insert(end_iterator, number_of_elements, value);
+				}
+				else if (number_of_elements < total_size)
+				{
+					iterator current = begin_iterator;
+
+					do
+					{
+						*current++ = value;
+					} while (--number_of_elements != 0);
+
+					erase(current, end_iterator);
+				}
+				else
+				{
+					iterator current = begin_iterator;
+
+					do
+					{
+						*current = value;
+						--number_of_elements;
+					} while (++current != end_iterator);
+
+					insert(end_iterator, number_of_elements, value);
+				}
+			}
+			else
+		#endif
+		{
+			clear();
+			insert(end_iterator, number_of_elements, value);
+		}
+
 		groups.trim_unused_groups();
 	}
 
@@ -3174,9 +3264,7 @@ public:
 
 		void assign(const std::initializer_list<element_type> &element_list)
 		{
-			clear();
-			range_insert(end_iterator, static_cast<size_type>(element_list.size()), element_list.begin());
-			groups.trim_unused_groups();
+			range_assign(element_list.begin(), static_cast<size_type>(element_list.size()));
 		}
 	#endif
 
@@ -3187,9 +3275,7 @@ public:
 			requires std::ranges::range<range_type>
 		void assign_range(range_type &&the_range)
 		{
-			clear();
-			range_insert(end_iterator, static_cast<size_type>(std::ranges::distance(the_range)), std::ranges::begin(the_range));
-			groups.trim_unused_groups();
+			range_assign(std::ranges::begin(the_range), static_cast<size_type>(std::ranges::distance(the_range)));
 		}
 	#endif
 
