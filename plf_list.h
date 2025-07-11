@@ -599,7 +599,7 @@ private:
 		void blank() PLF_NOEXCEPT
 		{
 			#ifdef PLF_IS_ALWAYS_EQUAL_SUPPORT // allocator_traits and type_traits always available when is_always_equal is available
-				if PLF_CONSTEXPR (std::is_standard_layout<group_vector>::value && std::allocator_traits<allocator_type>::is_always_equal::value && std::is_trivial<group_pointer_type>::value)
+				if PLF_CONSTEXPR (std::is_standard_layout<group_vector>::value && std::allocator_traits<allocator_type>::is_always_equal::value && std::is_trivially_destructible<group_pointer_type>::value)
 				{
 					std::memset(static_cast<void *>(this), 0, sizeof(group_vector));
 				}
@@ -635,7 +635,7 @@ private:
 			group_vector & operator = (group_vector &&source) PLF_NOEXCEPT
 			{
 				#ifdef PLF_IS_ALWAYS_EQUAL_SUPPORT
-					if PLF_CONSTEXPR ((std::is_trivially_copyable<allocator_type>::value || std::allocator_traits<allocator_type>::is_always_equal::value) && std::is_trivial<group_pointer_type>::value)
+					if PLF_CONSTEXPR ((std::is_trivially_copyable<allocator_type>::value || std::allocator_traits<allocator_type>::is_always_equal::value) && std::is_trivially_copyable<group_pointer_type>::value)
 					{
 						std::memcpy(static_cast<void *>(this), &source, sizeof(group_vector));
 					}
@@ -1054,7 +1054,7 @@ private:
 		void swap(group_vector &source) PLF_NOEXCEPT_SWAP(group_allocator_type)
 		{
 			#ifdef PLF_IS_ALWAYS_EQUAL_SUPPORT
-				if PLF_CONSTEXPR (std::allocator_traits<allocator_type>::is_always_equal::value && std::is_trivial<group_pointer_type>::value) // if all pointer types are trivial we can just copy using memcpy - avoids constructors/destructors etc and is faster
+				if PLF_CONSTEXPR (std::allocator_traits<allocator_type>::is_always_equal::value && std::is_trivially_copyable<group_pointer_type>::value) // if all pointer types are trivial we can just copy using memcpy - avoids constructors/destructors etc and is faster
 				{
 					char temp[sizeof(group_vector)];
 					std::memcpy(static_cast<void *>(&temp), static_cast<void *>(this), sizeof(group_vector));
