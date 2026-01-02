@@ -405,12 +405,12 @@ private:
 	#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT // >= C++11
 		typedef typename std::allocator_traits<allocator_type>::template rebind_alloc<group>				group_allocator_type;
 		typedef typename std::allocator_traits<allocator_type>::template rebind_alloc<node>					node_allocator_type;
-		typedef typename std::allocator_traits<group_allocator_type>::pointer 								group_pointer_type;
-		typedef typename std::allocator_traits<node_allocator_type>::pointer								node_pointer_type;
+		typedef typename std::allocator_traits<group_allocator_type>::pointer 									group_pointer_type;
+		typedef typename std::allocator_traits<node_allocator_type>::pointer										node_pointer_type;
 		typedef typename std::allocator_traits<allocator_type>::template rebind_alloc<node_pointer_type>	node_pointer_allocator_type;
 	#else
-		typedef typename allocator_type::template rebind<group>::other				group_allocator_type;
-		typedef typename allocator_type::template rebind<node>::other				node_allocator_type;
+		typedef typename allocator_type::template rebind<group>::other			group_allocator_type;
+		typedef typename allocator_type::template rebind<node>::other			node_allocator_type;
 		typedef typename group_allocator_type::pointer 								group_pointer_type;
 		typedef typename node_allocator_type::pointer								node_pointer_type;
 		typedef typename allocator_type::template rebind<node_pointer_type>::other	node_pointer_allocator_type;
@@ -1268,6 +1268,7 @@ private:
 	}
 
 
+	
 	void reset() PLF_NOEXCEPT
 	{
 		groups.destroy_all_data(last_endpoint);
@@ -1314,6 +1315,18 @@ public:
 			total_size(source.total_size),
 			node_allocator_pair(source.node_allocator_pair.number_of_erased_nodes, alloc)
 		{
+			#ifdef PLF_IS_ALWAYS_EQUAL_SUPPORT
+				if PLF_CONSTEXPR (!std::allocator_traits<allocator_type>::is_always_equal::value)
+			#endif
+			{
+				if (alloc != static_cast<allocator_type &>(source))
+				{
+					blank();
+					range_insert(end_iterator, source.total_size, source.begin_iterator);
+					source.~list();
+				}
+			}
+
 			end_node.previous->next = begin_iterator.node_pointer->previous = end_iterator.node_pointer;
 			source.groups.blank();
 			source.blank();
