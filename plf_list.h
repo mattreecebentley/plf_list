@@ -3529,7 +3529,7 @@ public:
 	{
 	private:
 		typedef typename list::node_pointer_type node_pointer_type;
-		node_pointer_type node_pointer;
+		node_pointer_type node_pointer{ NULL };
 
 	public:
 		struct list_iterator_tag {};
@@ -3623,11 +3623,11 @@ public:
 
 
 
-		list_iterator() PLF_NOEXCEPT: node_pointer(NULL) {}
+		list_iterator() PLF_NOEXCEPT = default;
 
 
 
-		list_iterator(const list_iterator &source) PLF_NOEXCEPT: node_pointer(source.node_pointer) {}
+		list_iterator(const list_iterator &source) PLF_NOEXCEPT = default;
 
 
 
@@ -3640,11 +3640,7 @@ public:
 
 
 
-		list_iterator & operator = (const list_iterator &rh) PLF_NOEXCEPT
-		{
-			node_pointer = rh.node_pointer;
-			return *this;
-		}
+		list_iterator & operator = (const list_iterator &rh) PLF_NOEXCEPT = default;
 
 
 
@@ -3662,7 +3658,7 @@ public:
 
 
 		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
-			list_iterator (list_iterator &&source) PLF_NOEXCEPT: node_pointer(std::move(source.node_pointer)) {}
+			list_iterator (list_iterator &&source) PLF_NOEXCEPT = default;
 
 
 
@@ -3675,12 +3671,7 @@ public:
 
 
 
-			list_iterator & operator = (list_iterator &&rh) PLF_NOEXCEPT
-			{
-				assert (&rh != this);
-				node_pointer = std::move(rh.node_pointer);
-				return *this;
-			}
+			list_iterator & operator = (list_iterator &&rh) PLF_NOEXCEPT = default;
 
 
 
@@ -3710,7 +3701,7 @@ public:
 	{
 	private:
 		typedef typename list::node_pointer_type node_pointer_type;
-		node_pointer_type node_pointer;
+		node_pointer_type node_pointer{NULL};
 
 	public:
 		typedef std::bidirectional_iterator_tag 	iterator_concept;
@@ -3808,11 +3799,11 @@ public:
 
 
 
-		list_reverse_iterator() PLF_NOEXCEPT: node_pointer(NULL) {}
+		list_reverse_iterator() PLF_NOEXCEPT = default;
 
 
 
-		list_reverse_iterator(const list_reverse_iterator &source) PLF_NOEXCEPT: node_pointer(source.node_pointer) {}
+		list_reverse_iterator(const list_reverse_iterator &source) PLF_NOEXCEPT = default;
 
 
 
@@ -3827,11 +3818,7 @@ public:
 
 
 
-		list_reverse_iterator& operator = (const list_reverse_iterator &source) PLF_NOEXCEPT
-		{
-			node_pointer = source.node_pointer;
-			return *this;
-		}
+		list_reverse_iterator& operator = (const list_reverse_iterator &source) PLF_NOEXCEPT = default;
 
 
 
@@ -3876,9 +3863,7 @@ public:
 
 
 		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
-			list_reverse_iterator (list_reverse_iterator &&source) PLF_NOEXCEPT:
-				node_pointer(std::move(source.node_pointer))
-			{}
+			list_reverse_iterator (list_reverse_iterator &&source) PLF_NOEXCEPT = default;
 
 
 
@@ -3893,12 +3878,7 @@ public:
 
 
 
-			list_reverse_iterator& operator = (list_reverse_iterator &&source) PLF_NOEXCEPT
-			{
-				assert (&source != this);
-				node_pointer = std::move(source.node_pointer);
-				return *this;
-			}
+			list_reverse_iterator& operator = (list_reverse_iterator &&source) PLF_NOEXCEPT = default;
 
 
 

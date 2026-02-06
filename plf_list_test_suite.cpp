@@ -2134,6 +2134,29 @@ int main()
 			bug.shrink_to_fit(); // Shouldn't crash here
 		}
 
+		#ifndef PLF_TYPE_TRAITS_SUPPORT
+		{
+			title2("Trivially copyable iterators tests");
+
+			{
+				using list_type = plf::list<small_struct_non_trivial>;
+				failpass("Non-trivial iterators", std::is_trivially_copyable_v< list_type::iterator >);
+				failpass("Non-trivial const_iterators", std::is_trivially_copyable_v< list_type::const_iterator >);
+
+				failpass("Non-trivial reverse_iterators", std::is_trivially_copyable_v< list_type::reverse_iterator >);
+				failpass("Non-trivial reverse_const_iterators", std::is_trivially_copyable_v< list_type::const_reverse_iterator >);
+			}
+
+			{
+				using list_type = plf::list<int>;
+				failpass("Trivial iterators", std::is_trivially_copyable_v< list_type::iterator >);
+				failpass("Trivial const_iterators", std::is_trivially_copyable_v< list_type::const_iterator >);
+
+				failpass("Trivial reverse_iterators", std::is_trivially_copyable_v< list_type::reverse_iterator >);
+				failpass("Trivial reverse_const_iterators", std::is_trivially_copyable_v< list_type::const_reverse_iterator >);
+			}
+		}
+		#endif
 
 	}
 
