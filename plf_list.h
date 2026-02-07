@@ -1,4 +1,4 @@
-// Copyright (c) 2025, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
+// Copyright (c) 2026, Matthew Bentley (mattreecebentley@gmail.com) www.plflib.org
 
 // zLib license (https://www.zlib.net/zlib_license.html):
 // This software is provided 'as-is', without any express or implied
@@ -52,7 +52,7 @@
 	#endif
 	#if _MSC_VER >= 1800
 		#define PLF_VARIADICS_SUPPORT // Variadics, in this context, means both variadic templates and variadic macros are supported
-		#define PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+		#define PLF_DEFAULT_SUPPORT // Both support for default template arguments and defaulted class functions
 		#define PLF_INITIALIZER_LIST_SUPPORT
 	#endif
 	#if _MSC_VER >= 1900
@@ -81,7 +81,7 @@
 			#define PLF_VARIADICS_SUPPORT
 		#endif
 		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 4) || __GNUC__ > 4
-			#define PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+			#define PLF_DEFAULT_SUPPORT
 			#define PLF_INITIALIZER_LIST_SUPPORT
 		#endif
 		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 6) || __GNUC__ > 4
@@ -103,7 +103,7 @@
 			#define PLF_IS_ALWAYS_EQUAL_SUPPORT
 		#endif
 	#elif defined(__clang__) && !defined(__GLIBCXX__) && !defined(_LIBCPP_CXX03_LANG) && __clang_major__ >= 3
-		#define PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+		#define PLF_DEFAULT_SUPPORT
 		#define PLF_ALLOCATOR_TRAITS_SUPPORT
 		#define PLF_TYPE_TRAITS_SUPPORT
 
@@ -127,7 +127,7 @@
 			#define PLF_INITIALIZER_LIST_SUPPORT
 		#endif
 	#elif defined(__GLIBCXX__) // Using another compiler type with libstdc++ - we are assuming full c++11 compliance for compiler - which may not be true
-		#define PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+		#define PLF_DEFAULT_SUPPORT
 
 		#if __GLIBCXX__ >= 20080606
 			#define PLF_MOVE_SEMANTICS_SUPPORT
@@ -157,7 +157,7 @@
 			#define PLF_VARIADICS_SUPPORT
 		#endif
 	#else // Assume type traits and initializer support for other compilers and standard library implementations
-		#define PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+		#define PLF_DEFAULT_SUPPORT
 		#define PLF_MOVE_SEMANTICS_SUPPORT
 		#define PLF_VARIADICS_SUPPORT
 		#define PLF_TYPE_TRAITS_SUPPORT
@@ -1268,7 +1268,7 @@ private:
 	}
 
 
-	
+
 	void reset() PLF_NOEXCEPT
 	{
 		groups.destroy_all_data(last_endpoint);
@@ -3529,7 +3529,12 @@ public:
 	{
 	private:
 		typedef typename list::node_pointer_type node_pointer_type;
-		node_pointer_type node_pointer;
+
+		#ifdef PLF_DEFAULT_SUPPORT
+			node_pointer_type node_pointer {NULL};
+		#else
+			node_pointer_type node_pointer;
+		#endif
 
 	public:
 		struct list_iterator_tag {};
@@ -3623,15 +3628,24 @@ public:
 
 
 
-		list_iterator() PLF_NOEXCEPT: node_pointer(NULL) {}
+		#ifdef PLF_DEFAULT_SUPPORT // Note: defaulting allows for treating iterators as trivially-copyable types, which enables optimizations in some functions and containers using list as back-end storage
+			list_iterator() PLF_NOEXCEPT = default;
+		#else
+			list_iterator() PLF_NOEXCEPT: node_pointer(NULL) {}
+		#endif
 
 
 
-		list_iterator(const list_iterator &source) PLF_NOEXCEPT: node_pointer(source.node_pointer) {}
+		list_iterator(const list_iterator &source) PLF_NOEXCEPT
+		#ifdef PLF_DEFAULT_SUPPORT
+			= default;
+		#else
+			: node_pointer(source.node_pointer) {}
+		#endif
 
 
 
-		#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+		#ifdef PLF_DEFAULT_SUPPORT
 			template <bool is_const_it = is_const, class = typename plf::enable_if<is_const_it>::type >
 			list_iterator(const list_iterator<false> &source) PLF_NOEXCEPT: node_pointer(source.node_pointer) {}
 		#else
@@ -3641,14 +3655,18 @@ public:
 
 
 		list_iterator & operator = (const list_iterator &rh) PLF_NOEXCEPT
-		{
-			node_pointer = rh.node_pointer;
-			return *this;
-		}
+		#ifdef PLF_DEFAULT_SUPPORT
+			= default;
+		#else
+			{
+				node_pointer = rh.node_pointer;
+				return *this;
+			}
+		#endif
 
 
 
-		#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+		#ifdef PLF_DEFAULT_SUPPORT
 			template <bool is_const_it = is_const, class = typename plf::enable_if<is_const_it>::type >
 			list_iterator & operator = (const list_iterator<false> &rh) PLF_NOEXCEPT
 		#else
@@ -3662,11 +3680,16 @@ public:
 
 
 		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
-			list_iterator (list_iterator &&source) PLF_NOEXCEPT: node_pointer(std::move(source.node_pointer)) {}
+			list_iterator (list_iterator &&source) PLF_NOEXCEPT
+			#ifdef PLF_DEFAULT_SUPPORT
+				= default;
+			#else
+				: node_pointer(std::move(source.node_pointer)) {}
+			#endif
 
 
 
-			#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+			#ifdef PLF_DEFAULT_SUPPORT
 				template <bool is_const_it = is_const, class = typename plf::enable_if<is_const_it>::type >
 				list_iterator(list_iterator<false> &&source) PLF_NOEXCEPT: node_pointer(std::move(source.node_pointer)) {}
 			#else
@@ -3676,15 +3699,15 @@ public:
 
 
 			list_iterator & operator = (list_iterator &&rh) PLF_NOEXCEPT
-			{
-				assert (&rh != this);
-				node_pointer = std::move(rh.node_pointer);
-				return *this;
-			}
+			#ifdef PLF_DEFAULT_SUPPORT
+				= default;
+			#else
+				: node_pointer(std::move(rh.node_pointer)) {}
+			#endif
 
 
 
-			#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+			#ifdef PLF_DEFAULT_SUPPORT
 				template <bool is_const_it = is_const, class = typename plf::enable_if<is_const_it>::type >
 				list_iterator & operator = (list_iterator<false> &&rh) PLF_NOEXCEPT
 			#else
@@ -3710,7 +3733,12 @@ public:
 	{
 	private:
 		typedef typename list::node_pointer_type node_pointer_type;
-		node_pointer_type node_pointer;
+
+		#ifdef PLF_DEFAULT_SUPPORT
+			node_pointer_type node_pointer {NULL};
+		#else
+			node_pointer_type node_pointer;
+		#endif
 
 	public:
 		typedef std::bidirectional_iterator_tag 	iterator_concept;
@@ -3808,15 +3836,25 @@ public:
 
 
 
-		list_reverse_iterator() PLF_NOEXCEPT: node_pointer(NULL) {}
+		list_reverse_iterator() PLF_NOEXCEPT
+		#ifdef PLF_DEFAULT_SUPPORT
+			= default;
+		#else
+			: node_pointer(NULL) {}
+		#endif
 
 
 
-		list_reverse_iterator(const list_reverse_iterator &source) PLF_NOEXCEPT: node_pointer(source.node_pointer) {}
+		list_reverse_iterator(const list_reverse_iterator &source) PLF_NOEXCEPT
+		#ifdef PLF_DEFAULT_SUPPORT
+			= default;
+		#else
+			: node_pointer(source.node_pointer) {}
+		#endif
 
 
 
-		#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+		#ifdef PLF_DEFAULT_SUPPORT
 			template <bool is_const_rit = is_const_r, class = typename plf::enable_if<is_const_rit>::type >
 			list_reverse_iterator (const list_reverse_iterator<false> &source) PLF_NOEXCEPT:
 		#else
@@ -3828,14 +3866,18 @@ public:
 
 
 		list_reverse_iterator& operator = (const list_reverse_iterator &source) PLF_NOEXCEPT
-		{
-			node_pointer = source.node_pointer;
-			return *this;
-		}
+		#ifdef PLF_DEFAULT_SUPPORT
+			= default;
+		#else
+			{
+				node_pointer = source.node_pointer;
+				return *this;
+			}
+		#endif
 
 
 
-		#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+		#ifdef PLF_DEFAULT_SUPPORT
 			template <bool is_const_rit = is_const_r, class = typename plf::enable_if<is_const_rit>::type >
 			list_reverse_iterator& operator = (const list_reverse_iterator<false> &source) PLF_NOEXCEPT
 		#else
@@ -3862,7 +3904,7 @@ public:
 
 
 
-		#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+		#ifdef PLF_DEFAULT_SUPPORT
 			template <bool is_const_rit = is_const_r, class = typename plf::enable_if<is_const_rit>::type >
 			list_reverse_iterator& operator = (const list_iterator<false> &source) PLF_NOEXCEPT
 		#else
@@ -3876,13 +3918,17 @@ public:
 
 
 		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
-			list_reverse_iterator (list_reverse_iterator &&source) PLF_NOEXCEPT:
-				node_pointer(std::move(source.node_pointer))
-			{}
+			list_reverse_iterator (list_reverse_iterator &&source) PLF_NOEXCEPT
+			#ifdef PLF_DEFAULT_SUPPORT
+				= default;
+			#else
+				: node_pointer(std::move(source.node_pointer)) {}
+			#endif
 
 
 
-			#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+
+			#ifdef PLF_DEFAULT_SUPPORT
 				template <bool is_const_rit = is_const_r, class = typename plf::enable_if<is_const_rit>::type >
 				list_reverse_iterator (list_reverse_iterator<false> &&source) PLF_NOEXCEPT:
 			#else
@@ -3894,15 +3940,19 @@ public:
 
 
 			list_reverse_iterator& operator = (list_reverse_iterator &&source) PLF_NOEXCEPT
-			{
-				assert (&source != this);
-				node_pointer = std::move(source.node_pointer);
-				return *this;
-			}
+			#ifdef PLF_DEFAULT_SUPPORT
+				= default;
+			#else
+				{
+					assert (&source != this);
+					node_pointer = std::move(source.node_pointer);
+					return *this;
+				}
+			#endif
 
 
 
-			#ifdef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+			#ifdef PLF_DEFAULT_SUPPORT
 				template <bool is_const_rit = is_const_r, class = typename plf::enable_if<is_const_rit>::type >
 				list_reverse_iterator& operator = (list_reverse_iterator<false> &&source) PLF_NOEXCEPT
 			#else
@@ -3972,7 +4022,7 @@ namespace std
 #undef PLF_CONSTRUCT_NODE
 #undef PLF_EXCEPTIONS_SUPPORT
 #undef PLF_TO_ADDRESS
-#undef PLF_DEFAULT_TEMPLATE_ARGUMENT_SUPPORT
+#undef PLF_DEFAULT_SUPPORT
 #undef PLF_ALIGNMENT_SUPPORT
 #undef PLF_INITIALIZER_LIST_SUPPORT
 #undef PLF_TYPE_TRAITS_SUPPORT
