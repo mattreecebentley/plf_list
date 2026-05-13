@@ -255,8 +255,12 @@
 		template <class T>
 		concept list_iterator_concept = requires { typename T::list_iterator_tag; };
 
-		#ifndef PLF_FROM_RANGE
-			#define PLF_FROM_RANGE
+		#ifndef PLF_RANGES
+			#define PLF_RANGES
+
+			// For matching ranges which return input_iterator's and match the container's element type:
+			template <typename range_type, class element_type>
+			concept compatible_range = std::ranges::input_range<range_type> && std::convertible_to<std::ranges::range_reference_t<range_type>, element_type>;
 
 			// Until such point as standard libraries include std::ranges::from_range_t, including this so the rangesv3 constructor overloads will work unambiguously:
 			namespace ranges
@@ -1410,8 +1414,7 @@ public:
 	#ifdef PLF_CPP20_SUPPORT
 		// Ranges v3 constructor:
 
-		template<class range_type>
-			requires std::ranges::range<range_type>
+		template<compatible_range<element_type> range_type>
 		list(plf::ranges::from_range_t, range_type &&rg, const allocator_type &alloc = allocator_type()):
 			allocator_type(alloc),
 			end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
@@ -2124,8 +2127,7 @@ public:
 
 
 	#ifdef PLF_CPP20_SUPPORT
-		template<class range_type>
-			requires std::ranges::range<range_type>
+		template<compatible_range<element_type> range_type>
 		iterator insert_range(const const_iterator it, range_type &&the_range)
 		{
 			return range_insert(it, static_cast<size_type>(std::ranges::distance(the_range)), std::ranges::begin(the_range));
@@ -3280,8 +3282,7 @@ public:
 
 
 	#ifdef PLF_CPP20_SUPPORT
-		template<class range_type>
-			requires std::ranges::range<range_type>
+		template<compatible_range<element_type> range_type>
 		void assign_range(range_type &&the_range)
 		{
 			range_assign(std::ranges::begin(the_range), static_cast<size_type>(std::ranges::distance(the_range)));
