@@ -21,197 +21,13 @@
 #ifndef PLF_LIST_H
 #define PLF_LIST_H
 
-
-// Compiler-specific defines:
-
-// Define default cases before possibly redefining:
-#define PLF_NOEXCEPT throw()
-#define PLF_NOEXCEPT_ALLOCATOR
-#define PLF_CONSTEXPR
-#define PLF_CONSTFUNC
-
-#define PLF_EXCEPTIONS_SUPPORT
-
-#if ((defined(__clang__) || defined(__GNUC__)) && !defined(__EXCEPTIONS)) || (defined(_MSC_VER) && !defined(_CPPUNWIND))
-	#undef PLF_EXCEPTIONS_SUPPORT
-	#include <exception> // std::terminate
+#ifndef PLF_COMPILER_DEFINES
+	#define PLF_LIST_DEFINES // ie. No encapsulating unit/class has previously defined the compiler feature macros in plf_tools.h below, so allow this header to undefine them at it's end.
 #endif
 
-
-#if defined(_MSC_VER) && !defined(__clang__) && !defined(__GNUC__)
-	 // Suppress incorrect (unfixed MSVC bug) warnings re: constant expressions in constexpr-if statements
-	#pragma warning ( push )
-	#pragma warning ( disable : 4127 )
-
-	#if _MSC_VER >= 1600
-		#define PLF_MOVE_SEMANTICS_SUPPORT
-	#endif
-	#if _MSC_VER >= 1700
-		#define PLF_TYPE_TRAITS_SUPPORT
-		#define PLF_ALLOCATOR_TRAITS_SUPPORT
-	#endif
-	#if _MSC_VER >= 1800
-		#define PLF_VARIADICS_SUPPORT // Variadics, in this context, means both variadic templates and variadic macros are supported
-		#define PLF_DEFAULT_SUPPORT // Both support for default template arguments and defaulted class functions
-		#define PLF_INITIALIZER_LIST_SUPPORT
-	#endif
-	#if _MSC_VER >= 1900
-		#define PLF_ALIGNMENT_SUPPORT
-		#undef PLF_NOEXCEPT
-		#undef PLF_NOEXCEPT_ALLOCATOR
-		#define PLF_NOEXCEPT noexcept
-		#define PLF_NOEXCEPT_ALLOCATOR noexcept(noexcept(allocator_type()))
-		#define PLF_IS_ALWAYS_EQUAL_SUPPORT
-	#endif
-
-	#if defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L)
-		#undef PLF_CONSTEXPR
-		#define PLF_CONSTEXPR constexpr
-	#endif
-
-	#if defined(_MSVC_LANG) && (_MSVC_LANG >= 202002L) && _MSC_VER >= 1929
-		#define PLF_CPP20_SUPPORT
-		#undef PLF_CONSTFUNC
-		#define PLF_CONSTFUNC constexpr
-	#endif
-#elif defined(__cplusplus) && __cplusplus >= 201103L // C++11 support, at least
-	#if defined(__GNUC__) && defined(__GNUC_MINOR__) && !defined(__clang__) // If compiler is GCC/G++
-		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 3) || __GNUC__ > 4
-			#define PLF_MOVE_SEMANTICS_SUPPORT
-			#define PLF_VARIADICS_SUPPORT
-		#endif
-		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 4) || __GNUC__ > 4
-			#define PLF_DEFAULT_SUPPORT
-			#define PLF_INITIALIZER_LIST_SUPPORT
-		#endif
-		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 6) || __GNUC__ > 4
-			#undef PLF_NOEXCEPT
-			#undef PLF_NOEXCEPT_ALLOCATOR
-			#define PLF_NOEXCEPT noexcept
-			#define PLF_NOEXCEPT_ALLOCATOR noexcept(noexcept(allocator_type()))
-		#endif
-		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 7) || __GNUC__ > 4
-			#define PLF_ALLOCATOR_TRAITS_SUPPORT
-		#endif
-		#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 8) || __GNUC__ > 4
-			#define PLF_ALIGNMENT_SUPPORT
-		#endif
-		#if __GNUC__ >= 5 // GCC v4.9 and below do not support std::is_trivially_copyable
-			#define PLF_TYPE_TRAITS_SUPPORT
-		#endif
-		#if __GNUC__ > 6
-			#define PLF_IS_ALWAYS_EQUAL_SUPPORT
-		#endif
-	#elif defined(__clang__) && !defined(__GLIBCXX__) && !defined(_LIBCPP_CXX03_LANG) && __clang_major__ >= 3
-		#define PLF_DEFAULT_SUPPORT
-		#define PLF_ALLOCATOR_TRAITS_SUPPORT
-		#define PLF_TYPE_TRAITS_SUPPORT
-
-		#if __has_feature(cxx_alignas) && __has_feature(cxx_alignof)
-			#define PLF_ALIGNMENT_SUPPORT
-		#endif
-		#if __has_feature(cxx_noexcept)
-			#undef PLF_NOEXCEPT
-			#undef PLF_NOEXCEPT_ALLOCATOR
-			#define PLF_NOEXCEPT noexcept
-			#define PLF_NOEXCEPT_ALLOCATOR noexcept(noexcept(allocator_type()))
-			#define PLF_IS_ALWAYS_EQUAL_SUPPORT
-		#endif
-		#if __has_feature(cxx_rvalue_references) && !defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES)
-			#define PLF_MOVE_SEMANTICS_SUPPORT
-		#endif
-		#if __has_feature(cxx_variadic_templates) && !defined(_LIBCPP_HAS_NO_VARIADICS)
-			#define PLF_VARIADICS_SUPPORT
-		#endif
-		#if (__clang_major__ == 3 && __clang_minor__ >= 1) || __clang_major__ > 3
-			#define PLF_INITIALIZER_LIST_SUPPORT
-		#endif
-	#elif defined(__GLIBCXX__) // Using another compiler type with libstdc++ - we are assuming full c++11 compliance for compiler - which may not be true
-		#define PLF_DEFAULT_SUPPORT
-
-		#if __GLIBCXX__ >= 20080606
-			#define PLF_MOVE_SEMANTICS_SUPPORT
-			#define PLF_VARIADICS_SUPPORT
-		#endif
-		#if __GLIBCXX__ >= 20090421
-			#define PLF_INITIALIZER_LIST_SUPPORT
-		#endif
-		#if __GLIBCXX__ >= 20120322
-			#define PLF_ALLOCATOR_TRAITS_SUPPORT
-			#undef PLF_NOEXCEPT
-			#undef PLF_NOEXCEPT_ALLOCATOR
-			#define PLF_NOEXCEPT noexcept
-			#define PLF_NOEXCEPT_ALLOCATOR noexcept(noexcept(allocator_type()))
-		#endif
-		#if __GLIBCXX__ >= 20130322
-			#define PLF_ALIGNMENT_SUPPORT
-		#endif
-		#if __GLIBCXX__ >= 20150422 // libstdc++ v4.9 and below do not support std::is_trivially_copyable
-			#define PLF_TYPE_TRAITS_SUPPORT
-		#endif
-		#if __GLIBCXX__ >= 20160111
-			#define PLF_IS_ALWAYS_EQUAL_SUPPORT
-		#endif
-	#elif defined(_LIBCPP_CXX03_LANG) || defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES) // Special case for checking C++11 support with libCPP
-		#if !defined(_LIBCPP_HAS_NO_VARIADICS)
-			#define PLF_VARIADICS_SUPPORT
-		#endif
-	#else // Assume type traits and initializer support for other compilers and standard library implementations
-		#define PLF_DEFAULT_SUPPORT
-		#define PLF_MOVE_SEMANTICS_SUPPORT
-		#define PLF_VARIADICS_SUPPORT
-		#define PLF_TYPE_TRAITS_SUPPORT
-		#define PLF_ALLOCATOR_TRAITS_SUPPORT
-		#define PLF_ALIGNMENT_SUPPORT
-		#define PLF_INITIALIZER_LIST_SUPPORT
-		#undef PLF_NOEXCEPT
-		#undef PLF_NOEXCEPT_ALLOCATOR
-		#define PLF_NOEXCEPT noexcept
-		#define PLF_NOEXCEPT_ALLOCATOR noexcept(noexcept(allocator_type()))
-		#define PLF_IS_ALWAYS_EQUAL_SUPPORT
-	#endif
-
-	#if __cplusplus >= 201703L && ((defined(__clang__) && ((__clang_major__ == 3 && __clang_minor__ == 9) || __clang_major__ > 3)) || (defined(__GNUC__) && __GNUC__ >= 7) || (!defined(__clang__) && !defined(__GNUC__))) // assume correct C++17 implementation for non-gcc/clang compilers
-		#undef PLF_CONSTEXPR
-		#define PLF_CONSTEXPR constexpr
-	#endif
-
-	#if __cplusplus > 201704L && ((((defined(__clang__) && !defined(__APPLE_CC__) && __clang_major__ >= 14) || (defined(__GNUC__) && (__GNUC__ > 11 || (__GNUC__ == 11 && __GNUC_MINOR__ > 0)))) && ((defined(_LIBCPP_VERSION) && _LIBCPP_VERSION >= 14) || (defined(__GLIBCXX__) && __GLIBCXX__ >= 201806L))) || (!defined(__clang__) && !defined(__GNUC__)))
-		#define PLF_CPP20_SUPPORT
-		#undef PLF_CONSTFUNC
-		#define PLF_CONSTFUNC constexpr
-	#endif
-#endif
-
-#if defined(PLF_IS_ALWAYS_EQUAL_SUPPORT) && defined(PLF_MOVE_SEMANTICS_SUPPORT) && defined(PLF_ALLOCATOR_TRAITS_SUPPORT) && (__cplusplus >= 201703L || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L)))
-	#define PLF_NOEXCEPT_MOVE_ASSIGN(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<the_allocator>::is_always_equal::value)
-	#define PLF_NOEXCEPT_SWAP(the_allocator) noexcept(std::allocator_traits<the_allocator>::propagate_on_container_swap::value || std::allocator_traits<the_allocator>::is_always_equal::value)
-#else
-	#define PLF_NOEXCEPT_MOVE_ASSIGN(the_allocator)
-	#define PLF_NOEXCEPT_SWAP(the_allocator)
-#endif
-
-#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
-	#ifdef PLF_VARIADICS_SUPPORT
-		#define PLF_CONSTRUCT(the_allocator, allocator_instance, location, ...) std::allocator_traits<the_allocator>::construct(allocator_instance, location, __VA_ARGS__)
-	#else
-		#define PLF_CONSTRUCT(the_allocator, allocator_instance, location, data)	std::allocator_traits<the_allocator>::construct(allocator_instance, location, data)
-	#endif
-
-	#define PLF_DESTROY(the_allocator, allocator_instance, location)				std::allocator_traits<the_allocator>::destroy(allocator_instance, location)
-	#define PLF_ALLOCATE(the_allocator, allocator_instance, size, hint)			std::allocator_traits<the_allocator>::allocate(allocator_instance, size, hint)
-	#define PLF_DEALLOCATE(the_allocator, allocator_instance, location, size)	std::allocator_traits<the_allocator>::deallocate(allocator_instance, location, size)
-#else
-	#ifdef PLF_VARIADICS_SUPPORT
-		#define PLF_CONSTRUCT(the_allocator, allocator_instance, location, ...) 	(allocator_instance).construct(location, __VA_ARGS__)
-	#else
-		#define PLF_CONSTRUCT(the_allocator, allocator_instance, location, data)	(allocator_instance).construct(location, data)
-	#endif
-
-	#define PLF_DESTROY(the_allocator, allocator_instance, location)				(allocator_instance).destroy(location)
-	#define PLF_ALLOCATE(the_allocator, allocator_instance, size, hint)			(allocator_instance).allocate(size, hint)
-	#define PLF_DEALLOCATE(the_allocator, allocator_instance, location, size)	(allocator_instance).deallocate(location, size)
-#endif
+#define PLF_INCLUDE_UNINITIALIZED_TOOLS
+#define PLF_INCLUDE_TOOLS
+#include "plf_tools.h"
 
 
 #ifdef PLF_VARIADICS_SUPPORT
@@ -221,11 +37,10 @@
 #endif
 
 
-
 #include <cstring> // memmove, memcpy
 #include <cassert> // assert
 #include <limits>   // std::numeric_limits
-#include <memory>  // std::uninitialized_copy, std::allocator, std::to_address
+#include <memory>  // std::allocator, std::to_address
 #include <iterator>	// std::bidirectional_iterator_tag, iterator_traits, std::move_iterator, std::distance
 #include <stdexcept> // std::length_error
 #include <utility> // std::move, std::swap
@@ -244,6 +59,7 @@
 	#include <initializer_list>
 #endif
 
+
 #ifdef PLF_CPP20_SUPPORT
 	#include <concepts>
 	#include <compare> // std::strong_ordering
@@ -254,21 +70,6 @@
 		// For getting std:: overload for reverse_iterator to match plf::list iterators specifically (see bottom of header):
 		template <class T>
 		concept list_iterator_concept = requires { typename T::list_iterator_tag; };
-
-		#ifndef PLF_RANGES
-			#define PLF_RANGES
-
-			// For matching ranges which return input_iterator's and match the container's element type:
-			template <typename range_type, class element_type>
-			concept compatible_range = std::ranges::input_range<range_type> && std::convertible_to<std::ranges::range_reference_t<range_type>, element_type>;
-
-			// Until such point as standard libraries include std::ranges::from_range_t, including this so the rangesv3 constructor overloads will work unambiguously:
-			namespace ranges
-			{
-				struct from_range_t {};
-				constexpr from_range_t from_range;
-			}
-		#endif
 	}
 #endif
 
@@ -276,92 +77,6 @@
 
 namespace plf
 {
-
-
-#ifndef PLF_TOOLS
-	#define PLF_TOOLS
-
-	// std:: tool replacements for C++03/98/11 support:
-	template <bool condition, class T = void>
-	struct enable_if
-	{
-		typedef T type;
-	};
-
-	template <class T>
-	struct enable_if<false, T>
-	{};
-
-
-
-	template <bool flag, class is_true, class is_false> struct conditional;
-
-	template <class is_true, class is_false> struct conditional<true, is_true, is_false>
-	{
-		typedef is_true type;
-	};
-
-	template <class is_true, class is_false> struct conditional<false, is_true, is_false>
-	{
-		typedef is_false type;
-	};
-
-
-
-	template <class element_type>
-	struct less
-	{
-		bool operator() (const element_type &a, const element_type &b) const PLF_NOEXCEPT
-		{
-			return a < b;
-		}
-	};
-
-
-
-	template<class element_type>
-	struct equal_to
-	{
-		const element_type &value;
-
-		explicit equal_to(const element_type &store_value) PLF_NOEXCEPT:
-			value(store_value)
-		{}
-
-		bool operator() (const element_type &compare_value) const PLF_NOEXCEPT
-		{
-			return value == compare_value;
-		}
-	};
-
-
-
-	// To enable conversion to void * when allocator supplies non-raw pointers:
-	template <class source_pointer_type>
-	static PLF_CONSTFUNC void * void_cast(const source_pointer_type source_pointer) PLF_NOEXCEPT
-	{
-		#ifdef PLF_CPP20_SUPPORT
-			return static_cast<void *>(std::to_address(source_pointer));
-		#else
-			return static_cast<void *>(&*source_pointer);
-		#endif
-	}
-
-
-	#ifdef PLF_MOVE_SEMANTICS_SUPPORT
-		template <class iterator_type>
-		static PLF_CONSTFUNC std::move_iterator<iterator_type> make_move_iterator(iterator_type it)
-		{
-			return std::move_iterator<iterator_type>(std::move(it));
-		}
-	#endif
-
-
-
-	enum priority { performance = 1, memory_use = 4};
-
-#endif
-
 
 
 template <class element_type, class allocator_type = std::allocator<element_type> > class list : private allocator_type
@@ -374,8 +89,8 @@ public:
 	#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
 		typedef typename std::allocator_traits<allocator_type>::size_type			size_type;
 		typedef typename std::allocator_traits<allocator_type>::difference_type difference_type;
-		typedef element_type &														reference;
-		typedef const element_type &												const_reference;
+		typedef element_type &																	reference;
+		typedef const element_type &															const_reference;
 		typedef typename std::allocator_traits<allocator_type>::pointer 			pointer;
 		typedef typename std::allocator_traits<allocator_type>::const_pointer	const_pointer;
 	#else
@@ -641,7 +356,7 @@ private:
 				#ifdef PLF_IS_ALWAYS_EQUAL_SUPPORT
 					if PLF_CONSTEXPR ((std::is_trivially_copyable<allocator_type>::value || std::allocator_traits<allocator_type>::is_always_equal::value) && std::is_trivially_copyable<group_pointer_type>::value)
 					{
-						std::memcpy(static_cast<void *>(this), &source, sizeof(group_vector));
+						std::memcpy(static_cast<void *>(this), static_cast<void *>(&source), sizeof(group_vector));
 					}
 					else
 				#endif
@@ -770,14 +485,14 @@ private:
 			block_pointer = PLF_ALLOCATE(group_allocator_type, group_allocator_pair, new_capacity, 0);
 
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
-				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
+				if PLF_CONSTEXPR (std::is_trivially_copy_constructible<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{
 					std::memcpy(plf::void_cast(block_pointer), plf::void_cast(old_block), sizeof(group) * size);
 				}
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 					else if PLF_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
 					{
-						std::uninitialized_copy(plf::make_move_iterator(old_block), plf::make_move_iterator(old_block + size), block_pointer);
+						plf::uninitialized_move(old_block, old_block + size, block_pointer, static_cast<allocator_type &>(*this));
 					}
 				#endif
 				else
@@ -836,14 +551,6 @@ private:
 			size = 1; // Doing these here instead of pre-construct to avoid need for a try-catch block
 			node_pointer_allocator_pair.capacity = first_group_capacity;
 		}
-
-
-
-		#ifdef PLF_CPP20_SUPPORT
-			#define PLF_TO_ADDRESS(pointer) std::to_address(pointer)
-		#else
-			#define PLF_TO_ADDRESS(pointer) &*(pointer)
-		#endif
 
 
 
@@ -1126,14 +833,14 @@ private:
 			if (size + source.size > group_allocator_pair.capacity) expand_capacity(size + source.size);
 
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
-				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
+				if PLF_CONSTEXPR (std::is_trivially_copy_constructible<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{
 					std::memcpy(plf::void_cast(block_pointer + size), plf::void_cast(source.block_pointer), sizeof(group) * source.size);
 				}
 				#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 					else if PLF_CONSTEXPR (std::is_move_constructible<node_pointer_type>::value)
 					{
-						std::uninitialized_copy(plf::make_move_iterator(source.block_pointer), plf::make_move_iterator(source.block_pointer + source.size), block_pointer + size);
+						plf::uninitialized_move(source.block_pointer, source.block_pointer + source.size, block_pointer + size, static_cast<allocator_type &>(*this));
 					}
 				#endif
 				else
@@ -1414,7 +1121,7 @@ public:
 	#ifdef PLF_CPP20_SUPPORT
 		// Ranges v3 constructor:
 
-		template<compatible_range<element_type> range_type>
+		template<plf::compatible_range<element_type> range_type>
 		list(plf::ranges::from_range_t, range_type &&rg, const allocator_type &alloc = allocator_type()):
 			allocator_type(alloc),
 			end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
@@ -2127,7 +1834,7 @@ public:
 
 
 	#ifdef PLF_CPP20_SUPPORT
-		template<compatible_range<element_type> range_type>
+		template<plf::compatible_range<element_type> range_type>
 		iterator insert_range(const const_iterator it, range_type &&the_range)
 		{
 			return range_insert(it, static_cast<size_type>(std::ranges::distance(the_range)), std::ranges::begin(the_range));
@@ -3974,8 +3681,7 @@ public:
 	};
 
 
-
-}; // end of plf::list
+}; // plf::list
 
 
 } // plf namespace
@@ -4021,31 +3727,12 @@ namespace std
 
 
 #undef PLF_CONSTRUCT_NODE
-#undef PLF_EXCEPTIONS_SUPPORT
 #undef PLF_TO_ADDRESS
-#undef PLF_DEFAULT_SUPPORT
-#undef PLF_ALIGNMENT_SUPPORT
-#undef PLF_INITIALIZER_LIST_SUPPORT
-#undef PLF_TYPE_TRAITS_SUPPORT
-#undef PLF_IS_ALWAYS_EQUAL_SUPPORT
-#undef PLF_ALLOCATOR_TRAITS_SUPPORT
-#undef PLF_VARIADICS_SUPPORT
-#undef PLF_MOVE_SEMANTICS_SUPPORT
-#undef PLF_NOEXCEPT
-#undef PLF_NOEXCEPT_ALLOCATOR
-#undef PLF_NOEXCEPT_SWAP
-#undef PLF_NOEXCEPT_MOVE_ASSIGN
-#undef PLF_CONSTEXPR
-#undef PLF_CONSTFUNC
-#undef PLF_CPP20_SUPPORT
 
-#undef PLF_CONSTRUCT
-#undef PLF_DESTROY
-#undef PLF_ALLOCATE
-#undef PLF_DEALLOCATE
 
-#if defined(_MSC_VER) && !defined(__clang__) && !defined(__GNUC__)
-	#pragma warning ( pop )
+#ifdef PLF_LIST_DEFINES
+	#include "plf_tools_undef.h"
 #endif
+
 
 #endif // PLF_LIST_H
