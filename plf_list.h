@@ -1174,14 +1174,14 @@ public:
 
 	const_iterator cbegin() const PLF_NOEXCEPT
 	{
-		return const_iterator(begin_iterator.node_pointer);
+		return begin_iterator;
 	}
 
 
 
 	const_iterator cend() const PLF_NOEXCEPT
 	{
-		return const_iterator(end_iterator.node_pointer);
+		return end_iterator;
 	}
 
 
@@ -1195,7 +1195,7 @@ public:
 
  	const_reverse_iterator rbegin() const PLF_NOEXCEPT
  	{
- 		return const_reverse_iterator(end_node.previous);
+ 		return crbegin();
  	}
 
 
@@ -1209,7 +1209,7 @@ public:
 
  	const_reverse_iterator rend() const PLF_NOEXCEPT
  	{
- 		return const_reverse_iterator(end_iterator.node_pointer);
+ 		return crend();
  	}
 
 
