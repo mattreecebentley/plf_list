@@ -469,9 +469,7 @@
 				{
 					return static_cast<std::size_t>(__builtin_ctzll(value));
 				}
-			#endif
-
-			#ifdef PLF_CPP20_SUPPORT
+			#elif defined(PLF_CPP20_SUPPORT)
 				return std::countr_zero(value);
 			#else
 				for (storage_type bit_index = 0; ; ++bit_index)
@@ -538,9 +536,7 @@
 						return static_cast<std::size_t>(__builtin_clzll(value) - (sizeof(std::size_t) - sizeof(storage_type)));
 					}
 				#endif
-			#endif
-
-			#ifdef PLF_CPP20_SUPPORT
+			#elif defined(PLF_CPP20_SUPPORT)
 				return std::countl_zero(value);
 			#else
 				for (storage_type bit_index = (sizeof(storage_type) * 8) - 1; ; --bit_index)
