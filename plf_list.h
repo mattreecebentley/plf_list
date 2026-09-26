@@ -1328,17 +1328,33 @@ private:
 
 
 
-public:
+ 	#if defined(PLF_VARIADICS_SUPPORT) && defined(PLF_MOVE_SEMANTICS_SUPPORT) // emplace and move-insert support
+ 		#define PLF_EMPLACE_OBJECT std::forward<arguments>(parameters)...
+ 		#define PLF_NOTHROW_TEST_TYPE arguments...
 
+ 		template<typename... arguments>
+ 		iterator emplace_implementation(const const_iterator it, arguments &&... parameters)
 
-	iterator insert(const const_iterator it, const element_type &element)
+	#elif defined(PLF_MOVE_SEMANTICS_SUPPORT) // No emplace support, type traits may be available - this is possible under older versions of MSVC, as type_traits were implemented before variadic templates
+		#define PLF_EMPLACE_OBJECT std::forward<el_type>(element)
+		#define PLF_NOTHROW_TEST_TYPE el_type
+
+		template<class el_type>
+		iterator emplace_implementation(const const_iterator it, el_type &&element)
+
+	#else // Only regular insert support ie. C++03/98 compilers
+		#define PLF_EMPLACE_OBJECT element
+		#define PLF_NOTHROW_TEST_TYPE element_type
+
+		iterator emplace_implementation(const const_iterator it, const element_type &element)
+	#endif
 	{
-		if (last_endpoint != NULL) // ie. list is not empty
+		if (last_endpoint != NULL)
 		{
-			if (node_allocator_pair.number_of_erased_nodes == 0) // No erased nodes available for reuse
+			if (node_allocator_pair.number_of_erased_nodes == 0)
 			{
 				add_group_if_necessary();
-				PLF_CONSTRUCT_NODE(last_endpoint, it.node_pointer, it.node_pointer->previous, element);
+				PLF_CONSTRUCT_NODE(last_endpoint, it.node_pointer, it.node_pointer->previous, PLF_EMPLACE_OBJECT);
 				update_sizes_and_iterators(it);
 				return iterator(last_endpoint++);
 			}
@@ -1347,7 +1363,7 @@ public:
 				const group_pointer_type node_group = groups.get_nearest_freelist_group((it.node_pointer != end_iterator.node_pointer) ? it.node_pointer : end_node.previous);
 				const node_pointer_type selected_node = node_group->free_list_head;
 				const node_pointer_type previous = node_group->free_list_head->previous;
-				PLF_CONSTRUCT_NODE(selected_node, it.node_pointer, it.node_pointer->previous, element);
+				PLF_CONSTRUCT_NODE(selected_node, it.node_pointer, it.node_pointer->previous, PLF_EMPLACE_OBJECT);
 
 				node_group->free_list_head = previous;
 				++(node_group->number_of_elements);
@@ -1361,24 +1377,24 @@ public:
 				return iterator(selected_node);
 			}
 		}
-		else // list is empty
+		else
 		{
 			insert_initialize();
 
 			#ifndef PLF_EXCEPTIONS_SUPPORT
-				PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, element);
-	 		#else
+				PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, PLF_EMPLACE_OBJECT);
+			#else
 				#ifdef PLF_TYPE_TRAITS_SUPPORT
-					if PLF_CONSTEXPR (std::is_nothrow_copy_constructible<node>::value) // Avoid try-catch code generation
+					if PLF_CONSTEXPR (std::is_nothrow_constructible<node>::value && std::is_nothrow_constructible<element_type, PLF_NOTHROW_TEST_TYPE>::value)
 					{
-						PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, element);
+						PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, PLF_EMPLACE_OBJECT);
 					}
 					else
 				#endif
 				{
 					try
 					{
-						PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, element);
+						PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, PLF_EMPLACE_OBJECT);
 					}
 					catch (...)
 					{
@@ -1392,185 +1408,80 @@ public:
 		}
 	}
 
+	#undef PLF_EMPLACE_OBJECT
+	#undef PLF_NOTHROW_TEST_TYPE
+
+
+public:
+
+
+	iterator insert(const const_iterator it, const element_type &element)
+	{
+		return emplace_implementation(it, element);
+	}
+
 
 
 	void push_back(const element_type &element)
 	{
-		insert(end_iterator, element);
+		emplace_implementation(end_iterator, element);
 	}
 
 
 
 	void push_front(const element_type &element)
 	{
-		insert(begin_iterator, element);
+		emplace_implementation(begin_iterator, element);
 	}
 
 
 
 	#ifdef PLF_MOVE_SEMANTICS_SUPPORT
-		iterator insert(const const_iterator it, element_type &&element) // This is almost identical to the insert implementation above with the only change being std::move of the element and the is_nothrow test
+		iterator insert(const const_iterator it, element_type &&element)
 		{
-			if (last_endpoint != NULL)
-			{
-				if (node_allocator_pair.number_of_erased_nodes == 0)
-				{
-					add_group_if_necessary();
-					PLF_CONSTRUCT_NODE(last_endpoint, it.node_pointer, it.node_pointer->previous, std::move(element));
-					update_sizes_and_iterators(it);
-					return iterator(last_endpoint++);
-				}
-				else
-				{
-					const group_pointer_type node_group = groups.get_nearest_freelist_group((it.node_pointer != end_iterator.node_pointer) ? it.node_pointer : end_node.previous);
-					const node_pointer_type selected_node = node_group->free_list_head;
-					const node_pointer_type previous = node_group->free_list_head->previous;
-					PLF_CONSTRUCT_NODE(selected_node, it.node_pointer, it.node_pointer->previous, std::move(element));
-
-					node_group->free_list_head = previous;
-					++(node_group->number_of_elements);
-					++total_size;
-					--node_allocator_pair.number_of_erased_nodes;
-
-					it.node_pointer->previous->next = selected_node;
-					it.node_pointer->previous = selected_node;
-
-					if (it.node_pointer == begin_iterator.node_pointer) begin_iterator.node_pointer = selected_node;
-					return iterator(selected_node);
-				}
-			}
-			else
-			{
-				insert_initialize();
-
-				#ifndef PLF_EXCEPTIONS_SUPPORT
-					PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::move(element));
-		 		#else
-					#ifdef PLF_TYPE_TRAITS_SUPPORT
-						if PLF_CONSTEXPR (std::is_nothrow_move_constructible<node>::value)
-						{
-							PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::move(element));
-						}
-						else
-					#endif
-					{
-						try
-						{
-							PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::move(element));
-						}
-						catch (...)
-						{
-							reset();
-							throw;
-						}
-					}
-				#endif
-
-				return begin_iterator;
-			}
+			return emplace_implementation(it, std::move(element));
 		}
 
 
 
 		void push_back(element_type &&element)
 		{
-			insert(end_iterator, std::move(element));
+			emplace_implementation(end_iterator, std::move(element));
 		}
 
 
 
 		void push_front(element_type &&element)
 		{
-			insert(begin_iterator, std::move(element));
+			emplace_implementation(begin_iterator, std::move(element));
 		}
-	#endif
 
 
 
-
-	#ifdef PLF_VARIADICS_SUPPORT
-		template<typename... arguments>
-		iterator emplace(const const_iterator it, arguments &&... parameters) // This is almost identical to the insert implementations above with the only changes being std::forward of element parameters, removal of VARIADICS support checking, and is_nothrow_contructible
-		{
-			if (last_endpoint != NULL)
+		#ifdef PLF_VARIADICS_SUPPORT
+			template<typename... arguments>
+			iterator emplace(const const_iterator it, arguments &&... parameters) 
 			{
-				if (node_allocator_pair.number_of_erased_nodes == 0)
-				{
-					add_group_if_necessary();
-					PLF_CONSTRUCT_NODE(last_endpoint, it.node_pointer, it.node_pointer->previous, std::forward<arguments>(parameters)...);
-					update_sizes_and_iterators(it);
-					return iterator(last_endpoint++);
-				}
-				else
-				{
-					const group_pointer_type node_group = groups.get_nearest_freelist_group((it.node_pointer != end_iterator.node_pointer) ? it.node_pointer : end_node.previous);
-					const node_pointer_type selected_node = node_group->free_list_head;
-					const node_pointer_type previous = node_group->free_list_head->previous;
-					PLF_CONSTRUCT_NODE(selected_node, it.node_pointer, it.node_pointer->previous, std::forward<arguments>(parameters)...);
-
-					node_group->free_list_head = previous;
-					++(node_group->number_of_elements);
-					++total_size;
-					--node_allocator_pair.number_of_erased_nodes;
-
-					it.node_pointer->previous->next = selected_node;
-					it.node_pointer->previous = selected_node;
-
-					if (it.node_pointer == begin_iterator.node_pointer) begin_iterator.node_pointer = selected_node;
-					return iterator(selected_node);
-				}
+				return emplace_implementation(it, std::forward<arguments>(parameters) ...);
 			}
-			else
+
+
+
+			template<typename... arguments>
+			reference emplace_back(arguments &&... parameters)
 			{
-			  	insert_initialize();
-
-				#ifndef PLF_EXCEPTIONS_SUPPORT
-					PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
-		 		#else
-					#ifdef PLF_TYPE_TRAITS_SUPPORT
-						if PLF_CONSTEXPR (std::is_nothrow_constructible<node>::value)
-						{
-							PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
-						}
-						else
-					#endif
-					{
-						try
-						{
-							PLF_CONSTRUCT_NODE(last_endpoint++, end_iterator.node_pointer, end_iterator.node_pointer, std::forward<arguments>(parameters)...);
-						}
-						catch (...)
-						{
-							reset();
-							throw;
-						}
-					}
-				#endif
-
-				return begin_iterator;
+				return (emplace_implementation(end_iterator, std::forward<arguments>(parameters)...)).node_pointer->element;
 			}
-		}
 
 
 
-		template<typename... arguments>
-		reference emplace_back(arguments &&... parameters)
-		{
-			return (emplace(end_iterator, std::forward<arguments>(parameters)...)).node_pointer->element;
-		}
-
-
-
-		template<typename... arguments>
-		reference emplace_front(arguments &&... parameters)
-		{
-			return (emplace(begin_iterator, std::forward<arguments>(parameters)...)).node_pointer->element;
-		}
-
-
+			template<typename... arguments>
+			reference emplace_front(arguments &&... parameters)
+			{
+				return (emplace_implementation(begin_iterator, std::forward<arguments>(parameters)...)).node_pointer->element;
+			}
+		#endif
 	#endif
-
-
 
 
 private:
