@@ -1117,6 +1117,11 @@ int main()
 
 			failpass("Reverse test 2", passed);
 
+			plf::list<int>::reverse_iterator rend_iterator = list2.rend();
+			--rend_iterator; // The first element
+
+			failpass("Reverse rend() test", *rend_iterator == list2.front());
+
 
 			title2("Unique tests");
 

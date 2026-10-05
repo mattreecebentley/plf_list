@@ -2447,6 +2447,7 @@ public:
 			}
 
 			std::swap(end_node.previous, begin_iterator.node_pointer);
+			end_node.next = begin_iterator.node_pointer; // Read by list_reverse_iterator::operator -- when decrementing rend()
 			end_node.previous->next = end_iterator.node_pointer;
 			begin_iterator.node_pointer->previous = end_iterator.node_pointer;
 		}
