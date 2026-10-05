@@ -450,6 +450,33 @@ int main()
 		}
 
 		failpass("Post-splicing data consistency", total == original_total);
+
+		{ // Splices which should have no effect
+			plf::list<int> list2;
+
+			for (int counter = 1; counter != 5; ++counter)
+			{
+				list2.push_back(counter); // 1 2 3 4
+			}
+
+			plf::list<int>::iterator two = list2.begin(), four = list2.end();
+			++two;
+			--four;
+
+			list2.splice(two, two); // position == location
+			list2.splice(four, two, two); // empty range
+
+			const int expected[] = {1, 2, 3, 4};
+			bool unchanged = list2.size() == 4;
+			unsigned int index = 0;
+
+			for (plf::list<int>::iterator it = list2.begin(); it != list2.end() && index != 5; ++it, ++index)
+			{
+				if (index >= 4 || *it != expected[index]) unchanged = false;
+			}
+
+			failpass("Splice without effect test", unchanged && index == 4);
+		}
 	}
 
 	{
