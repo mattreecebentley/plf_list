@@ -802,6 +802,25 @@ int main()
 	}
 
 
+	{
+		title2("Trim_capacity when empty test");
+
+		list<int> bug;
+		bug.trim_capacity(); // Shouldn't crash here
+		failpass("Trim_capacity when empty test", bug.capacity() == 0);
+
+		#ifdef PLF_MOVE_SEMANTICS_SUPPORT
+		{
+			list<int> moved_from;
+			moved_from.push_back(1);
+			list<int> moved_to(std::move(moved_from));
+			moved_from.trim_capacity(); // A moved-from list has no blocks either
+			failpass("Trim_capacity when moved from test", moved_from.capacity() == 0 && moved_to.size() == 1);
+		}
+		#endif
+	}
+
+
 	#ifdef PLF_TYPE_TRAITS_SUPPORT
 	{
 		title2("Trivially copyable iterators tests");

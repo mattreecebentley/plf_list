@@ -812,6 +812,8 @@ private:
 
 		void trim_unused_groups() PLF_NOEXCEPT // trim trailing groups previously allocated by reserve() or retained via erase()
 		{
+			if (block_pointer == NULL) return; // No groups yet, or after reset()
+
 			const group_pointer_type end = block_pointer + size;
 
 			for (group_pointer_type current_group = last_endpoint_group + 1; current_group != end; ++current_group)
