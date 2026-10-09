@@ -2239,7 +2239,7 @@ public:
 
 	void splice(const const_iterator position, const const_iterator first, const const_iterator last) PLF_NOEXCEPT // intra-list only splice functions - will crash if first & list are not from *this
 	{
-		if (position == last) return;
+		if (position == last || first == last) return; // An empty range has no effect, as for std::list
 		if (begin_iterator == first) begin_iterator.node_pointer = last.node_pointer;
 
 		// To avoid pointer aliasing and subsequently increase performance via simultaneous assignments:
@@ -2263,6 +2263,7 @@ public:
 
 	void splice(const const_iterator position, const const_iterator location) PLF_NOEXCEPT
 	{
+		if (position == location) return; // Moving an element to before itself has no effect
 		splice(position, location, const_iterator(location.node_pointer->next));
 	}
 
