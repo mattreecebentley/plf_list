@@ -888,6 +888,25 @@ int main()
 
 			failpass("Merge test", passed);
 
+			{ // The lists do not alternate, so this checks that merge() compares elements (example from cppreference)
+				plf::list<int> list3 = {5, 9, 1, 3, 3};
+				plf::list<int> list4 = {8, 7, 2, 3, 4, 4};
+				list3.sort();
+				list4.sort();
+				list3.merge(list4);
+
+				const int expected[] = {1, 2, 3, 3, 3, 4, 4, 5, 7, 8, 9};
+				bool merge_passed = list3.size() == 11 && list4.empty();
+				unsigned int index = 0;
+
+				for (plf::list<int>::iterator it = list3.begin(); it != list3.end() && index != 11; ++it, ++index)
+				{
+					if (*it != expected[index]) merge_passed = false;
+				}
+
+				failpass("Merge unevenly distributed lists test", merge_passed && index == 11);
+			}
+
 
 
 			title2("Clear tests");

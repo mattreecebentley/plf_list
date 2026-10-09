@@ -2372,25 +2372,28 @@ public:
 			return;
 		}
 
-		node_pointer_type current1 = begin_iterator.node_pointer->next, current2 = source.begin_iterator.node_pointer->next;
-		node_pointer_type previous = source.begin_iterator.node_pointer;
+		// Link the nodes of both lists in sorted order. When elements are equal, the one from *this goes first, as for std::list::merge:
+		node_pointer_type current1 = begin_iterator.node_pointer, current2 = source.begin_iterator.node_pointer, previous = end_iterator.node_pointer;
 		const node_pointer_type source_end = source.end_iterator.node_pointer, this_end = end_iterator.node_pointer;
 
-		begin_iterator.node_pointer->next = source.begin_iterator.node_pointer;
-		source.begin_iterator.node_pointer->previous = begin_iterator.node_pointer;
-
-
-		while ((current1 != this_end) & (current2 != source_end))
+		while (current1 != this_end && current2 != source_end)
 		{
-			previous->next = current1;
-			current1->previous = previous;
-			previous = current1;
-			current1 = current1->next;
+			node_pointer_type next_node;
 
-			previous->next = current2;
-			current2->previous = previous;
-			previous = current2;
-			current2 = current2->next;
+			if (current2->element < current1->element)
+			{
+				next_node = current2;
+				current2 = current2->next;
+			}
+			else
+			{
+				next_node = current1;
+				current1 = current1->next;
+			}
+
+			previous->next = next_node;
+			next_node->previous = previous;
+			previous = next_node;
 		}
 
 		if (current1 != this_end)
@@ -2400,9 +2403,13 @@ public:
 		}
 		else
 		{
+			previous->next = current2;
+			current2->previous = previous;
 			end_node.previous = source.end_node.previous;
-			source.end_node.previous->next = end_iterator.node_pointer;
+			source.end_node.previous->next = this_end;
 		}
+
+		begin_iterator.node_pointer = end_node.next;
 
 		append_process(source);
 	}
