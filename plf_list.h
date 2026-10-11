@@ -1124,7 +1124,7 @@ public:
 		// Ranges v3 constructor:
 
 		template<plf::compatible_range<element_type> range_type>
-		list(plf::ranges::from_range_t, range_type &&rg, const allocator_type &alloc = allocator_type()):
+		list(plf::from_range_t, range_type &&rg, const allocator_type &alloc = allocator_type()):
 			allocator_type(alloc),
 			end_node(static_cast<node_pointer_type>(&end_node), static_cast<node_pointer_type>(&end_node)),
 			last_endpoint(NULL),
@@ -3332,7 +3332,10 @@ public:
 			#ifdef PLF_DEFAULT_SUPPORT
 				= default;
 			#else
-				: node_pointer(std::move(rh.node_pointer)) {}
+				{
+					node_pointer = source.node_pointer;
+					return *this;
+				}
 			#endif
 
 
@@ -3500,7 +3503,8 @@ public:
 			= default;
 		#else
 			{
-				node_pointer = source.node_pointer;
+				assert (&source != this);
+				node_pointer = std::move(source.node_pointer);
 				return *this;
 			}
 		#endif
