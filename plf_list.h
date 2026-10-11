@@ -2839,7 +2839,7 @@ public:
 
 	#ifdef PLF_MOVE_SEMANTICS_SUPPORT
 		template <class iterator_type>
-		void insert (const std::move_iterator<iterator_type> first, const std::move_iterator<iterator_type> last)
+		void assign (const std::move_iterator<iterator_type> first, const std::move_iterator<iterator_type> last)
 		{
 			range_assign(first, static_cast<size_type>(std::distance(first.base(),last.base())));
 		}
