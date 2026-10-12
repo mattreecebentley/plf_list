@@ -1380,6 +1380,25 @@ int main()
 			failpass("Initializer-list assign test", list1.size() == 10 && test_counter == 1 && passed);
 
 
+			#ifdef PLF_MOVE_SEMANTICS_SUPPORT
+			{
+				plf::list<int> move_list;
+				move_list.push_back(1);
+				move_list.push_back(2);
+
+				std::vector<int> move_source(3, 9);
+
+				move_list.assign(std::make_move_iterator(move_source.begin()), std::make_move_iterator(move_source.end())); // replaces 1 2
+
+				failpass("Move-iterator assign test", move_list.size() == 3 && move_list.front() == 9 && move_list.back() == 9);
+
+				move_list.insert(move_list.end(), std::make_move_iterator(move_source.begin()), std::make_move_iterator(move_source.begin() + 2));
+
+				failpass("Move-iterator insert test", move_list.size() == 5);
+			}
+			#endif
+
+
 			title2("Insert tests");
 
 
