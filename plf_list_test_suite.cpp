@@ -848,6 +848,32 @@ int main()
 	}
 
 
+	{
+		title2("Erase from front capacity test");
+
+		list<int> erased;
+
+		for (int temp = 0; temp != 1000; ++temp)
+		{
+			erased.push_back(temp);
+		}
+
+		while (!erased.empty())
+		{
+			erased.erase(erased.begin()); // Emptied blocks are moved to the back of the block vector, not freed
+		}
+
+		const list<int>::size_type temp_capacity = erased.capacity();
+
+		for (list<int>::size_type temp = 0; temp != temp_capacity; ++temp)
+		{
+			erased.push_back(1);
+		}
+
+		failpass("Erase from front capacity test", erased.capacity() == temp_capacity);
+	}
+
+
 	#ifdef PLF_TYPE_TRAITS_SUPPORT
 	{
 		title2("Trivially copyable iterators tests");
