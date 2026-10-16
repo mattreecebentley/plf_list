@@ -616,14 +616,9 @@ private:
 				else
 			#endif
 			{
-				PLF_CONSTRUCT(group_allocator_type, group_allocator_pair, temp_group, group());
-
 				*temp_group = *group_to_erase;
 				std::copy(group_to_erase + 1, block_pointer + size, group_to_erase);
-				*(block_pointer + --size) = *temp_group;
-
-				temp_group->nodes = NULL;
-				PLF_DESTROY(group_allocator_type, group_allocator_pair, temp_group);
+				*(block_pointer + size - 1) = *temp_group;
 			}
 
 			PLF_DEALLOCATE(group_allocator_type, group_allocator_pair, temp_group, 1);
@@ -3503,7 +3498,7 @@ public:
 		#else
 			{
 				assert (&source != this);
-				node_pointer = std::move(source.node_pointer);
+				node_pointer = source.node_pointer;
 				return *this;
 			}
 		#endif
