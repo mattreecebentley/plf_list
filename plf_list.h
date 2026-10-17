@@ -619,6 +619,9 @@ private:
 				*temp_group = *group_to_erase;
 				std::copy(group_to_erase + 1, block_pointer + size, group_to_erase);
 				*(block_pointer + size - 1) = *temp_group;
+				temp_group->nodes = NULL;
+				temp_group->beyond_end = NULL;
+				PLF_DESTROY(group_allocator_type, group_allocator_pair, temp_group); // Just in case node_pointer_type supplied by allocator is not trivially-destructible
 			}
 
 			PLF_DEALLOCATE(group_allocator_type, group_allocator_pair, temp_group, 1);
@@ -1457,7 +1460,7 @@ public:
 
 		#ifdef PLF_VARIADICS_SUPPORT
 			template<typename... arguments>
-			iterator emplace(const const_iterator it, arguments &&... parameters) 
+			iterator emplace(const const_iterator it, arguments &&... parameters)
 			{
 				return emplace_implementation(it, std::forward<arguments>(parameters) ...);
 			}
