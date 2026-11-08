@@ -138,6 +138,17 @@ struct small_struct_non_trivial
 
 
 
+#ifdef PLF_CPP20_SUPPORT
+	struct weakly_ordered // Compares by key only, so equivalent values can differ
+	{
+		int key, extra;
+		std::weak_ordering operator <=> (const weakly_ordered &source) const { return key <=> source.key; }
+		bool operator == (const weakly_ordered &source) const { return key == source.key; }
+	};
+#endif
+
+
+
 int main()
 {
 	freopen("errors.log","w", stderr);
@@ -569,6 +580,20 @@ int main()
 
 		#ifdef PLF_CPP20_SUPPORT
 			failpass("Spaceship operator test", (p_list2 <=> p_list3) != std::strong_ordering::equal);
+
+			{ // The comparison category must be the element type's, so lists of partially and weakly ordered types can be compared:
+				list<double> d_list1 = {1.0, 2.0}, d_list2 = {1.0, 3.0}, nan_list = {std::numeric_limits<double>::quiet_NaN()};
+				static_assert(std::is_same_v<decltype(d_list1 <=> d_list2), std::partial_ordering>);
+				failpass("Spaceship operator partial_ordering test", d_list1 < d_list2 && d_list2 > d_list1 && d_list1 <= d_list1 && (nan_list <=> nan_list) == std::partial_ordering::unordered);
+
+				list<weakly_ordered> w_list1 = {{1, 0}, {2, 0}}, w_list2 = {{1, 5}, {2, 6}}, w_list3 = {{1, 0}, {3, 0}};
+				static_assert(std::is_same_v<decltype(w_list1 <=> w_list2), std::weak_ordering>);
+				failpass("Spaceship operator weak_ordering test", (w_list1 <=> w_list2) == std::weak_ordering::equivalent && w_list1 < w_list3);
+
+				list<int> i_list1 = {1, 2}, i_list2 = {1, 3};
+				static_assert(std::is_same_v<decltype(i_list1 <=> i_list2), std::strong_ordering>);
+				failpass("Spaceship operator strong_ordering test", i_list1 < i_list2 && i_list2 >= i_list1);
+			}
 		#endif
 
 		numtotal = 0;
