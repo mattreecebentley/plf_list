@@ -318,7 +318,7 @@ private:
 		void blank() PLF_NOEXCEPT
 		{
 			#ifdef PLF_IS_ALWAYS_EQUAL_SUPPORT // allocator_traits and type_traits always available when is_always_equal is available
-				if PLF_CONSTEXPR (std::is_standard_layout<group_vector>::value && std::allocator_traits<allocator_type>::is_always_equal::value && std::is_trivially_destructible<group_pointer_type>::value)
+				if PLF_CONSTEXPR_NOT_CONSTEVAL(std::is_standard_layout<group_vector>::value && std::allocator_traits<allocator_type>::is_always_equal::value && std::is_trivially_destructible<group_pointer_type>::value)
 				{
 					std::memset(static_cast<void *>(this), 0, sizeof(group_vector));
 				}
@@ -354,7 +354,7 @@ private:
 			group_vector & operator = (group_vector &&source) PLF_NOEXCEPT
 			{
 				#ifdef PLF_IS_ALWAYS_EQUAL_SUPPORT
-					if PLF_CONSTEXPR ((std::is_trivially_copyable<allocator_type>::value || std::allocator_traits<allocator_type>::is_always_equal::value) && std::is_trivially_copyable<group_pointer_type>::value)
+					if PLF_CONSTEXPR_NOT_CONSTEVAL((std::is_trivially_copyable<allocator_type>::value || std::allocator_traits<allocator_type>::is_always_equal::value) && std::is_trivially_copyable<group_pointer_type>::value)
 					{
 						std::memcpy(static_cast<void *>(this), static_cast<void *>(&source), sizeof(group_vector));
 					}
@@ -485,7 +485,7 @@ private:
 			block_pointer = PLF_ALLOCATE(group_allocator_type, group_allocator_pair, new_capacity, 0);
 
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
-				if PLF_CONSTEXPR (std::is_trivially_copy_constructible<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
+				if PLF_CONSTEXPR_NOT_CONSTEVAL(std::is_trivially_copy_constructible<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{
 					std::memcpy(plf::void_cast(block_pointer), plf::void_cast(old_block), sizeof(group) * size);
 				}
@@ -594,7 +594,7 @@ private:
 			group *temp_group = PLF_ALLOCATE(group_allocator_type, group_allocator_pair, 1, NULL);
 
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
-				if PLF_CONSTEXPR (std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
+				if PLF_CONSTEXPR_NOT_CONSTEVAL(std::is_trivially_copyable<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{
 					std::memcpy(plf::void_cast(temp_group), plf::void_cast(group_to_erase), sizeof(group));
 					std::memmove(plf::void_cast(group_to_erase), plf::void_cast(group_to_erase + 1), sizeof(group) * ((size - 1) - static_cast<size_type>(PLF_TO_ADDRESS(group_to_erase) - PLF_TO_ADDRESS(block_pointer))));
@@ -763,7 +763,7 @@ private:
 		void swap(group_vector &source) PLF_NOEXCEPT_SWAP(group_allocator_type)
 		{
 			#ifdef PLF_IS_ALWAYS_EQUAL_SUPPORT
-				if PLF_CONSTEXPR (std::allocator_traits<allocator_type>::is_always_equal::value && std::is_trivially_copyable<group_pointer_type>::value) // if all pointer types are trivial we can just copy using memcpy - avoids constructors/destructors etc and is faster
+				if PLF_CONSTEXPR_NOT_CONSTEVAL(std::allocator_traits<allocator_type>::is_always_equal::value && std::is_trivially_copyable<group_pointer_type>::value) // if all pointer types are trivial we can just copy using memcpy - avoids constructors/destructors etc and is faster
 				{
 					char temp[sizeof(group_vector)];
 					std::memcpy(static_cast<void *>(&temp), static_cast<void *>(this), sizeof(group_vector));
@@ -833,7 +833,7 @@ private:
 			if (size + source.size > group_allocator_pair.capacity) expand_capacity(size + source.size);
 
 			#ifdef PLF_TYPE_TRAITS_SUPPORT
-				if PLF_CONSTEXPR (std::is_trivially_copy_constructible<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
+				if PLF_CONSTEXPR_NOT_CONSTEVAL(std::is_trivially_copy_constructible<node_pointer_type>::value && std::is_trivially_destructible<node_pointer_type>::value)
 				{
 					std::memcpy(plf::void_cast(block_pointer + size), plf::void_cast(source.block_pointer), sizeof(group) * source.size);
 				}
