@@ -899,10 +899,10 @@ public:
 
 	PLF_CONSTFUNC list() PLF_NOEXCEPT_ALLOCATOR:
 		groups(*this),
-		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+		end_node(node_pointer_type(reinterpret_cast<node *>(&end_node)), node_pointer_type(reinterpret_cast<node *>(&end_node))),
 		last_endpoint(NULL),
-		end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-		begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+		end_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
+		begin_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
 		total_size(0),
 		node_allocator_pair(0, *this)
 	{}
@@ -914,10 +914,10 @@ public:
 	explicit list(const allocator_type &alloc):
 		allocator_type(alloc),
 		groups(alloc),
-		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+		end_node(node_pointer_type(reinterpret_cast<node *>(&end_node)), node_pointer_type(reinterpret_cast<node *>(&end_node))),
 		last_endpoint(NULL),
-		end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-		begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+		end_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
+		begin_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
 		total_size(0),
 		node_allocator_pair(0, alloc)
 	{}
@@ -933,10 +933,10 @@ public:
 			allocator_type(source),
 		#endif
 		groups(*this),
-		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+		end_node(node_pointer_type(reinterpret_cast<node *>(&end_node)), node_pointer_type(reinterpret_cast<node *>(&end_node))),
 		last_endpoint(NULL),
-		end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-		begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+		end_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
+		begin_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
 		total_size(0),
 		node_allocator_pair(0, *this)
 	{
@@ -954,10 +954,10 @@ public:
 	#endif
 		allocator_type(alloc),
 		groups(alloc),
-		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+		end_node(node_pointer_type(reinterpret_cast<node *>(&end_node)), node_pointer_type(reinterpret_cast<node *>(&end_node))),
 		last_endpoint(NULL),
-		end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-		begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+		end_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
+		begin_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
 		total_size(0),
 		node_allocator_pair(0, alloc)
 	{
@@ -970,8 +970,8 @@ private:
 
 	void blank() PLF_NOEXCEPT
 	{
-		end_node.next = reinterpret_cast<node_pointer_type>(&end_node);
-		end_node.previous = reinterpret_cast<node_pointer_type>(&end_node);
+		end_node.next = node_pointer_type(reinterpret_cast<node *>(&end_node));
+		end_node.previous = node_pointer_type(reinterpret_cast<node *>(&end_node));
 		last_endpoint = NULL;
 		begin_iterator.node_pointer = end_iterator.node_pointer;
 		total_size = 0;
@@ -998,8 +998,8 @@ public:
 			groups(std::move(source.groups)),
 			end_node(std::move(source.end_node)),
 			last_endpoint(std::move(source.last_endpoint)),
-			end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-			begin_iterator((source.begin_iterator.node_pointer == source.end_iterator.node_pointer) ? reinterpret_cast<node_pointer_type>(&end_node) : std::move(source.begin_iterator)),
+			end_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
+			begin_iterator((source.begin_iterator.node_pointer == source.end_iterator.node_pointer) ? node_pointer_type(reinterpret_cast<node *>(&end_node)) : std::move(source.begin_iterator)),
 			total_size(source.total_size),
 			node_allocator_pair(source.node_allocator_pair.number_of_erased_nodes, source)
 		{
@@ -1021,8 +1021,8 @@ public:
 			groups(std::move(source.groups)),
 			end_node(std::move(source.end_node)),
 			last_endpoint(std::move(source.last_endpoint)),
-			end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-			begin_iterator((source.begin_iterator.node_pointer == source.end_iterator.node_pointer) ? reinterpret_cast<node_pointer_type>(&end_node) : std::move(source.begin_iterator)),
+			end_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
+			begin_iterator((source.begin_iterator.node_pointer == source.end_iterator.node_pointer) ? node_pointer_type(reinterpret_cast<node *>(&end_node)) : std::move(source.begin_iterator)),
 			total_size(source.total_size),
 			node_allocator_pair(source.node_allocator_pair.number_of_erased_nodes, alloc)
 		{
@@ -1051,10 +1051,10 @@ public:
 	list(const size_type fill_number, const element_type &element, const allocator_type &alloc = allocator_type()):
 		allocator_type(alloc),
 		groups(alloc),
-		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+		end_node(node_pointer_type(reinterpret_cast<node *>(&end_node)), node_pointer_type(reinterpret_cast<node *>(&end_node))),
 		last_endpoint(NULL),
-		end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-		begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+		end_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
+		begin_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
 		total_size(0),
 		node_allocator_pair(0, alloc)
 	{
@@ -1068,10 +1068,10 @@ public:
 	list(const size_type fill_number, const allocator_type &alloc = allocator_type()):
 		allocator_type(alloc),
 		groups(alloc),
-		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+		end_node(node_pointer_type(reinterpret_cast<node *>(&end_node)), node_pointer_type(reinterpret_cast<node *>(&end_node))),
 		last_endpoint(NULL),
-		end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-		begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+		end_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
+		begin_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
 		total_size(0),
 		node_allocator_pair(0, alloc)
 	{
@@ -1086,10 +1086,10 @@ public:
 	list(const typename plf::enable_if<!std::numeric_limits<iterator_type>::is_integer, iterator_type>::type &first, const iterator_type &last, const allocator_type &alloc = allocator_type()):
 		allocator_type(alloc),
 		groups(alloc),
-		end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+		end_node(node_pointer_type(reinterpret_cast<node *>(&end_node)), node_pointer_type(reinterpret_cast<node *>(&end_node))),
 		last_endpoint(NULL),
-		end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-		begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+		end_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
+		begin_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
 		total_size(0),
 		node_allocator_pair(0, alloc)
 	{
@@ -1104,10 +1104,10 @@ public:
 		list(const std::initializer_list<element_type> &element_list, const allocator_type &alloc = allocator_type()):
 			allocator_type(alloc),
 			groups(alloc),
-			end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+			end_node(node_pointer_type(reinterpret_cast<node *>(&end_node)), node_pointer_type(reinterpret_cast<node *>(&end_node))),
 			last_endpoint(NULL),
-			end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-			begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+			end_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
+			begin_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
 			total_size(0),
 			node_allocator_pair(0, alloc)
 		{
@@ -1124,10 +1124,10 @@ public:
 		template<plf::compatible_range<element_type> range_type>
 		list(plf::from_range_t, range_type &&rg, const allocator_type &alloc = allocator_type()):
 			allocator_type(alloc),
-			end_node(reinterpret_cast<node_pointer_type>(&end_node), reinterpret_cast<node_pointer_type>(&end_node)),
+			end_node(node_pointer_type(reinterpret_cast<node *>(&end_node)), node_pointer_type(reinterpret_cast<node *>(&end_node))),
 			last_endpoint(NULL),
-			end_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
-			begin_iterator(reinterpret_cast<node_pointer_type>(&end_node)),
+			end_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
+			begin_iterator(node_pointer_type(reinterpret_cast<node *>(&end_node))),
 			total_size(0),
 			node_allocator_pair(0, alloc)
 		{
