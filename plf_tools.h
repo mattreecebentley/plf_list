@@ -258,6 +258,13 @@
 	#endif
 
 
+	#ifdef PLF_CPP20_SUPPORT
+		#define PLF_TO_ADDRESS(pointer) std::to_address(pointer)
+	#else
+		#define PLF_TO_ADDRESS(pointer) &*(pointer)
+	#endif
+
+
 	#ifdef PLF_ALLOCATOR_TRAITS_SUPPORT
 		#ifdef PLF_VARIADICS_SUPPORT
 			#define PLF_CONSTRUCT(the_allocator, allocator_instance, location, ...) std::allocator_traits<the_allocator>::construct(allocator_instance, PLF_TO_ADDRESS(location), __VA_ARGS__)
@@ -361,14 +368,6 @@
 				return value == compare_value;
 			}
 		};
-
-
-
-		#ifdef PLF_CPP20_SUPPORT
-			#define PLF_TO_ADDRESS(pointer) std::to_address(pointer)
-		#else
-			#define PLF_TO_ADDRESS(pointer) &*(pointer)
-		#endif
 
 
 
@@ -705,7 +704,7 @@
 			{
 				for (; begin != end; ++begin, ++destination)
 				{
-					PLF_CONSTRUCT(allocator_type, alloc, PLF_TO_ADDRESS(destination), *begin);
+					PLF_CONSTRUCT(allocator_type, alloc, destination, *begin);
 				}
 			}
 		}
@@ -739,7 +738,7 @@
 			{
 				for (; size != 0; ++begin, --size)
 				{
-					PLF_CONSTRUCT(allocator_type, alloc, PLF_TO_ADDRESS(begin), element);
+					PLF_CONSTRUCT(allocator_type, alloc, begin, element);
 				}
 			}
 		}
