@@ -2921,7 +2921,7 @@ public:
 
 	allocator_type get_allocator() const PLF_NOEXCEPT
 	{
-		return allocator_type();
+		return static_cast<allocator_type>(*this);
 	}
 
 
